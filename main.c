@@ -19,16 +19,20 @@
 		managed_block_new(Block_copy(^ x)) \
 	)
 
+// EXAMPLE: Maybe a
+// data Maybe a b = Just a | Nothing
+#define _DATA_MAYBE__MAYBE__JUST 1
+#define _DATA_MAYBE__MAYBE__NOTHING 2
+
 struct purs_any_t * maybe(struct purs_any_t * b) {
 	return MANAGED_BLOCK((struct purs_any_t * f) {
 		return MANAGED_BLOCK((struct purs_any_t * mA) {
 			struct purs_cons_t * cons = purs_any_get_cons (mA);
-			printf("cons tag: %d\n", cons->tag);
 			switch (cons->tag) {
 				case _DATA_MAYBE__MAYBE__JUST: {
-					return mA;
-					/* return (struct purs_any_t *) NULL; */
-					/* return b; */
+					// TODO: account for `f` being an ABS (not ABS_BLOCK)
+					struct managed_block_t * f0 = purs_any_get_abs_block(f);
+					return (struct purs_any_t *)((abs_block_t)f0->block)(cons->value);
 				}
 				case _DATA_MAYBE__MAYBE__NOTHING: {
 					return b;
@@ -39,12 +43,12 @@ struct purs_any_t * maybe(struct purs_any_t * b) {
 	});
 }
 
-void main_1 () {
+void main_1 (struct purs_any_t * f0) {
 
 	struct purs_any_t * a1 = maybe(NULL);
 	struct managed_block_t * b1 = purs_any_get_abs_block(a1);
 
-	struct purs_any_t * a2 = ((abs_block_t)b1->block)(NULL);
+	struct purs_any_t * a2 = ((abs_block_t)b1->block)(f0);
 	struct managed_block_t * b2 = purs_any_get_abs_block(a2);
 
 	struct purs_cons_t * x0 = GC_NEW(struct purs_cons_t);
@@ -63,13 +67,26 @@ void main_1 () {
 	// TODO: construct a real `Maybe` and pass in
 	struct purs_any_t * a4 = ((abs_block_t)b2->block)(x1);
 	printf("tag: %p\n", a4);
-	printf("tag: %d, value: %d\n", a4->tag, purs_any_get_int(purs_any_get_cons(a4)->value));
+	if (a4 != NULL) {
+		printf("tag: %d, value: %d\n", a4->tag, a4->value);
+	}
 }
 
 int main () {
 	GC_INIT();
+
+	int * k = GC_MALLOC(100);
+	*k = 100;
+
+	struct purs_any_t * f0 = MANAGED_BLOCK((struct purs_any_t * a) {
+		return purs_any_set_int(
+			GC_NEW(struct purs_any_t),
+			*k // 200
+		);
+	});
+
 	while (1) {
-		main_1();
+		main_1(f0);
 		usleep(100);
 	}
 	return 0;

@@ -27,12 +27,6 @@ struct purs_cons_t * purs_cons_set(
 	int tag,
 	struct purs_any_t * value);
 
-// EXAMPLE: Maybe a
-// data Maybe a b = Just a | Nothing
-// TODO: remove
-#define _DATA_MAYBE__MAYBE__JUST 1
-#define _DATA_MAYBE__MAYBE__NOTHING 2
-
 enum purs_any_tag_t {
 	INT = 0,       // integer
 	FLOAT = 1,     // float
