@@ -7,6 +7,10 @@
 #include "Block.h"
 #include "purescript_runtime.h"
 
+void freer(void * ptr, void * x) {
+  GC_free(ptr);
+}
+
 // -----------------------------------------------------------------------------
 
 #define MANAGED_C_STRING(x) \
@@ -74,23 +78,45 @@ void main_1 (purs_any_t * f0) {
 	}
 }
 
+typedef struct purs_record purs_record_t;
+struct purs_record {
+  char name[255];
+  purs_any_t * val;
+  UT_hash_handle hh;
+};
+
+void foo () {
+	purs_record_t * rec = NULL;
+	int n = 0;
+	while (n < 50000) {
+		n++;
+		purs_record_t * rec0 = GC_NEW(purs_record_t);
+		/* strcpy(rec0->name, "foobar"); */
+		/* rec0->val = NULL; */
+		HASH_ADD_STR(rec, name, rec0);
+		usleep(100);
+	}
+	printf("done here\n");
+}
+
 int main () {
 	GC_INIT();
 
-	int * k = GC_MALLOC(100);
-	*k = 100;
+	/* purs_any_t * f0 = MANAGED_BLOCK((purs_any_t * a) { */
+	/* 	return purs_any_set_int( */
+	/* 		GC_NEW(purs_any_t), */
+	/* 		200 */
+	/* 	); */
+	/* }); */
 
-	purs_any_t * f0 = MANAGED_BLOCK((purs_any_t * a) {
-		return purs_any_set_int(
-			GC_NEW(purs_any_t),
-			*k // 200
-		);
-	});
+	/* main_1(f0); */
+	foo();
+
+	GC_gcollect();
 
 	while (1) {
-		/* hcreate(30); */
-		main_1(f0);
-		usleep(100);
+		usleep(10000);
 	}
+
 	return 0;
 }
