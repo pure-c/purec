@@ -25,13 +25,9 @@ typedef purs_any_t * (*abs_t) (purs_any_t*);
 
 struct purs_cons {
 	int tag;
-	purs_any_t * value;
+	purs_any_t ** values;
+	int len;
 };
-
-purs_cons_t * purs_cons_set(
-	purs_cons_t * cons,
-	int tag,
-	purs_any_t * value);
 
 enum purs_any_tag {
 	INT = 0,       // integer
@@ -46,9 +42,9 @@ union purs_any_value {
 	int num_int;
 	float num_float;
 	abs_t * fn;
-	char* c_string;
+	char * c_string;
 	managed_block_t * block;
-	purs_cons_t * cons;
+	purs_cons_t cons;
 };
 
 struct purs_any {
@@ -56,7 +52,6 @@ struct purs_any {
 	purs_any_value_t value;
 };
 
-void *            purs_any_get (purs_any_tag_t, purs_any_t *);
 abs_t             purs_any_get_abs       (purs_any_t *);
 int               purs_any_get_int       (purs_any_t *);
 managed_block_t * purs_any_get_abs_block (purs_any_t *);
@@ -66,7 +61,7 @@ purs_any_t * purs_any_set_abs       (purs_any_t *, abs_t *);
 purs_any_t * purs_any_set_abs_block (purs_any_t *, managed_block_t *);
 purs_any_t * purs_any_set_float     (purs_any_t *, float);
 purs_any_t * purs_any_set_int       (purs_any_t *, int);
-purs_any_t * purs_any_set_cons      (purs_any_t *, purs_cons_t *);
+purs_any_t * purs_any_set_cons      (purs_any_t *, purs_cons_t);
 purs_any_t * purs_any_set_c_string  (purs_any_t *, char *);
 
 #endif // PURESCRIPT_RUNTIME_H
