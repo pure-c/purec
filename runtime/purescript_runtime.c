@@ -40,11 +40,11 @@ abs_t purs_any_get_abs (purs_any_t * x) {
 	}
 }
 
-int purs_any_get_int (purs_any_t * x) {
+int * purs_any_get_int (purs_any_t * x) {
 	if (x->tag == INT) {
-		return x->value.num_int;
+		return &x->value.num_int;
 	} else {
-		return -1;
+		return NULL;
 	}
 }
 

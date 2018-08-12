@@ -2,6 +2,9 @@
 #define PURESCRIPT_RUNTIME_H
 
 #include "Block.h"
+#include <gc.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 // -----------------------------------------------------------------------------
 // managed blocks: automatically finalized Blocks
@@ -55,7 +58,7 @@ struct purs_any {
 };
 
 abs_t             purs_any_get_abs       (purs_any_t *);
-int               purs_any_get_int       (purs_any_t *);
+int *             purs_any_get_int       (purs_any_t *);
 managed_block_t * purs_any_get_abs_block (purs_any_t *);
 purs_cons_t *     purs_any_get_cons      (purs_any_t *);
 

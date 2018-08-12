@@ -1,6 +1,6 @@
 #include "Data.Maybe.h"
 
-purs_any_t Data_Maybe_Nothing =
+purs_any_t _Data_Maybe_Nothing =
 	{
 		.tag = CONS,
 		.value = {
@@ -9,6 +9,7 @@ purs_any_t Data_Maybe_Nothing =
 			}
 		}
 	};
+purs_any_t * Data_Maybe_Nothing = &_Data_Maybe_Nothing;
 
 purs_any_t * Data_Maybe_Just (purs_any_t * value0) {
 	purs_any_t ** values = GC_MALLOC(sizeof (purs_any_t*[1]));
@@ -30,17 +31,22 @@ Data_Show_Show * Data_Maybe_showMaybe (Data_Show_Show * dictShow) {
 				purs_cons_t * value1 = purs_any_get_cons(x);
 
 				if (value1->tag == Data_Maybe_Just__Tag) {
-					return purs_any_app(Data_Show_show(dictShow), value1->values[0]);
+					purs_any_t * x = purs_any_app(Data_Show_show(dictShow), value1->values[0]);
+					char * y = GC_MALLOC(100); // XXX figure out how to work with strings
+					sprintf(y, "(Just %s)", x->value.c_string); // XXX use purs_any_get_string
+					return purs_any_set_c_string(
+						GC_NEW(purs_any_t),
+						y
+					);
 				}
 
 				if (value1->tag == Data_Maybe_Nothing__Tag) {
-					char * x = GC_MALLOC(100);
-					strcpy(x, "Nothing");
-					purs_any_t * y = purs_any_set_c_string(
+					char * x = GC_MALLOC(100); // XXX figure out how to work with strings
+					strcpy(x, "(Nothing)");
+					return purs_any_set_c_string(
 						GC_NEW(purs_any_t),
 						x
 					);
-					return y;
 				}
 
 				return (purs_any_t *) NULL; /* failed pattern match */
