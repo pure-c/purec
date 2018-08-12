@@ -1,6 +1,8 @@
 #ifndef PURESCRIPT_RUNTIME_H
 #define PURESCRIPT_RUNTIME_H
 
+#include "Block.h"
+
 // -----------------------------------------------------------------------------
 // managed blocks: automatically finalized Blocks
 // -----------------------------------------------------------------------------
@@ -63,5 +65,13 @@ purs_any_t * purs_any_set_float     (purs_any_t *, float);
 purs_any_t * purs_any_set_int       (purs_any_t *, int);
 purs_any_t * purs_any_set_cons      (purs_any_t *, purs_cons_t);
 purs_any_t * purs_any_set_c_string  (purs_any_t *, char *);
+
+purs_any_t * purs_any_app (purs_any_t * x, purs_any_t * arg);
+
+#define PURS_ANY_BLOCK(x) \
+	purs_any_set_abs_block( \
+		GC_NEW(purs_any_t), \
+		managed_block_new(Block_copy(^ x)) \
+	)
 
 #endif // PURESCRIPT_RUNTIME_H

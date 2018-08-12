@@ -69,3 +69,20 @@ PURS_ANY_SET_IMPL(purs_any_set_float, float, FLOAT, num_float)
 PURS_ANY_SET_IMPL(purs_any_set_int, int, INT, num_int)
 PURS_ANY_SET_IMPL(purs_any_set_cons, purs_cons_t, CONS, cons)
 PURS_ANY_SET_IMPL(purs_any_set_c_string, char *, C_STRING, c_string)
+
+purs_any_t * purs_any_app (purs_any_t * x, purs_any_t * arg) {
+	void * f;
+	managed_block_t * b;
+
+	b = purs_any_get_abs_block(x);
+	if (b != NULL) {
+		return ((abs_block_t) b->block)(arg);
+	}
+
+	f = purs_any_get_abs(x);
+	if (f != NULL) {
+		return ((abs_t) f)(arg);
+	}
+
+	return NULL;
+}

@@ -2,7 +2,9 @@
 #define DATA_MAYBE_H
 
 #include <gc.h>
+#include <string.h>
 #include "purescript_runtime.h"
+#include "Data.Show.h"
 
 #define Data_Maybe_Nothing__Tag 1
 #define Data_Maybe_Just__Tag 2
@@ -30,10 +32,29 @@ purs_any_t * Data_Maybe_Just (purs_any_t * value0) {
 	);
 }
 
-int main () {
-	purs_any_t * x = Data_Maybe_Just(&Data_Maybe_Nothing);
-	printf("%d\n", x->value.cons.values[0]->value.cons.tag);
-	return 0;
+Data_Show_Show * Data_Maybe_showMaybe (Data_Show_Show * dictShow) {
+	Data_Show_Show * value0 = GC_NEW(Data_Show_Show);
+	value0->show =
+		PURS_ANY_BLOCK((purs_any_t * x) {
+				purs_cons_t * value1 = purs_any_get_cons(x);
+
+				if (value1->tag == Data_Maybe_Just__Tag) {
+					return purs_any_app(Data_Show_show(dictShow), value1->values[0]);
+				}
+
+				if (value1->tag == Data_Maybe_Nothing__Tag) {
+					char * x = GC_MALLOC(100);
+					strcpy(x, "foobar");
+					purs_any_t * y = purs_any_set_c_string(
+						GC_NEW(purs_any_t),
+						x
+					);
+					return y;
+				}
+
+				return (purs_any_t *) NULL; /* failed pattern match */
+		});
+	return value0;
 }
 
 #endif // DATA_MAYBE_H

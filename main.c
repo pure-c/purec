@@ -105,62 +105,7 @@ struct purs_record {
 /*     UT_hash_handle hh;         /\* makes this structure hashable *\/ */
 /* }; */
 
-
-/* int main(int argc, char *argv[]) { */
-/*     const char *names[] = { "joe", "bob", "betty", NULL }; */
-/*     struct my_struct *s, *tmp, *users = NULL; */
-
-/*     for (int i = 0; names[i]; ++i) { */
-/*         s = (struct my_struct *)malloc(sizeof *s); */
-/*         s->name = names[i]; */
-/*         s->id = i; */
-/*         HASH_ADD_KEYPTR( hh, users, s->name, strlen(s->name), s ); */
-/*     } */
-
-void foo () {
-}
-
-/* void foo () { */
-/* 	purs_record_t * recs = NULL; */
-/* 	int n; */
-/* 	purs_record_t * recss [50000]; */
-/* 	for (n = 0; n < 50000; n++) { */
-/* 		void * x = malloc(10000); */
-/* 		/\* purs_record_t * rec0 = GC_NEW(purs_record_t); *\/ */
-/* 		/\* recss[n] = malloc(1024); *\/ */
-/* 		/\* recss[n] = GC_MALLOC(1024); *\/ */
-/* 		/\* strcpy(rec0->name, "foobar"); *\/ */
-/* 		/\* rec0->val = NULL; *\/ */
-/* 		/\* HASH_ADD_STR(recs, name, rec0); *\/ */
-/* 		usleep(100); */
-/* 	} */
-
-/*     /\* /\\* free the hash table contents *\\/ *\/ */
-/* 	/\* purs_record_t * s, * tmp = NULL; *\/ */
-/*     /\* HASH_ITER(hh, recs, s, tmp) { *\/ */
-/*     /\*   HASH_DEL(recs, s); *\/ */
-/*     /\*   GC_FREE(s); *\/ */
-/*     /\* } *\/ */
-
-/* 	printf("done here\n"); */
-
-/* 	/\* for (n = 0; n < 50000; n++) { *\/ */
-/* 	/\* 	free(recss[n]); *\/ */
-/* 	/\* 	recss[n] = NULL; *\/ */
-/* 	/\* } *\/ */
-/* 	/\* *recss = NULL; *\/ */
-
-/* } */
-
 int main () {
 	GC_INIT();
-
-	purs_any_t * f0 = MANAGED_BLOCK((purs_any_t * a) {
-		return purs_any_set_int(
-			GC_NEW(purs_any_t),
-			200
-		);
-	});
-
 	return 0;
 }
