@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "vendor/utf8.h"
+#include "ccan/asprintf/asprintf.h"
 
 // -----------------------------------------------------------------------------
 // managed data: garbage collected data

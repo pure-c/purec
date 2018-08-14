@@ -10,8 +10,7 @@ Data_Show_Show * Data_Maybe_showInt () {
 		PURS_ANY_BLOCK((purs_any_t * i) {
 			int * value0 = purs_any_get_int(i);
 			if (value0 != NULL) {
-				char * r;
-				asprintf(&r, "%i", *value0);
+				char * r = afmt("%i", *value0);
 				return purs_any_set_string(
 					GC_NEW(purs_any_t),
 					managed_utf8str_new(r)
