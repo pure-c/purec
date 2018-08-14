@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <uthash.h>
 #include "Block.h"
-#include "purescript_runtime.h"
+#include "runtime/purescript.h"
 
 void purs_uthash_free (void * ptr, void *x) {
 	GC_free(ptr);
@@ -26,12 +26,6 @@ void * purs_uthash_malloc (size_t size) {
 }
 
 // -----------------------------------------------------------------------------
-
-#define MANAGED_C_STRING(x) \
-	purs_any_set_c_string( \
-		GC_NEW(purs_any_t), \
-		x \
-	)
 
 #define MANAGED_BLOCK(x) \
 	purs_any_set_abs_block( \

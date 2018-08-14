@@ -1,7 +1,7 @@
 #ifndef EXAMPLE_H
 #define EXAMPLE_H
 
-#include "purescript_runtime.h"
+#include "runtime/purescript.h"
 
 purs_any_t * foo ();
 

@@ -5,17 +5,34 @@
 #include <gc.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
+#include "vendor/utf8.h"
 
 // -----------------------------------------------------------------------------
-// managed blocks: automatically finalized Blocks
+// managed data: garbage collected data
 // -----------------------------------------------------------------------------
 
-typedef struct managed_block managed_block_t;
-struct managed_block {
-	void * block;
+typedef struct managed managed_t;
+struct managed {
+	void * data;
 };
 
+
+typedef void (*managed_release_func)(managed_t * managed);
+managed_t * managed_new(void * data, managed_release_func release);
+
+// -----------------------------------------------------------------------------
+// managed blocks
+// -----------------------------------------------------------------------------
+
+typedef managed_t managed_block_t;
 managed_block_t * managed_block_new (void * block);
+
+// -----------------------------------------------------------------------------
+// managed utf8 strings
+// -----------------------------------------------------------------------------
+typedef managed_t managed_utf8str_t;
+managed_utf8str_t * managed_utf8str_new (void *);
 
 // -----------------------------------------------------------------------------
 // any: dynamically typed values
@@ -40,14 +57,14 @@ enum purs_any_tag {
 	ABS = 2,       // abstraction
 	ABS_BLOCK = 3, // lambda abstraction
 	CONS = 4,      // data constructor
-	C_STRING = 5,  // NUL terminated C-String
+	STRING = 6,    // UTF8 string
 };
 
 union purs_any_value {
 	int num_int;
 	float num_float;
 	abs_t * fn;
-	char * c_string;
+	managed_utf8str_t * string;
 	managed_block_t * block;
 	purs_cons_t cons;
 };
@@ -57,19 +74,20 @@ struct purs_any {
 	purs_any_value_t value;
 };
 
-abs_t             purs_any_get_abs       (purs_any_t *);
-int *             purs_any_get_int       (purs_any_t *);
-managed_block_t * purs_any_get_abs_block (purs_any_t *);
-purs_cons_t *     purs_any_get_cons      (purs_any_t *);
+abs_t               purs_any_get_abs       (purs_any_t *);
+int *               purs_any_get_int       (purs_any_t *);
+managed_block_t *   purs_any_get_abs_block (purs_any_t *);
+purs_cons_t *       purs_any_get_cons      (purs_any_t *);
+managed_utf8str_t * purs_any_get_string    (purs_any_t *);
 
 purs_any_t * purs_any_set_abs       (purs_any_t *, abs_t *);
-purs_any_t * purs_any_set_abs_block (purs_any_t *, managed_block_t *);
+purs_any_t * purs_any_set_abs_block (purs_any_t *, managed_t *);
 purs_any_t * purs_any_set_float     (purs_any_t *, float);
 purs_any_t * purs_any_set_int       (purs_any_t *, int);
 purs_any_t * purs_any_set_cons      (purs_any_t *, purs_cons_t);
-purs_any_t * purs_any_set_c_string  (purs_any_t *, char *);
+purs_any_t * purs_any_set_string    (purs_any_t *, void *);
 
-purs_any_t * purs_any_app (purs_any_t * x, purs_any_t * arg);
+purs_any_t * purs_any_app (purs_any_t *, purs_any_t * arg);
 
 #define PURS_ANY_BLOCK(x) \
 	purs_any_set_abs_block( \

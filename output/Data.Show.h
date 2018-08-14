@@ -1,7 +1,7 @@
 #ifndef DATA_SHOW_H
 #define DATA_SHOW_H
 
-#include "purescript_runtime.h"
+#include "runtime/purescript.h"
 
 typedef struct {
 	purs_any_t * show;

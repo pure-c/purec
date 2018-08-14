@@ -32,24 +32,25 @@ Data_Show_Show * Data_Maybe_showMaybe (Data_Show_Show * dictShow) {
 
 				if (value1->tag == Data_Maybe_Just__Tag) {
 					purs_any_t * x = purs_any_app(Data_Show_show(dictShow), value1->values[0]);
-					char * y = GC_MALLOC(100); // XXX figure out how to work with strings
-					sprintf(y, "(Just %s)", x->value.c_string); // XXX use purs_any_get_string
-					return purs_any_set_c_string(
+
+					char * r;
+					asprintf(&r, "(Just %s)", x->value.string->data);
+					return purs_any_set_string(
 						GC_NEW(purs_any_t),
-						y
+						managed_utf8str_new(r)
 					);
 				}
 
 				if (value1->tag == Data_Maybe_Nothing__Tag) {
-					char * x = GC_MALLOC(100); // XXX figure out how to work with strings
-					strcpy(x, "(Nothing)");
-					return purs_any_set_c_string(
+					char * r;
+					asprintf(&r, "(Nothing)");
+					return purs_any_set_string(
 						GC_NEW(purs_any_t),
-						x
+						managed_utf8str_new(r)
 					);
 				}
 
-				return (purs_any_t *) NULL; /* failed pattern match */
+				assert(0);
 		});
 	return value0;
 }

@@ -1,9 +1,7 @@
 #ifndef DATA_MAYBE_H
 #define DATA_MAYBE_H
 
-#include <gc.h>
-#include <string.h>
-#include "purescript_runtime.h"
+#include "runtime/purescript.h"
 #include "Data.Show.h"
 
 #define Data_Maybe_Nothing__Tag 1
