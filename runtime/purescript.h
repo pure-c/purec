@@ -89,6 +89,7 @@ purs_any_t * purs_any_set_cons      (purs_any_t *, purs_cons_t);
 purs_any_t * purs_any_set_string    (purs_any_t *, void *);
 
 purs_any_t * purs_any_app (purs_any_t *, purs_any_t * arg);
+purs_any_t * purs_any_concat(purs_any_t *, purs_any_t *);
 
 #define PURS_ANY_BLOCK(x) \
 	purs_any_set_abs_block( \

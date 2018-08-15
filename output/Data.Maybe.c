@@ -29,27 +29,33 @@ Data_Show_Show * Data_Maybe_showMaybe (Data_Show_Show * dictShow) {
 	value0->show =
 		PURS_ANY_BLOCK((purs_any_t * x) {
 				purs_cons_t * value1 = purs_any_get_cons(x);
-
 				if (value1->tag == Data_Maybe_Just__Tag) {
-					purs_any_t * x = purs_any_app(Data_Show_show(dictShow), value1->values[0]);
-
-					char * r;
-					asprintf(&r, "(Just %s)", x->value.string->data);
-					return purs_any_set_string(
-						GC_NEW(purs_any_t),
-						managed_utf8str_new(r)
+					return purs_any_concat(
+						purs_any_set_string(
+							GC_NEW(purs_any_t),
+							managed_utf8str_new(afmt("(Just "))
+						),
+						purs_any_concat(
+							purs_any_app(
+								Data_Show_show(dictShow),
+								value1->values[0]
+							),
+							purs_any_set_string(
+								GC_NEW(purs_any_t),
+								managed_utf8str_new(afmt(")"))
+							)
+						)
 					);
 				}
 
 				if (value1->tag == Data_Maybe_Nothing__Tag) {
-					char * r;
-					asprintf(&r, "(Nothing)");
 					return purs_any_set_string(
 						GC_NEW(purs_any_t),
-						managed_utf8str_new(r)
+						managed_utf8str_new(afmt("(Nothing)"))
 					);
 				}
 
+				/* failed pattern match */
 				assert(0);
 		});
 	return value0;

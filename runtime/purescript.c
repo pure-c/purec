@@ -75,6 +75,14 @@ managed_block_t * purs_any_get_abs_block (purs_any_t * x) {
 	}
 }
 
+managed_utf8str_t * purs_any_get_string (purs_any_t * x) {
+	if (x->tag == STRING) {
+		return (managed_block_t *) x->value.string;
+	} else {
+		return NULL;
+	}
+}
+
 #define PURS_ANY_SET_IMPL(_name, _type, _tag, _key) \
 	purs_any_t * _name (purs_any_t * any, _type val) { \
 		any->tag = _tag; \
@@ -104,4 +112,17 @@ purs_any_t * purs_any_app (purs_any_t * x, purs_any_t * arg) {
 	}
 
 	return NULL;
+}
+
+/**
+ Concatenate two dyanmic values into a new dynamic value
+ TODO: define for all types encapsulated by purs_any_t
+*/
+purs_any_t * purs_any_concat(purs_any_t * a, purs_any_t * b) {
+	managed_utf8str_t * a_utf8str = purs_any_get_string(a);
+	managed_utf8str_t * b_utf8str = purs_any_get_string(b);
+	return purs_any_set_string(
+		GC_NEW(purs_any_t),
+		managed_utf8str_new(afmt("%s%s", a_utf8str->data, b_utf8str->data))
+	);
 }
