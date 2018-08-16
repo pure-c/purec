@@ -6,7 +6,7 @@
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
 
-managed_t * managed_new (void * data, managed_release_func release) {
+const managed_t * managed_new (void * data, const managed_release_func release) {
 	managed_t * managed = GC_NEW(managed_block_t);
 	managed->data = data;
 	GC_register_finalizer(
@@ -24,7 +24,7 @@ void managed_block_release (managed_t * managed) {
 	Block_release(managed->data);
 }
 
-managed_block_t * managed_block_new (void * block) {
+const managed_block_t * managed_block_new (void * block) {
 	return managed_new(block, managed_block_release);
 }
 
@@ -35,7 +35,7 @@ void managed_utf8str_release (managed_t * data) {
 	free(data);
 }
 
-managed_utf8str_t * managed_utf8str_new (void * data) {
+const managed_utf8str_t * managed_utf8str_new (void * data) {
 	return managed_new(data, managed_utf8str_release);
 }
 
@@ -43,7 +43,7 @@ managed_utf8str_t * managed_utf8str_new (void * data) {
 // any: dynamically typed values
 // -----------------------------------------------------------------------------
 
-purs_cons_t * purs_any_get_cons (purs_any_t * x) {
+const purs_cons_t * purs_any_get_cons (const purs_any_t * x) {
 	if (x->tag == CONS) {
 		return & x->value.cons;
 	} else {
@@ -51,7 +51,7 @@ purs_cons_t * purs_any_get_cons (purs_any_t * x) {
 	}
 }
 
-abs_t purs_any_get_abs (purs_any_t * x) {
+const abs_t purs_any_get_abs (const purs_any_t * x) {
 	if (x->tag == ABS) {
 		return (abs_t)(x->value.fn);
 	} else {
@@ -59,7 +59,7 @@ abs_t purs_any_get_abs (purs_any_t * x) {
 	}
 }
 
-int * purs_any_get_int (purs_any_t * x) {
+const int * purs_any_get_int (const purs_any_t * x) {
 	if (x->tag == INT) {
 		return &x->value.num_int;
 	} else {
@@ -67,7 +67,7 @@ int * purs_any_get_int (purs_any_t * x) {
 	}
 }
 
-managed_block_t * purs_any_get_abs_block (purs_any_t * x) {
+const managed_block_t * purs_any_get_abs_block (const purs_any_t * x) {
 	if (x->tag == ABS_BLOCK) {
 		return (managed_block_t *) x->value.block;
 	} else {
@@ -75,9 +75,9 @@ managed_block_t * purs_any_get_abs_block (purs_any_t * x) {
 	}
 }
 
-managed_utf8str_t * purs_any_get_string (purs_any_t * x) {
+const managed_utf8str_t * purs_any_get_string (const purs_any_t * x) {
 	if (x->tag == STRING) {
-		return (managed_block_t *) x->value.string;
+		return (const managed_block_t *) x->value.string;
 	} else {
 		return NULL;
 	}
@@ -90,16 +90,16 @@ managed_utf8str_t * purs_any_get_string (purs_any_t * x) {
 		return any; \
 	}
 
-PURS_ANY_SET_IMPL(purs_any_set_abs, abs_t *, ABS, fn)
-PURS_ANY_SET_IMPL(purs_any_set_abs_block, managed_block_t *, ABS_BLOCK, block)
+PURS_ANY_SET_IMPL(purs_any_set_abs, const abs_t *, ABS, fn)
+PURS_ANY_SET_IMPL(purs_any_set_abs_block, const managed_block_t *, ABS_BLOCK, block)
 PURS_ANY_SET_IMPL(purs_any_set_float, float, FLOAT, num_float)
 PURS_ANY_SET_IMPL(purs_any_set_int, int, INT, num_int)
 PURS_ANY_SET_IMPL(purs_any_set_cons, purs_cons_t, CONS, cons)
-PURS_ANY_SET_IMPL(purs_any_set_string, void *, STRING, string)
+PURS_ANY_SET_IMPL(purs_any_set_string, const void *, STRING, string)
 
-purs_any_t * purs_any_app (purs_any_t * x, purs_any_t * arg) {
-	void * f;
-	managed_block_t * b;
+const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
+	const void * f;
+	const managed_block_t * b;
 
 	b = purs_any_get_abs_block(x);
 	if (b != NULL) {
@@ -118,9 +118,9 @@ purs_any_t * purs_any_app (purs_any_t * x, purs_any_t * arg) {
  Concatenate two dyanmic values into a new dynamic value
  TODO: define for all types encapsulated by purs_any_t
 */
-purs_any_t * purs_any_concat(purs_any_t * a, purs_any_t * b) {
-	managed_utf8str_t * a_utf8str = purs_any_get_string(a);
-	managed_utf8str_t * b_utf8str = purs_any_get_string(b);
+const purs_any_t * purs_any_concat(const purs_any_t * a, const purs_any_t * b) {
+	const managed_utf8str_t * a_utf8str = purs_any_get_string(a);
+	const managed_utf8str_t * b_utf8str = purs_any_get_string(b);
 	return purs_any_set_string(
 		GC_NEW(purs_any_t),
 		managed_utf8str_new(afmt("%s%s", a_utf8str->data, b_utf8str->data))

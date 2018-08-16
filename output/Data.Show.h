@@ -4,9 +4,9 @@
 #include "runtime/purescript.h"
 
 typedef struct {
-	purs_any_t * show;
+	const purs_any_t * show;
 } Data_Show_Show;
 
-purs_any_t * Data_Show_show (Data_Show_Show * dict);
+const purs_any_t * Data_Show_show (const Data_Show_Show * dict);
 
 #endif // DATA_SHOW_H

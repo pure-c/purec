@@ -20,20 +20,20 @@ struct managed {
 
 
 typedef void (*managed_release_func)(managed_t * managed);
-managed_t * managed_new(void * data, managed_release_func release);
+const managed_t * managed_new(void * data, managed_release_func release);
 
 // -----------------------------------------------------------------------------
 // managed blocks
 // -----------------------------------------------------------------------------
 
 typedef managed_t managed_block_t;
-managed_block_t * managed_block_new (void * block);
+const managed_block_t * managed_block_new (void * block);
 
 // -----------------------------------------------------------------------------
 // managed utf8 strings
 // -----------------------------------------------------------------------------
 typedef managed_t managed_utf8str_t;
-managed_utf8str_t * managed_utf8str_new (void *);
+const managed_utf8str_t * managed_utf8str_new (void *);
 
 // -----------------------------------------------------------------------------
 // any: dynamically typed values
@@ -43,12 +43,12 @@ typedef struct purs_any purs_any_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef enum purs_any_tag purs_any_tag_t;
-typedef void* (^abs_block_t)(void*);
-typedef purs_any_t * (*abs_t) (purs_any_t*);
+typedef const void * (^abs_block_t)(const void *);
+typedef purs_any_t * (*abs_t) (const purs_any_t*);
 
 struct purs_cons {
 	int tag;
-	purs_any_t ** values;
+	const purs_any_t ** values;
 	int len;
 };
 
@@ -64,9 +64,9 @@ enum purs_any_tag {
 union purs_any_value {
 	int num_int;
 	float num_float;
-	abs_t * fn;
-	managed_utf8str_t * string;
-	managed_block_t * block;
+	const abs_t * fn;
+	const managed_utf8str_t * string;
+	const managed_block_t * block;
 	purs_cons_t cons;
 };
 
@@ -75,21 +75,21 @@ struct purs_any {
 	purs_any_value_t value;
 };
 
-abs_t               purs_any_get_abs       (purs_any_t *);
-int *               purs_any_get_int       (purs_any_t *);
-managed_block_t *   purs_any_get_abs_block (purs_any_t *);
-purs_cons_t *       purs_any_get_cons      (purs_any_t *);
-managed_utf8str_t * purs_any_get_string    (purs_any_t *);
+const abs_t               purs_any_get_abs       (const purs_any_t *);
+const int *               purs_any_get_int       (const purs_any_t *);
+const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
+const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
+const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
 
-purs_any_t * purs_any_set_abs       (purs_any_t *, abs_t *);
-purs_any_t * purs_any_set_abs_block (purs_any_t *, managed_t *);
-purs_any_t * purs_any_set_float     (purs_any_t *, float);
-purs_any_t * purs_any_set_int       (purs_any_t *, int);
-purs_any_t * purs_any_set_cons      (purs_any_t *, purs_cons_t);
-purs_any_t * purs_any_set_string    (purs_any_t *, void *);
+purs_any_t * purs_any_set_abs       (purs_any_t *, const abs_t *);
+purs_any_t * purs_any_set_abs_block (purs_any_t *, const managed_t *);
+purs_any_t * purs_any_set_float     (purs_any_t *, const float);
+purs_any_t * purs_any_set_int       (purs_any_t *, const int);
+purs_any_t * purs_any_set_cons      (purs_any_t *, const purs_cons_t);
+purs_any_t * purs_any_set_string    (purs_any_t *, const void *);
 
-purs_any_t * purs_any_app (purs_any_t *, purs_any_t * arg);
-purs_any_t * purs_any_concat(purs_any_t *, purs_any_t *);
+const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
+const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
 #define PURS_ANY_BLOCK(x) \
 	purs_any_set_abs_block( \
