@@ -4,7 +4,7 @@ module Language.PureScript.CodeGen.C
 import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
-import Control.Monad.Reader (ReaderT(..))
+import Control.Monad.Reader (class MonadAsk, ReaderT(..), ask, runReaderT)
 import CoreFn.Ann as C
 import CoreFn.Binders as C
 import CoreFn.Expr as C
@@ -14,7 +14,7 @@ import CoreFn.Module as C
 import CoreFn.Names as C
 import Data.Array as A
 import Data.Either (Either(..))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
@@ -28,7 +28,12 @@ import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Pretty as P
 import Language.PureScript.CodeGen.C.Traversals (everythingOnAST)
 import Language.PureScript.CodeGen.Common (runModuleName)
+import Language.PureScript.CodeGen.Runtime as Runtime
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
+
+type Env =
+  { moduleName :: C.ModuleName
+  }
 
 freshName
   :: ∀ m
@@ -60,7 +65,7 @@ moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecl
           A.difference <@> [ moduleName ] $
             _.moduleName <<< unwrap <$>
               moduleImports
-  in do
+  in runReaderT <@> { moduleName } $ do
     decls <-
       map filterInlineFuncs <<< A.concat <$> do
         traverse bindToAst moduleDecls
@@ -104,6 +109,7 @@ bindToAst
   :: ∀ m
    . MonadError CompileError m
   => MonadSupply m
+  => MonadAsk Env m
   => C.Bind C.Ann
   -> m (Array AST)
 bindToAst (C.NonRec ann ident val) =
@@ -116,13 +122,15 @@ declToAst
   :: ∀ m
    . MonadError CompileError m
   => MonadSupply m
+  => MonadAsk Env m
   => (C.Ann /\ C.Ident)
   -> C.Expr C.Ann
   -> m AST
-declToAst (_ /\ ident) val = ado
-  name    <- identToVarName ident
+declToAst (_ /\ ident) val = do
+  { moduleName } <- ask
+  name <- identToVarName' moduleName ident
   initAst <- exprToAst val
-  in
+  pure $
     AST.VariableIntroduction
       { name
       , type: Type.Pointer (Type.Any [])
@@ -135,6 +143,7 @@ exprToAst
   :: ∀ m
    . MonadError CompileError m
   => MonadSupply m
+  => MonadAsk Env m
   => C.Expr C.Ann
   -> m AST
 exprToAst (C.Var ann ident) =
@@ -152,14 +161,12 @@ exprToAst (C.Var ann ident) =
 
   where
   varToAst :: C.Qualified C.Ident -> m AST
-  -- varToAst (C.Qualified Nothing ident) =
-  varToAst (C.Qualified _ ident) =
-    AST.Var <$> identToVarName ident
-  varToAst qual =
-    -- TODO: port:
-    -- qualifiedToC id qual
-    throwError $ NotImplementedError "varToAst qualified name"
-
+  varToAst (C.Qualified mModuleName ident) = do
+    case mModuleName of
+      Nothing ->
+        AST.Var <$> identToVarName ident
+      Just moduleName ->
+        AST.Var <$> identToVarName' moduleName ident
 exprToAst (C.Literal _ (C.NumericLiteral n)) = pure $ AST.NumericLiteral n
 exprToAst (C.Literal _ (C.StringLiteral s)) = pure $ AST.StringLiteral s
 exprToAst (C.Literal _ (C.CharLiteral c)) = pure $ AST.CharLiteral c
@@ -289,10 +296,10 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
     throwError $ NotImplementedError $ "binderToAst " <> show x
 exprToAst (C.Constructor _ _ _ _) =
   pure AST.NoOp
-exprToAst (C.App (C.Ann { type: typ }) indent expr) = do
-  f   <- exprToAst indent
+exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
+  f   <- exprToAst ident
   arg <- exprToAst expr
-  pure $ AST.App f [arg]
+  pure $ AST.App Runtime.purs_any_app [f, arg]
 exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
   -- TODO: implement and apply `innerLambdas` to `bodyAst`
   bodyAst <- exprToAst expr
@@ -312,6 +319,11 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
             ]
       }
 exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
+
+identToVarName' :: ∀ m. MonadError CompileError m => C.ModuleName -> C.Ident -> m String
+identToVarName' (C.ModuleName pieces) ident = ado
+  name <- identToVarName ident
+  in A.intercalate "_" (map unwrap pieces <> [ name ])
 
 identToVarName :: ∀ m. MonadError CompileError m => C.Ident -> m String
 identToVarName (C.Ident name) = pure $ safeName name

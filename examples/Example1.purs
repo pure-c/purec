@@ -4,7 +4,7 @@ foo :: Int
 foo = 100
 
 const :: ∀ a b. a -> b -> a
-const a _ = a
+const static _ = static
 
 bar :: ∀ a. a -> Int
 bar = const foo

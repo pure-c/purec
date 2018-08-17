@@ -31,6 +31,9 @@ derive newtype instance monadAffSupplyT :: MonadAff m => MonadAff (SupplyT m)
 instance monadSupplyExceptT :: (Monad m, MonadSupply m) => MonadSupply (ExceptT e m) where
   freshId = lift freshId
 
+instance monadSupplyReaderT :: (Monad m, MonadSupply m) => MonadSupply (ReaderT e m) where
+  freshId = lift freshId
+
 instance monadTransSupplyT :: MonadTrans SupplyT where
   lift = SupplyT <<< lift
 

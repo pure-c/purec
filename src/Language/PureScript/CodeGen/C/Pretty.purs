@@ -161,11 +161,14 @@ prettyPrintAst (AST.Function
 prettyPrintAst (AST.App fnAst argsAsts) = do
   prettyPrintAst fnAst
   emit "("
-  for_ (A.init argsAsts) $ traverse \ast -> do
-    prettyPrintAst ast
-    emit ","
-  for_ (A.last argsAsts)
-    prettyPrintAst
+  case A.unsnoc argsAsts of
+    Nothing ->
+      pure unit
+    Just { init, last } -> do
+      for_ init \ast -> do
+        prettyPrintAst ast
+        emit ","
+      prettyPrintAst last
   emit ")"
 prettyPrintAst (AST.IfElse condAst thenAst mElseAst) = do
   emit "if ("
