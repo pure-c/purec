@@ -1,0 +1,26 @@
+{
+  "name": "purescript-native",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^4.1.0",
+    "purescript-console": "^4.1.0",
+    "purescript-effect": "^2.0.0",
+    "purescript-aff": "^5.0.1",
+    "purescript-avar": "^3.0.0",
+    "purescript-node-fs-aff": "^6.0.0"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^4.0.0",
+    "purescript-debug": "^4.0.0",
+    "purescript-node-process": "^6.0.0",
+    "purescript-node-child-process": "^5.0.0",
+    "purescript-foreign": "^5.0.0",
+    "purescript-node-readline": "^4.0.0",
+    "purescript-simple-repl": "^6.0.1"
+  }
+}
