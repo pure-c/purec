@@ -55,6 +55,7 @@ inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
 }
 
 const purs_cons_t * purs_any_get_cons (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
 	if (x->tag == CONS) {
 		return & x->value.cons;
 	} else {
@@ -63,6 +64,7 @@ const purs_cons_t * purs_any_get_cons (const purs_any_t * x) {
 }
 
 const abs_t purs_any_get_abs (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
 	if (x->tag == ABS) {
 		return (abs_t)(x->value.fn);
 	} else {
@@ -71,6 +73,7 @@ const abs_t purs_any_get_abs (const purs_any_t * x) {
 }
 
 const int * purs_any_get_int (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
 	if (x->tag == INT) {
 		return &x->value.num_int;
 	} else {
@@ -79,6 +82,7 @@ const int * purs_any_get_int (const purs_any_t * x) {
 }
 
 const managed_block_t * purs_any_get_abs_block (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
 	if (x->tag == ABS_BLOCK) {
 		return (managed_block_t *) x->value.block;
 	} else {
@@ -87,6 +91,7 @@ const managed_block_t * purs_any_get_abs_block (const purs_any_t * x) {
 }
 
 const managed_utf8str_t * purs_any_get_string (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
 	if (x->tag == STRING) {
 		return (const managed_block_t *) x->value.string;
 	} else {
@@ -125,8 +130,6 @@ const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 	if (f != NULL) {
 		return ((abs_t) f)(arg);
 	}
-
-	printf("tag: %d\n", x->tag);
 
 	assert(invalid_tag);
 }

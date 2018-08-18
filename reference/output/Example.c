@@ -6,3 +6,9 @@ PURS_ANY_THUNK_DECL(foo,
 		100
 	)
 )
+
+PURS_ANY_THUNK_DECL(bar,
+	PURS_ANY_BLOCK(() {
+		return NULL;
+	})
+)
