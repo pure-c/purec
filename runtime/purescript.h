@@ -94,6 +94,9 @@ purs_any_t * purs_any_set_string    (purs_any_t *, const void *);
 const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
+/**
+ * Create a lazily evaluated top-level value.
+ */
 #define PURS_ANY_THUNK_DECL($name, $init) \
 	const purs_any_t * $name##____thunk_fn____ (const purs_any_t * ____unused____) { \
 		static const purs_any_t * $name##____thunk_val____ = NULL; \
