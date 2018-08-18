@@ -115,10 +115,25 @@ const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 	\
 	const purs_any_t * $name = & $name##____thunk____; \
 
-#define PURS_ANY_BLOCK(x) \
-	purs_any_set_abs_block( \
+#define PURS_ANY_NEW(n, x) \
+	purs_any_set_##n( \
 		GC_NEW(purs_any_t), \
-		managed_block_new(Block_copy(^ x)) \
+		x \
 	)
+
+#define PURS_ANY_BLOCK(x) \
+	PURS_ANY_NEW(abs_block, managed_block_new(Block_copy(^ x)))
+
+#define PURS_ANY_INT(x) \
+	PURS_ANY_NEW(int, x)
+
+#define PURS_ANY_FLOAT(x) \
+	PURS_ANY_NEW(float, x)
+
+#define PURS_ANY_CONS(x) \
+	PURS_ANY_NEW(cons, x)
+
+#define PURS_ANY_STRING(x) \
+	PURS_ANY_NEW(string, x)
 
 #endif // PURESCRIPT_RUNTIME_H

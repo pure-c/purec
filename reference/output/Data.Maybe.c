@@ -2,8 +2,7 @@
 
 PURS_ANY_THUNK_DECL(
 	Data_Maybe_Nothing,
-	purs_any_set_cons(
-		GC_NEW(purs_any_t),
+	PURS_ANY_CONS(
 		(purs_cons_t) { .tag = Data_Maybe_Nothing__Tag }
 	)
 )
