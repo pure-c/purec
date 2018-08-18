@@ -1,15 +1,12 @@
 #include "Data.Maybe.h"
 
-const purs_any_t _Data_Maybe_Nothing =
-	{
-		.tag = CONS,
-		.value = {
-			.cons = {
-				.tag = Data_Maybe_Nothing__Tag
-			}
-		}
-	};
-const purs_any_t * Data_Maybe_Nothing = &_Data_Maybe_Nothing;
+PURS_ANY_THUNK_DECL(
+	Data_Maybe_Nothing,
+	purs_any_set_cons(
+		GC_NEW(purs_any_t),
+		(purs_cons_t) { .tag = Data_Maybe_Nothing__Tag }
+	)
+)
 
 const purs_any_t * Data_Maybe_Just (const purs_any_t * value0) {
 	const purs_any_t ** values = GC_MALLOC(sizeof (purs_any_t*[1]));
