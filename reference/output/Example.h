@@ -3,6 +3,6 @@
 
 #include "runtime/purescript.h"
 
-purs_any_t * foo ();
+const purs_any_t * foo;
 
 #endif // EXAMPLE_H

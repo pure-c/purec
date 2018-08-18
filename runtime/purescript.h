@@ -44,7 +44,7 @@ typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef enum purs_any_tag purs_any_tag_t;
 typedef const void * (^abs_block_t)(const void *);
-typedef purs_any_t * (*abs_t) (const purs_any_t*);
+typedef const purs_any_t * (*abs_t) (const purs_any_t*);
 
 struct purs_cons {
 	int tag;
@@ -58,13 +58,14 @@ enum purs_any_tag {
 	ABS = 2,       // abstraction
 	ABS_BLOCK = 3, // lambda abstraction
 	CONS = 4,      // data constructor
-	STRING = 6,    // UTF8 string
+	STRING = 5,    // UTF8 string
+	THUNK = 6,     // thunk
 };
 
 union purs_any_value {
 	int num_int;
 	float num_float;
-	const abs_t * fn;
+	abs_t fn;
 	const managed_utf8str_t * string;
 	const managed_block_t * block;
 	purs_cons_t cons;
@@ -75,13 +76,15 @@ struct purs_any {
 	purs_any_value_t value;
 };
 
+const purs_any_t * purs_any_unthunk (const purs_any_t * x);
+
 const abs_t               purs_any_get_abs       (const purs_any_t *);
 const int *               purs_any_get_int       (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
 
-purs_any_t * purs_any_set_abs       (purs_any_t *, const abs_t *);
+purs_any_t * purs_any_set_abs       (purs_any_t *, const abs_t);
 purs_any_t * purs_any_set_abs_block (purs_any_t *, const managed_t *);
 purs_any_t * purs_any_set_float     (purs_any_t *, const float);
 purs_any_t * purs_any_set_int       (purs_any_t *, const int);

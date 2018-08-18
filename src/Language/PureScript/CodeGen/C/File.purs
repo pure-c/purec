@@ -91,7 +91,7 @@ toBody = A.catMaybes <<< map go
         { name
         , type: Type.Pointer (Type.Any [])
         , qualifiers: []
-        , initialization: Nothing
+        , initialization
         }
   go _ = Nothing
 

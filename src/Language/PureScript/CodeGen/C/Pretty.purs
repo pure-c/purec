@@ -167,7 +167,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
     Just { init, last } -> do
       for_ init \ast -> do
         prettyPrintAst ast
-        emit ","
+        emit ", "
       prettyPrintAst last
   emit ")"
 prettyPrintAst (AST.IfElse condAst thenAst mElseAst) = do

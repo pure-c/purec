@@ -22,9 +22,9 @@ const Data_Show_Show * Data_Maybe_showInt () {
 
 
 int main () {
-	const purs_any_t * a = Data_Maybe_Just(foo());
+	const purs_any_t * a = Data_Maybe_Just(purs_any_unthunk(foo));
 	const Data_Show_Show * x = Data_Maybe_showMaybe(Data_Maybe_showInt());
 	const purs_any_t * y = purs_any_app(x->show, a);
-	printf("%s", (char *) y->value.string->data);
+	printf("%s\n", (char *) y->value.string->data);
 	return 0;
 }

@@ -43,6 +43,17 @@ const managed_utf8str_t * managed_utf8str_new (void * data) {
 // any: dynamically typed values
 // -----------------------------------------------------------------------------
 
+inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
+	while (1) {
+		if (x->tag == THUNK) {
+			x = x->value.fn(NULL);
+		} else {
+			break;
+		}
+	}
+	return x;
+}
+
 const purs_cons_t * purs_any_get_cons (const purs_any_t * x) {
 	if (x->tag == CONS) {
 		return & x->value.cons;
@@ -90,16 +101,20 @@ const managed_utf8str_t * purs_any_get_string (const purs_any_t * x) {
 		return any; \
 	}
 
-PURS_ANY_SET_IMPL(purs_any_set_abs, const abs_t *, ABS, fn)
+PURS_ANY_SET_IMPL(purs_any_set_abs, const abs_t, ABS, fn)
 PURS_ANY_SET_IMPL(purs_any_set_abs_block, const managed_block_t *, ABS_BLOCK, block)
 PURS_ANY_SET_IMPL(purs_any_set_float, float, FLOAT, num_float)
 PURS_ANY_SET_IMPL(purs_any_set_int, int, INT, num_int)
 PURS_ANY_SET_IMPL(purs_any_set_cons, purs_cons_t, CONS, cons)
 PURS_ANY_SET_IMPL(purs_any_set_string, const void *, STRING, string)
 
+const int invalid_tag = 0;
+
 const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 	const void * f;
 	const managed_block_t * b;
+
+	x = purs_any_unthunk(x);
 
 	b = purs_any_get_abs_block(x);
 	if (b != NULL) {
@@ -111,7 +126,9 @@ const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 		return ((abs_t) f)(arg);
 	}
 
-	return NULL;
+	printf("tag: %d\n", x->tag);
+
+	assert(invalid_tag);
 }
 
 /**
