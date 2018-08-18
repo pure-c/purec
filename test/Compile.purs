@@ -29,6 +29,7 @@ runClang inputs =
       [ [ "-fblocks"
         , "-lBlocksRuntime"
         , "-lgc"
+        , "-fcolor-diagnostics"
         , "-Duthash_malloc=purs_uthash_malloc"
         , "-Duthash_free=purs_uthash_free"
         , "-I", "."
@@ -46,7 +47,7 @@ runProc
 runProc cmd args = do
   process <-
     liftEffect $
-      ChildProcess.spawn cmd args
+      ChildProcess.spawn cmd args $
         ChildProcess.defaultSpawnOptions
 
   stderrRef <- liftEffect $ Ref.new ""

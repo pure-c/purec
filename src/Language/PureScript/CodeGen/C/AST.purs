@@ -100,6 +100,7 @@ instance showValueQual :: Show ValueQualifier where
   show = genericShow
 
 data TypeQualifier
+  = Const
 
 derive instance genericTypeQualifier :: Rep.Generic TypeQualifier _
 

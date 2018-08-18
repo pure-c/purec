@@ -18,8 +18,9 @@ import Data.Newtype (unwrap)
 import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
-import Language.PureScript.CodeGen.C.Common (safeName)
 import Language.PureScript.CodeGen.C.AST as Type
+import Language.PureScript.CodeGen.C.Common (safeName)
+import Language.PureScript.CodeGen.C.Constants as C
 import Language.PureScript.CodeGen.Common (runModuleName)
 
 cModuleName
@@ -65,7 +66,7 @@ toHeader = A.catMaybes <<< map go
     Just $
       AST.VariableIntroduction
         { name
-        , type: Type.Pointer (Type.Any [])
+        , type: Type.Pointer (Type.Any [ Type.Const ])
         , qualifiers: []
         , initialization: Nothing
         }
@@ -85,14 +86,23 @@ toBody = A.catMaybes <<< map go
         , qualifiers: []
         , body: Just lam.body
         }
-  go (AST.VariableIntroduction { name, initialization }) =
-    Just $
-      AST.VariableIntroduction
-        { name
-        , type: Type.Pointer (Type.Any [])
-        , qualifiers: []
-        , initialization
-        }
+  go (AST.VariableIntroduction { name, initialization: Just initialization }) = do
+    case initialization of
+      AST.App a xs ->
+        Just $
+          AST.App
+            C._PURS_ANY_THUNK_DECL
+            [ AST.Raw name
+            , AST.App a xs
+            ]
+      _ ->
+        Just $
+          AST.VariableIntroduction
+            { name
+            , type: Type.Pointer (Type.Any [ Type.Const ])
+            , qualifiers: []
+            , initialization: Just initialization
+            }
   go _ = Nothing
 
 -- XXX: should be configurable

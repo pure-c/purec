@@ -293,7 +293,7 @@ renderType = case _ of
       if A.null qs
         then ""
         else " "
-  renderTypeQualifier _ = "" -- TODO
+  renderTypeQualifier Type.Const = "const"
 
 renderPrimitiveType :: PrimitiveType -> String
 renderPrimitiveType Type.Int = "int"
