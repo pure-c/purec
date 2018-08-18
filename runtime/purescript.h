@@ -94,6 +94,24 @@ purs_any_t * purs_any_set_string    (purs_any_t *, const void *);
 const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
+#define PURS_ANY_THUNK_DECL($name, $init) \
+	const purs_any_t * $name##____thunk_fn____ (const purs_any_t * ____unused____) { \
+		static const purs_any_t * $name##____thunk_val____ = NULL; \
+		if ($name##____thunk_val____ == NULL) { \
+			$name##____thunk_val____ = $init; \
+		} \
+		return $name##____thunk_val____; \
+	} \
+	\
+	const purs_any_t $name##____thunk____ = { \
+		.tag = THUNK, \
+		.value = { \
+			.fn = $name##____thunk_fn____ \
+		} \
+	}; \
+	\
+	const purs_any_t * $name = & $name##____thunk____; \
+
 #define PURS_ANY_BLOCK(x) \
 	purs_any_set_abs_block( \
 		GC_NEW(purs_any_t), \
