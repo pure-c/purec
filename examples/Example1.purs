@@ -10,5 +10,19 @@ const static _ = static
 bar :: ∀ a. a -> Int
 bar = const foo
 
+eq' :: Int -> Int -> Boolean
+eq' 200 200 | false = true
+eq' 100 100 = true
+eq' _ _ = false
+
 foo :: Int
-foo = 100
+foo =
+  let
+    y = 200
+    z = 200
+    y' = 200
+  in
+    let z = 200
+     in 100
+
+main' = eq' foo 100

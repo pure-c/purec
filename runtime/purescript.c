@@ -77,6 +77,15 @@ const int * purs_any_get_int (const purs_any_t * x) {
 	}
 }
 
+const float * purs_any_get_float (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
+	if (x->tag == FLOAT) {
+		return &x->value.num_float;
+	} else {
+		return NULL;
+	}
+}
+
 const managed_block_t * purs_any_get_abs_block (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == ABS_BLOCK) {
@@ -127,6 +136,22 @@ const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 		return ((abs_t) f)(arg);
 	}
 
+	assert(invalid_tag);
+}
+
+int purs_any_eq_int (const purs_any_t * x, int y) {
+	const int * a = purs_any_get_int(x);
+	if (a != NULL) {
+		return *a == y;
+	}
+	assert(invalid_tag);
+}
+
+int purs_any_eq_float (const purs_any_t * x, float y) {
+	const float * a = purs_any_get_float(x);
+	if (a != NULL) {
+		return *a == y;
+	}
 	assert(invalid_tag);
 }
 

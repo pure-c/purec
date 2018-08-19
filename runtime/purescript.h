@@ -79,6 +79,7 @@ const purs_any_t * purs_any_unthunk (const purs_any_t * x);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
 const int *               purs_any_get_int       (const purs_any_t *);
+const float *             purs_any_get_float     (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
@@ -92,6 +93,8 @@ purs_any_t * purs_any_set_string    (purs_any_t *, const void *);
 
 const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
+int purs_any_eq_int (const purs_any_t *, int);
+int purs_any_eq_float (const purs_any_t *, float);
 
 /**
  * Create a lazily evaluated top-level value.

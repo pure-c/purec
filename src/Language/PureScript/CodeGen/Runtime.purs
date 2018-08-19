@@ -1,5 +1,7 @@
 module Language.PureScript.CodeGen.Runtime
   ( purs_any_app
+  , purs_any_eq_int
+  , purs_any_eq_float
   , purs_cons_t
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_CONS
@@ -19,6 +21,12 @@ any = Type.Pointer (Type.Any [ Type.Const ])
 
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
+
+purs_any_eq_float :: AST
+purs_any_eq_float = AST.Var "purs_any_eq_float"
+
+purs_any_eq_int :: AST
+purs_any_eq_int = AST.Var "purs_any_eq_int"
 
 purs_any_app :: AST
 purs_any_app = AST.Var "purs_any_app"

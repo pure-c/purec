@@ -165,14 +165,6 @@ exprToAst
   -> m AST
 exprToAst (C.Var ann ident) =
   case ann /\ ident of
-    -- TODO: implement/port other cases:
-    ---- exprToAst (Var (_, _, _, Just IsNewtype) ident) = return $ varToC ident
-    ---- exprToAst (Var (_, _, _, Just (IsConstructor _ [])) ident) = return $ CApp (varToC ident) []
-    ---- exprToAst (Var (_, _, Just ty, _) ident@(Qualified (Just _) _))
-    ----   | arity ty > 0 = return . curriedVar $ varToC ident
-    ---- exprToAst (Var (_, _, Nothing, _) ident@(Qualified (Just _) _))
-    ----   | Just (ty, _, _) <- M.lookup ident (E.names env)
-    ----   , arity ty > 0 = return . curriedVar $ varToC ident
     _ ->
       varToAst ident
 
@@ -209,12 +201,25 @@ exprToAst (C.Literal _ (C.BooleanLiteral b)) =
       R._PURS_ANY_INT
       [ AST.NumericLiteral $ Left $ if b then 1 else 0
       ]
-exprToAst (C.Literal _ (C.ArrayLiteral xs)) = AST.ArrayLiteral <$> traverse exprToAst xs
--- exprToAst (C.Literal _ (C.ObjectLiteral ps)) =
---   AST.RecordLiteral <$>
---     for ps \(key /\ value) -> ado
---       value' <- exprToAst value
---       in { key: AST.StringLiteral key, value: value' }
+exprToAst (C.Literal _ (C.ArrayLiteral xs)) =
+  AST.ArrayLiteral <$>
+    traverse exprToAst xs
+exprToAst (C.Let _ binders val) = do
+  bindersAsts <- A.concat <$> traverse bindToAst binders
+  valAst      <- exprToAst val
+  pure $
+    AST.App R.purs_any_app
+      [
+        AST.Lambda
+          { arguments: []
+          , returnType: R.any
+          , body:
+              AST.Block $
+                bindersAsts <> [ AST.Return valAst ]
+          }
+      , AST.Null
+      ]
+
 exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
   assignments <- for exprs $
     exprToAst >=> \valueAst -> ado
@@ -252,7 +257,9 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                 valAst  <- exprToAst expr
                 in
                   AST.IfElse
-                    condAst
+                    (AST.App R.purs_any_eq_int
+                      [ condAst, AST.NumericLiteral (Left 1)
+                      ])
                     (AST.Block [ AST.Return valAst ])
                     Nothing
             Right expr ->
@@ -266,18 +273,21 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
           caseAlternativeBinders
 
   pure $
-    AST.App <@> [] $
-      AST.Lambda
-        { arguments: []
-        , returnType: Type.Pointer (Type.Any [])
-        , body:
-            AST.Block $ A.concat
-              [ map _.ast assignments
-              , A.concat caseAlternativeAsts
-              -- TODO: pattern error
-              -- , [ failedPatternError valNames ]
-              ]
-        }
+    AST.App R.purs_any_app
+      [
+        AST.Lambda
+          { arguments: []
+          , returnType: Type.Pointer (Type.Any [])
+          , body:
+              AST.Block $ A.concat
+                [ map _.ast assignments
+                , A.concat caseAlternativeAsts
+                -- TODO: pattern error
+                -- , [ failedPatternError valNames ]
+                ]
+          }
+      , AST.Null
+      ]
 
   where
   binderToAst :: _ -> _ -> C.Binder C.Ann -> m (Array AST)
@@ -287,7 +297,9 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
       C.NumericLiteral num ->
         pure
           [ AST.IfElse
-              (AST.Binary AST.EqualTo (AST.Var varName) (AST.NumericLiteral num))
+              (AST.App
+                (either (const R.purs_any_eq_int) (const R.purs_any_eq_float) num)
+                [ AST.Var varName, AST.NumericLiteral num ])
               (AST.Block next)
               Nothing
           ]
@@ -308,14 +320,18 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
       C.BooleanLiteral true ->
         pure
           [ AST.IfElse
-              (AST.Var varName)
+              (AST.App
+                R.purs_any_eq_int
+                [ AST.Var varName, AST.NumericLiteral (Left 1) ])
               (AST.Block next)
               Nothing
           ]
       C.BooleanLiteral false ->
         pure
           [ AST.IfElse
-              (AST.Unary AST.Not (AST.Var varName))
+              (AST.App
+                R.purs_any_eq_int
+                [ AST.Var varName, AST.NumericLiteral (Left 0) ])
               (AST.Block next)
               Nothing
           ]
