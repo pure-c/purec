@@ -17,6 +17,7 @@ import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe)
 import Data.Tuple.Nested (type (/\))
+import Foreign.Object (Object)
 
 -- | Built-in unary operators
 data UnaryOperator
@@ -125,6 +126,7 @@ instance showPrimitiveType :: Show PrimitiveType where
 data Type
   = Pointer Type
   | Any (Array TypeQualifier)
+  | RawType String (Array TypeQualifier)
   | Primitive PrimitiveType (Array TypeQualifier)
 
 derive instance genericType :: Rep.Generic Type _
@@ -148,6 +150,9 @@ data AST
 
   -- | A boolean literal
   | BooleanLiteral Boolean
+
+  -- | Struct initialization
+  | StructLiteral (Object AST)
 
   -- | A unary operator application
   | Unary UnaryOperator AST

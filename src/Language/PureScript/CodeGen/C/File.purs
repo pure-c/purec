@@ -9,19 +9,29 @@ module Language.PureScript.CodeGen.C.File
 
 import Prelude
 
+import Control.Monad.Error.Class (class MonadError)
+import Control.Monad.State (State, evalState, execState)
+import Control.Monad.State as State
+import CoreFn.Expr as C
+import CoreFn.Module as C
 import CoreFn.Names as C
 import Data.Array as A
 import Data.Either (Either(..))
 import Data.Foldable (elem)
-import Data.Maybe (Maybe(..))
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
+import Data.Traversable (for_, traverse)
+import Data.Tuple.Nested ((/\))
 import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.Common (safeName)
-import Language.PureScript.CodeGen.C.Constants as C
 import Language.PureScript.CodeGen.Common (runModuleName)
+import Language.PureScript.CodeGen.CompileError (CompileError)
+import Language.PureScript.CodeGen.Runtime as R
 
 cModuleName
   :: C.ModuleName
@@ -49,10 +59,13 @@ withHeaderGuard moduleName asts =
         , AST.Raw $ "#endif // " <> headerGuard
         ]
       ]
-toHeader :: Array AST -> Array AST
+
+toHeader
+  :: Array AST
+  -> Array AST
 toHeader = A.catMaybes <<< map go
+
   where
-  go :: AST -> Maybe AST
   go (AST.VariableIntroduction { name, initialization: Just (AST.Lambda lam) }) =
     Just $
       AST.Function
@@ -91,7 +104,7 @@ toBody = A.catMaybes <<< map go
       AST.App a xs ->
         Just $
           AST.App
-            C._PURS_ANY_THUNK_DECL
+            R._PURS_ANY_THUNK_DECL
             [ AST.Raw name
             , AST.App a xs
             ]
@@ -124,3 +137,4 @@ nativeMain =
           , AST.Return (AST.NumericLiteral (Left 0))
           ]
     }
+

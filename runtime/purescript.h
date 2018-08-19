@@ -49,7 +49,6 @@ typedef const purs_any_t * (*abs_t) (const purs_any_t*);
 struct purs_cons {
 	int tag;
 	const purs_any_t ** values;
-	int len;
 };
 
 enum purs_any_tag {

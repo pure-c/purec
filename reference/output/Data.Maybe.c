@@ -14,7 +14,6 @@ const purs_any_t * Data_Maybe_Just (const purs_any_t * value0) {
 		GC_NEW(purs_any_t),
 		(purs_cons_t) {
 			.tag = Data_Maybe_Just__Tag,
-			.len = 1,
 			.values = values
 		}
 	);

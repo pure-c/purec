@@ -15,6 +15,7 @@ import Data.Array as A
 import Data.Bifunctor (rmap)
 import Data.Either (Either(..))
 import Data.Foldable (all)
+import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
@@ -158,6 +159,11 @@ prettyPrintAst (AST.Function
   where
   renderArg { name, type: typ } =
     renderType typ <> " " <> name
+prettyPrintAst (AST.Cast typ ast) = do
+  emit "("
+  emit $ renderType typ
+  emit ") "
+  prettyPrintAst ast
 prettyPrintAst (AST.App fnAst argsAsts) = do
   prettyPrintAst fnAst
   emit "("
@@ -170,6 +176,17 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         emit ", "
       prettyPrintAst last
   emit ")"
+prettyPrintAst (AST.StructLiteral o) = do
+  emit "{"
+  withNextIndent do
+    lf
+    traverseWithIndex_ <@> o $ \k v -> do
+      indent *> do emit $ "." <> k <> " ="
+      withNextIndent do
+        lf
+        indent *> prettyPrintAst v
+    lf
+  emit "}"
 prettyPrintAst (AST.IfElse condAst thenAst mElseAst) = do
   emit "if ("
   prettyPrintAst condAst
@@ -284,6 +301,9 @@ renderType = case _ of
   Type.Any qs ->
     renderTypeQualifiers qs <>
       "purs_any_t"
+  Type.RawType name qs ->
+    renderTypeQualifiers qs <>
+      name
   Type.Primitive t qs ->
     renderTypeQualifiers qs <>
       renderPrimitiveType t

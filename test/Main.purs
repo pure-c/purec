@@ -27,6 +27,7 @@ import Language.PureScript.CodeGen.C as C
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.Pretty as C
 import Language.PureScript.CodeGen.Common as C
+import Language.PureScript.CodeGen.CompileError as C
 import Language.PureScript.CodeGen.SupplyT (runSupplyT)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS

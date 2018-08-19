@@ -5,21 +5,28 @@ import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Control.Monad.Reader (class MonadAsk, ReaderT(..), ask, runReaderT)
+import Control.Monad.State (State, execState)
+import Control.Monad.State as State
 import CoreFn.Ann as C
 import CoreFn.Binders as C
 import CoreFn.Expr as C
 import CoreFn.Ident as C
 import CoreFn.Literal as C
+import CoreFn.Meta as C
 import CoreFn.Module as C
 import CoreFn.Names as C
+import Data.Array (mapWithIndex)
 import Data.Array as A
 import Data.Either (Either(..))
+import Data.Map (Map)
+import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
-import Data.Traversable (for, traverse)
+import Data.Traversable (for, for_, traverse)
 import Data.Tuple.Nested ((/\), type (/\))
 import Debug.Trace (spy, traceM)
 import Effect.Ref (Ref)
+import Foreign.Object as Object
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
@@ -28,11 +35,13 @@ import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Pretty as P
 import Language.PureScript.CodeGen.C.Traversals (everythingOnAST)
 import Language.PureScript.CodeGen.Common (runModuleName)
+import Language.PureScript.CodeGen.CompileError (CompileError(..))
+import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.Runtime as Runtime
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 
 type Env =
-  { moduleName :: C.ModuleName
+  { module :: C.Module C.Ann
   }
 
 freshName
@@ -43,10 +52,6 @@ freshName
 freshName = ado
   id <- freshId
   in "value" <> show id
-
-data CompileError
-  = InternalError String
-  | NotImplementedError String
 
 moduleToAST
   :: ∀ m
@@ -65,7 +70,7 @@ moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecl
           A.difference <@> [ moduleName ] $
             _.moduleName <<< unwrap <$>
               moduleImports
-  in runReaderT <@> { moduleName } $ do
+  in runReaderT <@> { module: mod } $ do
     decls <-
       map filterInlineFuncs <<< A.concat <$> do
         traverse bindToAst moduleDecls
@@ -76,6 +81,14 @@ moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecl
           A.concat
             [ AST.Include <<< { path: _ } <$> cIncludes
             , [ P.empty ]
+            , buildConstructorDeclsWithTags mod <#>
+                \{ constructorName: C.ProperName constructorName, tag } ->
+                  AST.VariableIntroduction
+                    { name: qualifiedVarName moduleName constructorName
+                    , type: Type.Pointer (Type.Any [ Type.Const ])
+                    , qualifiers: []
+                    , initialization: Just $ AST.NumericLiteral (Left tag)
+                    }
             , F.toHeader decls
             ]
 
@@ -93,7 +106,8 @@ moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecl
               else []
           ]
 
-    -- traceM moduleDecls
+    traceM moduleDecls
+
     -- traceM decls
     -- traceM moduleBody
 
@@ -127,8 +141,8 @@ declToAst
   -> C.Expr C.Ann
   -> m AST
 declToAst (_ /\ ident) val = do
-  { moduleName } <- ask
-  name <- identToVarName' moduleName ident
+  { module: C.Module { moduleName } } <- ask
+  name    <- qualifiedVarName moduleName <$> identToVarName ident
   initAst <- exprToAst val
   pure $
     AST.VariableIntroduction
@@ -166,7 +180,8 @@ exprToAst (C.Var ann ident) =
       Nothing ->
         AST.Var <$> identToVarName ident
       Just moduleName ->
-        AST.Var <$> identToVarName' moduleName ident
+        AST.Var <<< qualifiedVarName moduleName <$>
+          identToVarName ident
 exprToAst (C.Literal _ (C.NumericLiteral n)) = pure $ AST.NumericLiteral n
 exprToAst (C.Literal _ (C.StringLiteral s)) = pure $ AST.StringLiteral s
 exprToAst (C.Literal _ (C.CharLiteral c)) = pure $ AST.CharLiteral c
@@ -294,8 +309,24 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         } A.: next
   binderToAst _ _ x =
     throwError $ NotImplementedError $ "binderToAst " <> show x
-exprToAst (C.Constructor _ _ _ _) =
-  pure AST.NoOp
+
+-- TODO add newtypes
+exprToAst (C.Constructor _ typeName (C.ProperName constructorName) []) = do
+  { module: C.Module { moduleName } } <- ask
+
+  let
+    constructorName' =
+      qualifiedVarName moduleName constructorName
+
+  pure $
+    AST.App
+      R._PURS_ANY_CONS
+      [ AST.Cast (AST.RawType R.purs_cons_t []) $
+          AST.StructLiteral $
+            Object.empty
+              # Object.insert "tag" (AST.Var constructorName')
+      ]
+
 exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   f   <- exprToAst ident
   arg <- exprToAst expr
@@ -320,10 +351,9 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
       }
 exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
 
-identToVarName' :: ∀ m. MonadError CompileError m => C.ModuleName -> C.Ident -> m String
-identToVarName' (C.ModuleName pieces) ident = ado
-  name <- identToVarName ident
-  in A.intercalate "_" (map unwrap pieces <> [ name ])
+qualifiedVarName :: C.ModuleName -> String -> String
+qualifiedVarName (C.ModuleName pieces) varName =
+  A.intercalate "_" (map unwrap pieces <> [ varName ])
 
 identToVarName :: ∀ m. MonadError CompileError m => C.Ident -> m String
 identToVarName (C.Ident name) = pure $ safeName name
@@ -344,3 +374,56 @@ allSymbols asts =
   symbols :: AST -> Array String
   symbols (AST.Symbol s) = [s]
   symbols _ = []
+
+type TypeName = C.ProperName
+type ConstructorName = C.ProperName
+
+buildConstructorDeclsWithTags
+  :: ∀ a
+   . C.Module a
+  -> Array
+      { typeName :: C.ProperName
+      , constructorName :: C.ProperName
+      , tag :: Int
+      }
+buildConstructorDeclsWithTags (C.Module { moduleDecls }) =
+  let
+    result =
+      execState <@> Map.empty $
+        for_ moduleDecls case _ of
+          C.NonRec _ _ (C.Constructor _ typeName constructorName _) ->
+            go typeName constructorName
+          C.Rec xs ->
+            for_ xs case _ of
+              _ /\ (C.Constructor a typeName constructorName _) ->
+                go typeName constructorName
+              _ ->
+                pure unit
+          _ ->
+            pure unit
+  in
+    A.concat $
+      Map.toUnfoldable result <#> \(typeName /\ m) ->
+        Map.toUnfoldable m <#> \(constructorName /\ tag) ->
+          { typeName, constructorName, tag }
+
+  where
+  go
+    :: C.ProperName -- ^ the type name
+    -> C.ProperName -- ^ the constructor name
+    -> State (Map TypeName (Map ConstructorName Int)) Unit
+  go typeName constructorName = do
+    m <- State.get
+    case Map.lookup typeName m >>= Map.lookup constructorName of
+      Just _ ->
+        pure unit
+      Nothing ->
+        let
+          m' = fromMaybe Map.empty (Map.lookup typeName m)
+          ix = Map.size m'
+        in
+          State.put $
+            Map.insert
+              typeName
+              (Map.insert constructorName ix m')
+              m
