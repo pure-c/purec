@@ -17,12 +17,14 @@ import CoreFn.Module as C
 import CoreFn.Names as C
 import Data.Array (mapWithIndex)
 import Data.Array as A
-import Data.Either (Either(..))
+import Data.Either (Either(..), either)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
-import Data.Traversable (for, for_, traverse)
+import Data.String.CodeUnits as Str
+import Data.Traversable (foldr, for, for_, traverse)
+import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple.Nested ((/\), type (/\))
 import Debug.Trace (spy, traceM)
 import Effect.Ref (Ref)
@@ -51,7 +53,7 @@ freshName
   => m String
 freshName = ado
   id <- freshId
-  in "value" <> show id
+  in "$value" <> show id
 
 moduleToAST
   :: ∀ m
@@ -83,9 +85,10 @@ moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecl
             , [ P.empty ]
             , buildConstructorDeclsWithTags mod <#>
                 \{ constructorName: C.ProperName constructorName, tag } ->
+                  -- XXX: these could be #defines instead
                   AST.VariableIntroduction
                     { name: qualifiedVarName moduleName constructorName
-                    , type: Type.Pointer (Type.Any [ Type.Const ])
+                    , type: Type.Primitive Type.Int [ Type.Const ]
                     , qualifiers: []
                     , initialization: Just $ AST.NumericLiteral (Left tag)
                     }
@@ -182,10 +185,30 @@ exprToAst (C.Var ann ident) =
       Just moduleName ->
         AST.Var <<< qualifiedVarName moduleName <$>
           identToVarName ident
-exprToAst (C.Literal _ (C.NumericLiteral n)) = pure $ AST.NumericLiteral n
-exprToAst (C.Literal _ (C.StringLiteral s)) = pure $ AST.StringLiteral s
-exprToAst (C.Literal _ (C.CharLiteral c)) = pure $ AST.CharLiteral c
-exprToAst (C.Literal _ (C.BooleanLiteral b)) = pure $ AST.BooleanLiteral b
+exprToAst (C.Literal _ (C.NumericLiteral n)) =
+  pure $
+    AST.App
+      (either (const R._PURS_ANY_INT) (const R._PURS_ANY_FLOAT) n)
+      [ AST.NumericLiteral n
+      ]
+exprToAst (C.Literal _ (C.StringLiteral s)) =
+  pure $
+    AST.App
+      R._PURS_ANY_STRING
+      [ AST.StringLiteral s
+      ]
+exprToAst (C.Literal _ (C.CharLiteral c)) =
+  pure $
+    AST.App
+      R._PURS_ANY_STRING
+      [ AST.StringLiteral (Str.fromCharArray [ c ])
+      ]
+exprToAst (C.Literal _ (C.BooleanLiteral b)) =
+  pure $
+    AST.App
+      R._PURS_ANY_INT
+      [ AST.NumericLiteral $ Left $ if b then 1 else 0
+      ]
 exprToAst (C.Literal _ (C.ArrayLiteral xs)) = AST.ArrayLiteral <$> traverse exprToAst xs
 -- exprToAst (C.Literal _ (C.ObjectLiteral ps)) =
 --   AST.RecordLiteral <$>
@@ -311,13 +334,59 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
     throwError $ NotImplementedError $ "binderToAst " <> show x
 
 -- TODO add newtypes
-exprToAst (C.Constructor _ typeName (C.ProperName constructorName) []) = do
-  { module: C.Module { moduleName } } <- ask
 
+exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
+  | Just { init: initArgs, last: lastArg } <- A.unsnoc fields
+  = do
+
+  finalLambda <- do
+    argName     <- identToVarName lastArg
+    valuesName  <- freshName
+    assignments <-
+      traverseWithIndex <@> fields $ \i v -> ado
+        name <- identToVarName v
+        in
+          AST.Assignment
+            (AST.Indexer (AST.Var valuesName) (AST.NumericLiteral (Left i)))
+            (AST.Var name)
+    pure $
+     AST.Lambda
+      { arguments: [ { name: argName, type: R.any } ]
+      , returnType: R.any
+      , body:
+          AST.Block $
+            [ AST.VariableIntroduction
+                { name: valuesName
+                , type: Type.Pointer R.any
+                , qualifiers: []
+                , initialization:
+                    Just $
+                      AST.App
+                        R._PURS_CONS_VALUES_NEW
+                        [ AST.NumericLiteral (Left $ A.length fields) ]
+                }
+            ] <> assignments <> [ AST.Return (AST.Var valuesName) ]
+      }
+
+  A.foldM
+    (\body field -> ado
+        argName' <- identToVarName field
+        in
+          AST.Lambda
+            { arguments: [ { name: argName', type: R.any } ]
+            , returnType: R.any
+            , body: AST.Block [ AST.Return body ]
+            }
+    ) finalLambda $ A.reverse initArgs
+
+
+-- note: fieldless constructors are emitted as top-level thunks that, once
+-- evaluated, are stored in static storage.
+exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
+  { module: C.Module { moduleName } } <- ask
   let
     constructorName' =
       qualifiedVarName moduleName constructorName
-
   pure $
     AST.App
       R._PURS_ANY_CONS
@@ -325,8 +394,8 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) []) = do
           AST.StructLiteral $
             Object.empty
               # Object.insert "tag" (AST.Var constructorName')
+              # Object.insert "values" AST.Null
       ]
-
 exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   f   <- exprToAst ident
   arg <- exprToAst expr

@@ -44,12 +44,8 @@ const managed_utf8str_t * managed_utf8str_new (void * data) {
 // -----------------------------------------------------------------------------
 
 inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
-	while (1) {
-		if (x->tag == THUNK) {
-			x = x->value.fn(NULL);
-		} else {
-			break;
-		}
+	while (x->tag == THUNK) {
+		x = x->value.fn(NULL);
 	}
 	return x;
 }

@@ -135,4 +135,13 @@ const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 #define PURS_ANY_STRING(x) \
 	PURS_ANY_NEW(string, x)
 
+/**
+ * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of
+ * 'purs_any_t' pointers.
+ *
+ * XXX: this macro only exist for easy code emission from PureScript.
+ */
+#define PURS_CONS_VALUES_NEW(n) \
+	GC_MALLOC(sizeof (purs_any_t *) * n)
+
 #endif // PURESCRIPT_RUNTIME_H

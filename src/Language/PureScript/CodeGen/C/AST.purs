@@ -148,9 +148,6 @@ data AST
   -- | A character literal
   | CharLiteral Char
 
-  -- | A boolean literal
-  | BooleanLiteral Boolean
-
   -- | Struct initialization
   | StructLiteral (Object AST)
 
@@ -243,6 +240,7 @@ data AST
   | Raw String
   -- | Commented C++11
   | Comment (Array C.Comment) AST
+  | Null
 
 derive instance genericAST :: Rep.Generic AST _
 

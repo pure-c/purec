@@ -1,7 +1,7 @@
 module Example1 where
 
 data Foo
-  = Bar
+  = Bar Int String
   | Qux
 
 const :: ∀ a b. a -> b -> a

@@ -110,10 +110,6 @@ prettyPrintAst (AST.NumericLiteral (Right n)) =
 prettyPrintAst (AST.CharLiteral c)
   | isAscii c
   = emit $ "'" <> encodeChar c <> "'"
-prettyPrintAst (AST.BooleanLiteral true) =
-  emit "1"
-prettyPrintAst (AST.BooleanLiteral false) =
-  emit "0"
 prettyPrintAst (AST.Lambda
   { arguments
   , returnType
@@ -160,10 +156,11 @@ prettyPrintAst (AST.Function
   renderArg { name, type: typ } =
     renderType typ <> " " <> name
 prettyPrintAst (AST.Cast typ ast) = do
-  emit "("
+  emit "(("
   emit $ renderType typ
   emit ") "
   prettyPrintAst ast
+  emit ")"
 prettyPrintAst (AST.App fnAst argsAsts) = do
   prettyPrintAst fnAst
   emit "("
@@ -176,6 +173,17 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         emit ", "
       prettyPrintAst last
   emit ")"
+prettyPrintAst (AST.Assignment l r) = do
+  prettyPrintAst l
+  emit " ="
+  lf
+  withNextIndent $
+    indent *> prettyPrintAst r
+prettyPrintAst (AST.Indexer k v) = do
+  prettyPrintAst k
+  emit "["
+  prettyPrintAst v
+  emit "]"
 prettyPrintAst (AST.StructLiteral o) = do
   emit "{"
   withNextIndent do
@@ -185,6 +193,8 @@ prettyPrintAst (AST.StructLiteral o) = do
       withNextIndent do
         lf
         indent *> prettyPrintAst v
+        emit ","
+        lf
     lf
   emit "}"
 prettyPrintAst (AST.IfElse condAst thenAst mElseAst) = do
@@ -243,6 +253,8 @@ prettyPrintAst (AST.Binary op lhsAst rhsAst) = do
   emit ")"
 prettyPrintAst AST.NoOp =
   pure unit
+prettyPrintAst AST.Null =
+  emit "NULL"
 prettyPrintAst x = do
   lf
   emit ("xTODO: " <> show x)

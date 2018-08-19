@@ -66,15 +66,6 @@ toHeader
 toHeader = A.catMaybes <<< map go
 
   where
-  go (AST.VariableIntroduction { name, initialization: Just (AST.Lambda lam) }) =
-    Just $
-      AST.Function
-        { name
-        , arguments: lam.arguments
-        , returnType: lam.returnType
-        , qualifiers: []
-        , body: Nothing
-        }
   go (AST.VariableIntroduction { name, initialization }) =
     Just $
       AST.VariableIntroduction
@@ -90,15 +81,6 @@ toBody :: Array AST -> Array AST
 toBody = A.catMaybes <<< map go
   where
   go :: AST -> Maybe AST
-  go (AST.VariableIntroduction { name, initialization: Just (AST.Lambda lam) }) =
-    Just $
-      AST.Function
-        { name
-        , arguments: lam.arguments
-        , returnType: lam.returnType
-        , qualifiers: []
-        , body: Just lam.body
-        }
   go (AST.VariableIntroduction { name, initialization: Just initialization }) = do
     case initialization of
       AST.App a xs ->
@@ -107,6 +89,13 @@ toBody = A.catMaybes <<< map go
             R._PURS_ANY_THUNK_DECL
             [ AST.Raw name
             , AST.App a xs
+            ]
+      AST.Lambda { arguments, returnType, body } ->
+        Just $
+          AST.App
+            R._PURS_ANY_THUNK_DECL
+            [ AST.Raw name
+            , initialization
             ]
       _ ->
         Just $

@@ -3,19 +3,20 @@
 PURS_ANY_THUNK_DECL(
 	Data_Maybe_Nothing,
 	PURS_ANY_CONS(
-		(purs_cons_t) { .tag = Data_Maybe_Nothing__Tag }
+		((purs_cons_t) {
+			.tag = Data_Maybe_Nothing__Tag
+		})
 	)
 )
 
 const purs_any_t * Data_Maybe_Just (const purs_any_t * value0) {
-	const purs_any_t ** values = GC_MALLOC(sizeof (purs_any_t*[1]));
+	const purs_any_t ** values = PURS_CONS_VALUES_NEW(1);
 	values[0] = value0;
-	return purs_any_set_cons(
-		GC_NEW(purs_any_t),
-		(purs_cons_t) {
+	return PURS_ANY_CONS(
+		((purs_cons_t) {
 			.tag = Data_Maybe_Just__Tag,
 			.values = values
-		}
+		})
 	);
 }
 
