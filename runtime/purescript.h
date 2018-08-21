@@ -175,22 +175,27 @@ typedef struct purs_record {
 const purs_record_t * purs_record_copy_shallow(const purs_record_t *);
 
 /**
- * Add a given key to the given record.
+ * Add a given set of key/value pairs to the given record.
  */
-const purs_record_t * purs_record_add(const purs_record_t *,
-									  const void * key,
-									  const purs_any_t * value);
+const purs_record_t * purs_record_add_multi(const purs_record_t *,
+											size_t count,
+											...);
+
+/**
+ * Add a given key/value pair to the given record.
+ */
+#define purs_record_add(record, k, v) purs_record_add_multi(record, 1, k, v)
 
 /**
  * Find an entry by it's key.
  */
-purs_record_t * purs_record_find_by_key(const purs_record_t * record,
+purs_record_t * purs_record_find_by_key(const purs_record_t *,
 										const void * key);
 
 /**
  * Remove an entry by it's key.
  */
-const purs_record_t * purs_record_remove(const purs_record_t * source,
+const purs_record_t * purs_record_remove(const purs_record_t *,
 										 const void * key);
 
 #endif // PURESCRIPT_RUNTIME_H

@@ -198,22 +198,32 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	return (const purs_record_t *) record;
 }
 
-const purs_record_t * purs_record_add(const purs_record_t * source,
-									   const void * key,
-									   const purs_any_t * value) {
+const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t count, ...) {
+	if (count == 0) {
+		return source;
+	}
 
 	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 
-	purs_record_t * entry = GC_NEW(purs_record_t);
-	entry->key = managed_utf8str_new(key);
-	entry->value = value;
-	HASH_ADD_KEYPTR(
-		hh,
-		copy,
-		entry->key->data,
-		utf8size(entry->key->data),
-		entry
-	);
+	va_list args;
+	va_start(args, count);
+
+	for (size_t i = 0; i < count; i++) {
+		const void * key = va_arg(args, const void *);
+		const purs_any_t * value = va_arg(args, const purs_any_t *);
+		purs_record_t * entry = GC_NEW(purs_record_t);
+		entry->key = managed_utf8str_new(key);
+		entry->value = value;
+		HASH_ADD_KEYPTR(
+			hh,
+			copy,
+			entry->key->data,
+			utf8size(entry->key->data),
+			entry
+		);
+	}
+
+	va_end(args);
 
 	return (const purs_record_t *) copy;
 }
@@ -222,7 +232,7 @@ const purs_record_t * purs_record_add(const purs_record_t * source,
  * Remove a value at a given key
  */
 const purs_record_t * purs_record_remove(const purs_record_t * source,
-										  const void * key) {
+										 const void * key) {
 	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 	purs_record_t * v = purs_record_find_by_key(source, key);
 	if (v != NULL) {
@@ -241,8 +251,3 @@ purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 	HASH_FIND(hh, record, key, len, result);
 	return result;
 }
-
-/* /\** */
-/*  * Build a record from a list of key/value pairs */
-/*  *\/ */
-/* purspurs_record_build */
