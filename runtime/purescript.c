@@ -6,7 +6,7 @@
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
 
-const managed_t * managed_new (void * data, const managed_release_func release) {
+const managed_t * managed_new (const void * data, const managed_release_func release) {
 	managed_t * managed = GC_NEW(managed_block_t);
 	managed->data = data;
 	GC_register_finalizer(
@@ -24,7 +24,7 @@ void managed_block_release (managed_t * managed) {
 	Block_release(managed->data);
 }
 
-const managed_block_t * managed_block_new (void * block) {
+const managed_block_t * managed_block_new (const void * block) {
 	return managed_new(block, managed_block_release);
 }
 
@@ -35,7 +35,7 @@ void managed_utf8str_release (managed_t * data) {
 	free(data);
 }
 
-const managed_utf8str_t * managed_utf8str_new (void * data) {
+const managed_utf8str_t * managed_utf8str_new (const void * data) {
 	return managed_new(data, managed_utf8str_release);
 }
 
@@ -139,7 +139,7 @@ const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 	assert(invalid_tag);
 }
 
-int purs_any_eq_string (const purs_any_t * x, void * str) {
+int purs_any_eq_string (const purs_any_t * x, const void * str) {
 	const managed_utf8str_t * a = purs_any_get_string(x);
 	if (a != NULL) {
 		return utf8cmp(a->data, str) == 0;
@@ -174,4 +174,39 @@ const purs_any_t * purs_any_concat(const purs_any_t * a, const purs_any_t * b) {
 		GC_NEW(purs_any_t),
 		managed_utf8str_new(afmt("%s%s", a_utf8str->data, b_utf8str->data))
 	);
+}
+
+// -----------------------------------------------------------------------------
+// records
+// -----------------------------------------------------------------------------
+
+const purs_record_t ** purs_record_copy_shallow(const purs_record_t * source) {
+	const purs_record_t * current_entry, * tmp;
+	purs_record_t * entry_copy;
+	purs_record_t ** record = GC_NEW(purs_record_t *);
+	HASH_ITER(hh, source, current_entry, tmp) {
+		entry_copy = GC_NEW(purs_record_t);
+		memcpy(entry_copy, current_entry, sizeof(purs_record_t));
+		HASH_ADD_PTR(*record, key, entry_copy);
+	}
+	return (const purs_record_t **) record;
+}
+
+const purs_record_t ** purs_record_add(const purs_record_t * source,
+									   const void * key,
+									   const purs_any_t * value) {
+	purs_record_t ** copy = (purs_record_t **) purs_record_copy_shallow(source);
+	PURS_RECORD_ADD_MUT(*copy, key, value);
+	return (const purs_record_t **) copy;
+}
+
+const purs_any_t * purs_record_find_by_key(const purs_record_t * record,
+										   const void * key) {
+	const purs_record_t * current_entry, * tmp;
+	HASH_ITER(hh, record, current_entry, tmp) {
+		if (purs_any_eq_string(current_entry->key, key)) {
+			return current_entry->value;
+		}
+	}
+	return NULL;
 }

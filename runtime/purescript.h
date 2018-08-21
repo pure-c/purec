@@ -24,25 +24,25 @@
 
 typedef struct managed managed_t;
 struct managed {
-	void * data;
+	const void * data;
 };
 
 
 typedef void (*managed_release_func)(managed_t * managed);
-const managed_t * managed_new(void * data, managed_release_func release);
+const managed_t * managed_new(const void * data, managed_release_func release);
 
 // -----------------------------------------------------------------------------
 // managed blocks
 // -----------------------------------------------------------------------------
 
 typedef managed_t managed_block_t;
-const managed_block_t * managed_block_new (void * block);
+const managed_block_t * managed_block_new (const void * block);
 
 // -----------------------------------------------------------------------------
 // managed utf8 strings
 // -----------------------------------------------------------------------------
 typedef managed_t managed_utf8str_t;
-const managed_utf8str_t * managed_utf8str_new (void *);
+const managed_utf8str_t * managed_utf8str_new (const void *);
 
 // -----------------------------------------------------------------------------
 // any: dynamically typed values
@@ -103,7 +103,7 @@ purs_any_t * purs_any_set_string    (purs_any_t *, const managed_utf8str_t *);
 const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
-int purs_any_eq_string (const purs_any_t *, void *);
+int purs_any_eq_string (const purs_any_t *, const void *);
 int purs_any_eq_int    (const purs_any_t *, int);
 int purs_any_eq_float  (const purs_any_t *, float);
 
@@ -157,5 +157,44 @@ int purs_any_eq_float  (const purs_any_t *, float);
  */
 #define PURS_CONS_VALUES_NEW(n) \
 	GC_MALLOC(sizeof (purs_any_t *) * n)
+
+// -----------------------------------------------------------------------------
+// records
+// -----------------------------------------------------------------------------
+
+typedef struct purs_record {
+	const purs_any_t * key;
+	const purs_any_t * value;
+	UT_hash_handle hh;
+} purs_record_t;
+
+/**
+ * Add given value under given key to given record.
+ * Note: this function mutates the given record.
+ */
+#define PURS_RECORD_ADD_MUT($record, $key, $value) \
+	do { \
+		purs_record_t * entry = GC_NEW(purs_record_t); \
+		entry->key = PURS_ANY_STRING($key); \
+		entry->value = $value; \
+		HASH_ADD_PTR($record, key, entry); \
+	} while (0)
+
+/**
+ * Create a shallow copy of the given record.
+ * Copies only the uthash structure
+ */
+const purs_record_t ** purs_record_copy_shallow(const purs_record_t *);
+
+/**
+ * Add a given key to the given record.
+ */
+const purs_record_t ** purs_record_add(const purs_record_t *, const void * key, const purs_any_t * value);
+
+/**
+ * Find an entry by it's key.
+ * TODO: do this properly in amortized O(1)
+ */
+const purs_any_t * purs_record_find_by_key(const purs_record_t * record, const void * key);
 
 #endif // PURESCRIPT_RUNTIME_H
