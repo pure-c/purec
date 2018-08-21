@@ -187,7 +187,13 @@ const purs_record_t ** purs_record_copy_shallow(const purs_record_t * source) {
 	HASH_ITER(hh, source, current_entry, tmp) {
 		entry_copy = GC_NEW(purs_record_t);
 		memcpy(entry_copy, current_entry, sizeof(purs_record_t));
-		HASH_ADD_PTR(*record, key, entry_copy);
+		HASH_ADD_KEYPTR(
+			hh,
+			*record,
+			entry_copy->key->data,
+			utf8size(entry_copy->key->data),
+			entry_copy
+		);
 	}
 	return (const purs_record_t **) record;
 }
@@ -195,18 +201,33 @@ const purs_record_t ** purs_record_copy_shallow(const purs_record_t * source) {
 const purs_record_t ** purs_record_add(const purs_record_t * source,
 									   const void * key,
 									   const purs_any_t * value) {
+
 	purs_record_t ** copy = (purs_record_t **) purs_record_copy_shallow(source);
-	PURS_RECORD_ADD_MUT(*copy, key, value);
+
+	purs_record_t * entry = GC_NEW(purs_record_t);
+	entry->key = managed_utf8str_new(key);
+	entry->value = value;
+	HASH_ADD_KEYPTR(
+		hh,
+		*copy,
+		entry->key->data,
+		utf8size(entry->key->data),
+		entry
+	);
+
 	return (const purs_record_t **) copy;
 }
 
+/**
+ * Find a value at a give key
+ */
 const purs_any_t * purs_record_find_by_key(const purs_record_t * record,
 										   const void * key) {
-	const purs_record_t * current_entry, * tmp;
-	HASH_ITER(hh, record, current_entry, tmp) {
-		if (purs_any_eq_string(current_entry->key, key)) {
-			return current_entry->value;
-		}
+	const purs_record_t * result;
+    size_t len = utf8size(key);
+	HASH_FIND(hh, record, key, len, result);
+	if (result != NULL) {
+		return result->value;
 	}
 	return NULL;
 }

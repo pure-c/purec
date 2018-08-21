@@ -163,22 +163,10 @@ int purs_any_eq_float  (const purs_any_t *, float);
 // -----------------------------------------------------------------------------
 
 typedef struct purs_record {
-	const purs_any_t * key;
+	const managed_utf8str_t * key;
 	const purs_any_t * value;
 	UT_hash_handle hh;
 } purs_record_t;
-
-/**
- * Add given value under given key to given record.
- * Note: this function mutates the given record.
- */
-#define PURS_RECORD_ADD_MUT($record, $key, $value) \
-	do { \
-		purs_record_t * entry = GC_NEW(purs_record_t); \
-		entry->key = PURS_ANY_STRING($key); \
-		entry->value = $value; \
-		HASH_ADD_PTR($record, key, entry); \
-	} while (0)
 
 /**
  * Create a shallow copy of the given record.
@@ -193,7 +181,6 @@ const purs_record_t ** purs_record_add(const purs_record_t *, const void * key, 
 
 /**
  * Find an entry by it's key.
- * TODO: do this properly in amortized O(1)
  */
 const purs_any_t * purs_record_find_by_key(const purs_record_t * record, const void * key);
 
