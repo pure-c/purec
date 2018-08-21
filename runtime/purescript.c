@@ -104,6 +104,15 @@ const managed_utf8str_t * purs_any_get_string (const purs_any_t * x) {
 	}
 }
 
+const purs_record_t * purs_any_get_record (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
+	if (x->tag == RECORD) {
+		return (const purs_record_t *) x->value.record;
+	} else {
+		return NULL;
+	}
+}
+
 #define PURS_ANY_SET_IMPL(_name, _type, _tag, _key) \
 	purs_any_t * _name (purs_any_t * any, _type val) { \
 		any->tag = _tag; \
@@ -117,6 +126,7 @@ PURS_ANY_SET_IMPL(purs_any_set_float, float, FLOAT, num_float)
 PURS_ANY_SET_IMPL(purs_any_set_int, int, INT, num_int)
 PURS_ANY_SET_IMPL(purs_any_set_cons, purs_cons_t, CONS, cons)
 PURS_ANY_SET_IMPL(purs_any_set_string, const managed_utf8str_t *, STRING, string)
+PURS_ANY_SET_IMPL(purs_any_set_record, const purs_record_t *, RECORD, record)
 
 const int invalid_tag = 0;
 

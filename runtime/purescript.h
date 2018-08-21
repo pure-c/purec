@@ -48,6 +48,7 @@ const managed_utf8str_t * managed_utf8str_new (const void *);
 // any: dynamically typed values
 // -----------------------------------------------------------------------------
 
+typedef struct purs_record purs_record_t;
 typedef struct purs_any purs_any_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
@@ -66,8 +67,9 @@ enum purs_any_tag {
 	ABS = 2,       // abstraction
 	ABS_BLOCK = 3, // lambda abstraction
 	CONS = 4,      // data constructor
-	STRING = 5,    // UTF8 string
-	THUNK = 6,     // thunk
+	RECORD = 5,    // a record (hash table)
+	STRING = 6,    // UTF8 string
+	THUNK = 7,     // thunk
 };
 
 union purs_any_value {
@@ -76,6 +78,7 @@ union purs_any_value {
 	abs_t fn;
 	const managed_utf8str_t * string;
 	const managed_block_t * block;
+	const purs_record_t * record;
 	purs_cons_t cons;
 };
 
@@ -92,13 +95,16 @@ const float *             purs_any_get_float     (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
+const purs_record_t *     purs_any_get_record    (const purs_any_t *);
 
+// XXX: caution, these functions mutate the input!
 purs_any_t * purs_any_set_abs       (purs_any_t *, const abs_t);
 purs_any_t * purs_any_set_abs_block (purs_any_t *, const managed_t *);
 purs_any_t * purs_any_set_float     (purs_any_t *, const float);
 purs_any_t * purs_any_set_int       (purs_any_t *, const int);
 purs_any_t * purs_any_set_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_set_string    (purs_any_t *, const managed_utf8str_t *);
+purs_any_t * purs_any_set_record    (purs_any_t *, const purs_record_t *);
 
 const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
@@ -148,6 +154,9 @@ int purs_any_eq_float  (const purs_any_t *, float);
 
 #define PURS_ANY_STRING(x) \
 	PURS_ANY_NEW(string, managed_utf8str_new(x))
+
+#define PURS_ANY_RECORD(n, ...) \
+	PURS_ANY_NEW(record, purs_record_add_multi(NULL, n, __VA_ARGS__))
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of

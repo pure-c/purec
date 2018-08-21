@@ -201,9 +201,12 @@ exprToAst (C.Literal _ (C.BooleanLiteral b)) =
       R._PURS_ANY_INT
       [ AST.NumericLiteral $ Left $ if b then 1 else 0
       ]
-exprToAst (C.Literal _ (C.ArrayLiteral xs)) =
-  AST.ArrayLiteral <$>
-    traverse exprToAst xs
+exprToAst (C.Literal _ (C.ObjectLiteral kvps)) =
+  pure $
+    AST.App
+      R._PURS_ANY_RECORD
+      [ AST.NumericLiteral $ Left $ A.length kvps
+      ]
 exprToAst (C.Let _ binders val) = do
   bindersAsts <- A.concat <$> traverse bindToAst binders
   valAst      <- exprToAst val
