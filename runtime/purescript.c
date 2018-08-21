@@ -180,55 +180,55 @@ const purs_any_t * purs_any_concat(const purs_any_t * a, const purs_any_t * b) {
 // records
 // -----------------------------------------------------------------------------
 
-const purs_record_t ** purs_record_copy_shallow(const purs_record_t * source) {
+const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	const purs_record_t * current_entry, * tmp;
 	purs_record_t * entry_copy;
-	purs_record_t ** record = GC_NEW(purs_record_t *);
+	purs_record_t * record = NULL;
 	HASH_ITER(hh, source, current_entry, tmp) {
 		entry_copy = GC_NEW(purs_record_t);
 		memcpy(entry_copy, current_entry, sizeof(purs_record_t));
 		HASH_ADD_KEYPTR(
 			hh,
-			*record,
+			record,
 			entry_copy->key->data,
 			utf8size(entry_copy->key->data),
 			entry_copy
 		);
 	}
-	return (const purs_record_t **) record;
+	return (const purs_record_t *) record;
 }
 
-const purs_record_t ** purs_record_add(const purs_record_t * source,
+const purs_record_t * purs_record_add(const purs_record_t * source,
 									   const void * key,
 									   const purs_any_t * value) {
 
-	purs_record_t ** copy = (purs_record_t **) purs_record_copy_shallow(source);
+	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 
 	purs_record_t * entry = GC_NEW(purs_record_t);
 	entry->key = managed_utf8str_new(key);
 	entry->value = value;
 	HASH_ADD_KEYPTR(
 		hh,
-		*copy,
+		copy,
 		entry->key->data,
 		utf8size(entry->key->data),
 		entry
 	);
 
-	return (const purs_record_t **) copy;
+	return (const purs_record_t *) copy;
 }
 
 /**
  * Remove a value at a given key
  */
-const purs_record_t ** purs_record_remove(const purs_record_t * source,
+const purs_record_t * purs_record_remove(const purs_record_t * source,
 										  const void * key) {
-	purs_record_t ** copy = (purs_record_t **) purs_record_copy_shallow(source);
+	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 	purs_record_t * v = purs_record_find_by_key(source, key);
 	if (v != NULL) {
-		HASH_DEL(*copy, (purs_record_t *) v);
+		HASH_DEL(copy, (purs_record_t *) v);
 	}
-	return (const purs_record_t **) copy;
+	return (const purs_record_t *) copy;
 }
 
 /**
@@ -241,3 +241,8 @@ purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 	HASH_FIND(hh, record, key, len, result);
 	return result;
 }
+
+/* /\** */
+/*  * Build a record from a list of key/value pairs */
+/*  *\/ */
+/* purspurs_record_build */
