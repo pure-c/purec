@@ -9,8 +9,6 @@ reference:
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \
-		-Duthash_malloc=purs_uthash_malloc \
-		-Duthash_free=purs_uthash_free \
 		$(CCAN_C_FILES) \
 		-I . \
 		runtime/purescript.c \
@@ -27,8 +25,6 @@ example1:
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \
-		-Duthash_malloc=purs_uthash_malloc \
-		-Duthash_free=purs_uthash_free \
 		$(CCAN_C_FILES) \
 		-I . \
 		runtime/purescript.c \

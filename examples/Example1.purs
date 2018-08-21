@@ -25,4 +25,12 @@ foo =
     let z = 200
      in 100
 
-main' = eq' foo 100
+class Show a where
+  show :: a -> String
+
+instance showFoo :: Show Foo where
+  show (Bar _ _) = "(Bar)"
+  show Qux = "(Qux)"
+
+
+main' = show Qux

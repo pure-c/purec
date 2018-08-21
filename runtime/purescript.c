@@ -116,7 +116,7 @@ PURS_ANY_SET_IMPL(purs_any_set_abs_block, const managed_block_t *, ABS_BLOCK, bl
 PURS_ANY_SET_IMPL(purs_any_set_float, float, FLOAT, num_float)
 PURS_ANY_SET_IMPL(purs_any_set_int, int, INT, num_int)
 PURS_ANY_SET_IMPL(purs_any_set_cons, purs_cons_t, CONS, cons)
-PURS_ANY_SET_IMPL(purs_any_set_string, const void *, STRING, string)
+PURS_ANY_SET_IMPL(purs_any_set_string, const managed_utf8str_t *, STRING, string)
 
 const int invalid_tag = 0;
 
@@ -136,6 +136,14 @@ const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 		return ((abs_t) f)(arg);
 	}
 
+	assert(invalid_tag);
+}
+
+int purs_any_eq_string (const purs_any_t * x, void * str) {
+	const managed_utf8str_t * a = purs_any_get_string(x);
+	if (a != NULL) {
+		return utf8cmp(a->data, str) == 0;
+	}
 	assert(invalid_tag);
 }
 

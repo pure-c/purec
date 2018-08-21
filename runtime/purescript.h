@@ -8,6 +8,15 @@
 #include <assert.h>
 #include "vendor/utf8.h"
 #include "ccan/asprintf/asprintf.h"
+#include "uthash.h"
+
+/* undefine the defaults */
+#undef uthash_malloc
+#undef uthash_free
+
+/* re-define, specifying alternate functions */
+#define uthash_malloc(sz) GC_MALLOC(sz)
+#define uthash_free(ptr, sz)
 
 // -----------------------------------------------------------------------------
 // managed data: garbage collected data
@@ -89,12 +98,14 @@ purs_any_t * purs_any_set_abs_block (purs_any_t *, const managed_t *);
 purs_any_t * purs_any_set_float     (purs_any_t *, const float);
 purs_any_t * purs_any_set_int       (purs_any_t *, const int);
 purs_any_t * purs_any_set_cons      (purs_any_t *, const purs_cons_t);
-purs_any_t * purs_any_set_string    (purs_any_t *, const void *);
+purs_any_t * purs_any_set_string    (purs_any_t *, const managed_utf8str_t *);
 
 const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
-int purs_any_eq_int (const purs_any_t *, int);
-int purs_any_eq_float (const purs_any_t *, float);
+
+int purs_any_eq_string (const purs_any_t *, void *);
+int purs_any_eq_int    (const purs_any_t *, int);
+int purs_any_eq_float  (const purs_any_t *, float);
 
 /**
  * Create a lazily evaluated top-level value.
@@ -136,7 +147,7 @@ int purs_any_eq_float (const purs_any_t *, float);
 	PURS_ANY_NEW(cons, x)
 
 #define PURS_ANY_STRING(x) \
-	PURS_ANY_NEW(string, x)
+	PURS_ANY_NEW(string, managed_utf8str_new(x))
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of

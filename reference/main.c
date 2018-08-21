@@ -20,11 +20,47 @@ const Data_Show_Show * Data_Maybe_showInt () {
 	return value0;
 }
 
+typedef struct purs_record {
+    purs_any_t * key;
+    purs_any_t * value;
+    UT_hash_handle hh;
+} purs_record_t;
+
+
+#define PURS_ANY_RECORD_ADD($record, $key, $value) \
+	do { \
+		purs_record_t * entry = GC_NEW(purs_record_t); \
+		entry->key = PURS_ANY_STRING($key); \
+		entry->value = $value; \
+		HASH_ADD_PTR($record, key, entry); \
+	} while (0)
+
+purs_record_t ** make_record_foo () {
+	purs_record_t ** record = GC_NEW(purs_record_t *);
+	PURS_ANY_RECORD_ADD(*record, "foobar", PURS_ANY_INT(100));
+	return record;
+}
+
+const purs_any_t * purs_record_find_by_key(const purs_record_t ** record, void * key) {
+	const purs_record_t * current_entry, * tmp;
+	HASH_ITER(hh, *record, current_entry, tmp) {
+		if (purs_any_eq_string(current_entry->key, key)) {
+			return current_entry->value;
+		}
+	}
+	return NULL;
+}
+
 
 int main () {
 	const purs_any_t * a = Data_Maybe_Just(foo);
 	const Data_Show_Show * x = Data_Maybe_showMaybe(Data_Maybe_showInt());
 	const purs_any_t * y = purs_any_app(x->show, a);
 	printf("%s\n", (char *) y->value.string->data);
+
+	const purs_record_t * r = make_record_foo();
+	const purs_any_t * o = purs_record_find_by_key(r, (void *) "foobar");
+	printf("%d\n", *purs_any_get_int(o));
+
 	return 0;
 }
