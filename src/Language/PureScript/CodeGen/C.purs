@@ -289,8 +289,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
               AST.Block $ A.concat
                 [ map _.ast assignments
                 , A.concat caseAlternativeAsts
-                -- TODO: pattern error
-                -- , [ failedPatternError valNames ]
+                , [ R.assert' "Failed Pattern Match" ]
                 ]
           }
       , AST.Null
@@ -354,8 +353,67 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         , initialization: Just $ AST.Var varName
         } A.: next
 
-  -- binderToAst varName next (C.ConstructorBinder _ _ _ _) =
-  --   pure next -- TODO: IMPLEMENT
+
+  binderToAst varName next
+    (C.ConstructorBinder
+      (C.Ann
+        { meta: Just (C.IsConstructor constructorType fields)
+        }) _ (C.Qualified mConstructorModuleName (C.ProperName constructorName)) binders) =
+    let
+      go xs next' =
+        case A.uncons xs of
+          Nothing ->
+            pure next'
+          Just { head: ((index /\ field) /\ binder), tail: rest } -> do
+            argVarName <- freshName
+            next''     <- go rest next'
+            ast        <- binderToAst argVarName next'' binder
+            fieldName  <- identToVarName field
+            pure $
+              AST.VariableIntroduction
+                { name: argVarName
+                , type: R.any
+                , qualifiers: []
+                , initialization:
+                    Just $
+                      AST.Cast R.any $
+                        AST.Indexer
+                          (AST.NumericLiteral (Left index))
+                          (AST.Accessor
+                            (AST.Raw "values")
+                            (AST.App R.purs_any_get_cons [ AST.Var varName ]))
+                } A.: ast
+
+    in
+      case constructorType of
+        C.ProductType ->
+          go <@> next $ A.zip (A.mapWithIndex (/\) fields) binders
+        C.SumType -> do
+          tag <- ado
+            moduleName <-
+              case mConstructorModuleName of
+                Just x ->
+                  pure x
+                Nothing -> ado
+                  { module: C.Module { moduleName } } <- ask
+                  in moduleName
+            in qualifiedVarName moduleName constructorName
+          asts <- go <@> next $ A.zip (A.mapWithIndex (/\) fields) binders
+          pure
+            [
+              AST.IfElse
+                (AST.App
+                  R.purs_cons_get_tag
+                  [ AST.App
+                      R.purs_any_get_cons
+                      [ AST.Var varName
+                      ]
+                  ]
+                )
+                (AST.Block asts)
+                Nothing
+            ]
+
 
   binderToAst _ _ x =
     throwError $ NotImplementedError $ "binderToAst " <> show x
@@ -445,9 +503,9 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
             [ AST.Return bodyAst -- TODO: optIndexers/classes etc.
             ]
       }
--- exprToAst (C.Accessor _ _ _) = do
---   -- TODO: IMPLEMENT
---   pure $ AST.NoOp
+exprToAst (C.Accessor _ _ _) = do
+  -- TODO: IMPLEMENT
+  pure $ AST.NoOp
 exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
 
 qualifiedVarName :: C.ModuleName -> String -> String

@@ -20,26 +20,51 @@ const Data_Show_Show * Data_Maybe_showInt () {
 	return value0;
 }
 
+typedef struct purs_record {
+    purs_any_t * key;
+    purs_any_t * value;
+    UT_hash_handle hh;
+} purs_record_t;
+
+
+#define PURS_RECORD_ADD_MUT($record, $key, $value) \
+	do { \
+		purs_record_t * entry = GC_NEW(purs_record_t); \
+		entry->key = PURS_ANY_STRING($key); \
+		entry->value = $value; \
+		HASH_ADD_PTR($record, key, entry); \
+	} while (0)
+
+const purs_record_t ** purs_record_copy(const purs_record_t **) {
+
+}
+
+const purs_record_t ** make_record_foo () {
+	purs_record_t ** record = GC_NEW(purs_record_t *);
+	PURS_RECORD_ADD_MUT(*record, "foobar", PURS_ANY_INT(100));
+	return (const purs_record_t **) record;
+}
+
+// XXX: do this properly in amortized O(1)
+const purs_any_t * purs_record_find_by_key(const purs_record_t ** record, void * key) {
+	const purs_record_t * current_entry, * tmp;
+	HASH_ITER(hh, *record, current_entry, tmp) {
+		if (purs_any_eq_string(current_entry->key, key)) {
+			return current_entry->value;
+		}
+	}
+	return NULL;
+}
+
 int main () {
 	const purs_any_t * a = Data_Maybe_Just(foo);
 	const Data_Show_Show * x = Data_Maybe_showMaybe(Data_Maybe_showInt());
 	const purs_any_t * y = purs_any_app(x->show, a);
 	printf("%s\n", (char *) y->value.string->data);
 
-	const purs_any_t * r = PURS_ANY_RECORD(1, "foobar", PURS_ANY_INT(200));
-	const purs_record_t * r2 = purs_any_get_record(r);
-
-	const purs_record_t * o = purs_record_find_by_key(r2, (void *) "foobar");
-	printf("%d\n", *purs_any_get_int(o->value));
-
-	const purs_record_t * r3 = purs_record_remove(r2, "foobar");
-
-	const purs_record_t * o2 = purs_record_find_by_key(r2, (void *) "foobar");
-	assert(o2 != NULL);
-	printf("%d\n", *purs_any_get_int(o2->value));
-
-	const purs_record_t * o3 = purs_record_find_by_key(r3, (void *) "foobar");
-	assert(o3 == NULL);
+	const purs_record_t ** r = make_record_foo();
+	const purs_any_t * o = purs_record_find_by_key(r, (void *) "foobar");
+	printf("%d\n", *purs_any_get_int(o));
 
 	return 0;
 }

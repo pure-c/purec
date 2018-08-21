@@ -112,6 +112,11 @@ prettyPrintAst (AST.StringLiteral s) =
 prettyPrintAst (AST.CharLiteral c)
   | isAscii c
   = emit $ "'" <> encodeChar c <> "'"
+prettyPrintAst (AST.Accessor field o)
+  = do
+  prettyPrintAst o
+  emit $ "->"
+  prettyPrintAst field
 prettyPrintAst (AST.Lambda
   { arguments
   , returnType
@@ -181,7 +186,7 @@ prettyPrintAst (AST.Assignment l r) = do
   lf
   withNextIndent $
     indent *> prettyPrintAst r
-prettyPrintAst (AST.Indexer k v) = do
+prettyPrintAst (AST.Indexer v k) = do
   prettyPrintAst k
   emit "["
   prettyPrintAst v

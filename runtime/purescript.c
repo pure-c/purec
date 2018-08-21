@@ -130,6 +130,12 @@ PURS_ANY_SET_IMPL(purs_any_set_record, const purs_record_t *, RECORD, record)
 
 const int invalid_tag = 0;
 
+
+// XXX: for convenient emitting only (might be removed)
+int purs_cons_get_tag (const purs_cons_t * cons) {
+	return cons->tag;
+}
+
 const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 	const void * f;
 	const managed_block_t * b;

@@ -45,6 +45,12 @@ typedef managed_t managed_utf8str_t;
 const managed_utf8str_t * managed_utf8str_new (const void *);
 
 // -----------------------------------------------------------------------------
+// misc
+// -----------------------------------------------------------------------------
+
+#define PURS_ASSERT(cond, message) assert(cond && message)
+
+// -----------------------------------------------------------------------------
 // any: dynamically typed values
 // -----------------------------------------------------------------------------
 
@@ -105,6 +111,9 @@ purs_any_t * purs_any_set_int       (purs_any_t *, const int);
 purs_any_t * purs_any_set_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_set_string    (purs_any_t *, const managed_utf8str_t *);
 purs_any_t * purs_any_set_record    (purs_any_t *, const purs_record_t *);
+
+// XXX: for convenient emitting only (might be removed)
+int purs_cons_get_tag (const purs_cons_t * cons);
 
 const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
