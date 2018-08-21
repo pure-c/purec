@@ -107,6 +107,8 @@ prettyPrintAst (AST.NumericLiteral (Left n)) =
   emit $ show n
 prettyPrintAst (AST.NumericLiteral (Right n)) =
   emit $ show n
+prettyPrintAst (AST.StringLiteral s) =
+  emit $ show s
 prettyPrintAst (AST.CharLiteral c)
   | isAscii c
   = emit $ "'" <> encodeChar c <> "'"

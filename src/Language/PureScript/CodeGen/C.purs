@@ -201,12 +201,16 @@ exprToAst (C.Literal _ (C.BooleanLiteral b)) =
       R._PURS_ANY_INT
       [ AST.NumericLiteral $ Left $ if b then 1 else 0
       ]
-exprToAst (C.Literal _ (C.ObjectLiteral kvps)) =
+exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
+  kvpAsts <-
+    for kvps \(k /\ v) -> ado
+      vAst <- exprToAst v
+      in [ AST.StringLiteral k, vAst ]
   pure $
     AST.App
-      R._PURS_ANY_RECORD
-      [ AST.NumericLiteral $ Left $ A.length kvps
-      ]
+      R._PURS_ANY_RECORD $
+      [ AST.NumericLiteral $ Left $ A.length kvpAsts
+      ] <> A.concat kvpAsts
 exprToAst (C.Let _ binders val) = do
   bindersAsts <- A.concat <$> traverse bindToAst binders
   valAst      <- exprToAst val
@@ -349,6 +353,10 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         , qualifiers: []
         , initialization: Just $ AST.Var varName
         } A.: next
+
+  -- binderToAst varName next (C.ConstructorBinder _ _ _ _) =
+  --   pure next -- TODO: IMPLEMENT
+
   binderToAst _ _ x =
     throwError $ NotImplementedError $ "binderToAst " <> show x
 
@@ -437,6 +445,9 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
             [ AST.Return bodyAst -- TODO: optIndexers/classes etc.
             ]
       }
+-- exprToAst (C.Accessor _ _ _) = do
+--   -- TODO: IMPLEMENT
+--   pure $ AST.NoOp
 exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
 
 qualifiedVarName :: C.ModuleName -> String -> String
