@@ -31,12 +31,16 @@ int main () {
 	printf("%s\n", (char *) y->value.string->data);
 
 	const purs_record_t ** r = make_record_foo();
-	const purs_any_t * o = purs_record_find_by_key(*r, (void *) "foobar");
-	printf("%d\n", *purs_any_get_int(o));
+	const purs_record_t * o = purs_record_find_by_key(*r, (void *) "foobar");
+	printf("%d\n", *purs_any_get_int(o->value));
 
-	const purs_record_t ** r2 = purs_record_copy_shallow(*r);
-	const purs_any_t * o2 = purs_record_find_by_key(*r2, (void *) "foobar");
-	printf("%d\n", *purs_any_get_int(o2));
+	const purs_record_t ** r2 = purs_record_remove(*r, "foobar");
+
+	const purs_record_t * o2 = purs_record_find_by_key(*r, (void *) "foobar");
+	assert(o2 != NULL);
+
+	const purs_record_t * o3 = purs_record_find_by_key(*r2, (void *) "foobar");
+	assert(o3 == NULL);
 
 	return 0;
 }

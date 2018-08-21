@@ -219,15 +219,25 @@ const purs_record_t ** purs_record_add(const purs_record_t * source,
 }
 
 /**
- * Find a value at a give key
+ * Remove a value at a given key
  */
-const purs_any_t * purs_record_find_by_key(const purs_record_t * record,
-										   const void * key) {
-	const purs_record_t * result;
+const purs_record_t ** purs_record_remove(const purs_record_t * source,
+										  const void * key) {
+	purs_record_t ** copy = (purs_record_t **) purs_record_copy_shallow(source);
+	purs_record_t * v = purs_record_find_by_key(source, key);
+	if (v != NULL) {
+		HASH_DEL(*copy, (purs_record_t *) v);
+	}
+	return (const purs_record_t **) copy;
+}
+
+/**
+ * Find a value at a given key
+ */
+purs_record_t * purs_record_find_by_key(const purs_record_t * record,
+										const void * key) {
+	purs_record_t * result;
     size_t len = utf8size(key);
 	HASH_FIND(hh, record, key, len, result);
-	if (result != NULL) {
-		return result->value;
-	}
-	return NULL;
+	return result;
 }
