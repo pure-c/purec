@@ -4,6 +4,10 @@
 
 ### Things to come back to
 
+* [ ] Emit tabs instead of spaces
+* [ ] Use less macross
+* [ ] Handle `NULL` in more cases:
+  * [ ] in AST for C.Accessor
 * [ ] Deal with memory allocation problems (i.e. out of memory).
 * [ ] Only emit exported declarations to header, and forward declare internal
   functions at top of implementation file.

@@ -402,13 +402,16 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
           pure
             [
               AST.IfElse
-                (AST.App
-                  R.purs_cons_get_tag
-                  [ AST.App
-                      R.purs_any_get_cons
-                      [ AST.Var varName
-                      ]
-                  ]
+                (AST.Binary AST.EqualTo
+                  (AST.App
+                    R.purs_cons_get_tag
+                    [ AST.App
+                        R.purs_any_get_cons
+                        [ AST.Var varName
+                        ]
+                    ]
+                  )
+                  (AST.Var tag)
                 )
                 (AST.Block asts)
                 Nothing
@@ -503,9 +506,24 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
             [ AST.Return bodyAst -- TODO: optIndexers/classes etc.
             ]
       }
-exprToAst (C.Accessor _ _ _) = do
-  -- TODO: IMPLEMENT
-  pure $ AST.NoOp
+exprToAst (C.Accessor _ k exp) = ado
+  -- XXX: what if valueAst is not a record?
+  valueAst <- exprToAst exp
+  in AST.Accessor
+    (AST.Raw "value")
+    (AST.App
+      R.purs_record_find_by_key
+      [
+        AST.App
+          R.purs_any_get_record
+          [ valueAst ]
+      , AST.StringLiteral k
+      ])
+
+  -- in
+  --   AST.Accessor
+  --     (AST.Raw k)
+  --     valueAst
 exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
 
 qualifiedVarName :: C.ModuleName -> String -> String

@@ -3,8 +3,10 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_eq_int
   , purs_any_eq_float
   , purs_any_get_cons
+  , purs_any_get_record
   , purs_cons_t
   , purs_cons_get_tag
+  , purs_record_find_by_key
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_CONS
   , _PURS_ANY_INT
@@ -39,11 +41,17 @@ purs_any_eq_int = AST.Var "purs_any_eq_int"
 purs_any_get_cons :: AST
 purs_any_get_cons = AST.Var "purs_any_get_cons"
 
+purs_any_get_record :: AST
+purs_any_get_record = AST.Var "purs_any_get_record"
+
 purs_cons_get_tag :: AST
 purs_cons_get_tag = AST.Var "purs_cons_get_tag"
 
 purs_any_app :: AST
 purs_any_app = AST.Var "purs_any_app"
+
+purs_record_find_by_key :: AST
+purs_record_find_by_key = AST.Var "purs_record_find_by_key"
 
 _PURS_ANY_THUNK_DECL :: AST
 _PURS_ANY_THUNK_DECL = AST.Var "PURS_ANY_THUNK_DECL"

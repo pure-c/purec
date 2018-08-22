@@ -22,6 +22,7 @@ EXAMPLE1_OUTPUT_C_FILES = $(shell find .output/Example1 -type f -name '*.c')
 example1:
 	clang \
 		-o a.out \
+		-g \
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \

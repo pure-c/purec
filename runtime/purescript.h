@@ -49,6 +49,7 @@ const managed_utf8str_t * managed_utf8str_new (const void *);
 // -----------------------------------------------------------------------------
 
 #define PURS_ASSERT(cond, message) assert(cond && message)
+const void * purs_assert_not_null(const void *, const char * message);
 
 // -----------------------------------------------------------------------------
 // any: dynamically typed values
@@ -94,6 +95,14 @@ struct purs_any {
 };
 
 const purs_any_t * purs_any_unthunk (const purs_any_t * x);
+
+const abs_t               purs_any_get_abs_maybe       (const purs_any_t *);
+const int *               purs_any_get_int_maybe       (const purs_any_t *);
+const float *             purs_any_get_float_maybe     (const purs_any_t *);
+const managed_block_t *   purs_any_get_abs_block_maybe (const purs_any_t *);
+const purs_cons_t *       purs_any_get_cons_maybe      (const purs_any_t *);
+const managed_utf8str_t * purs_any_get_string_maybe    (const purs_any_t *);
+const purs_record_t *     purs_any_get_record_maybe    (const purs_any_t *);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
 const int *               purs_any_get_int       (const purs_any_t *);
