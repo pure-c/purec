@@ -7,6 +7,7 @@ import Control.Monad.Error.Class (class MonadError, throwError)
 import Control.Monad.Reader (class MonadAsk, ReaderT(..), ask, runReaderT)
 import Control.Monad.State (State, execState)
 import Control.Monad.State as State
+import Control.MonadPlus (guard)
 import CoreFn.Ann as C
 import CoreFn.Binders as C
 import CoreFn.Expr as C
@@ -64,14 +65,26 @@ moduleToAST
   => IsMain
   -> C.Module C.Ann
   -> m (Array AST)
-moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecls }) =
+moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecls, moduleForeign }) =
   let
     cModuleName =
       runModuleName moduleName
     cIncludes =
       ("runtime/purescript" A.: _) $
        map F.cModuleName $
-        A.filter
+        (A.catMaybes [
+          let
+            C.ModuleName pieces =
+              moduleName
+          in ado
+            guard $ not (A.null moduleForeign)
+            { init, last: C.ProperName last } <- A.unsnoc pieces
+            in
+              C.ModuleName $
+                A.snoc init $
+                  C.ProperName $ last <> "_ffi"
+        ]) <> do
+         A.filter
           (\(C.ModuleName pieces) ->
               case A.uncons pieces of
                 Just { head: C.ProperName "Prim" } ->

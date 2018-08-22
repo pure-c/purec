@@ -32,17 +32,29 @@ foo =
 class Show a where
   show :: a -> String
 
--- foreign import showIntImpl :: Int -> String
+foreign import showIntImpl :: Int -> String
+foreign import showStringImpl :: String -> String
 
--- instance showInt :: Show Int where
---   show = showIntImpl
+-- XXX: will be replaced by Monoid instance for strings
+foreign import concatStringImpl :: String -> String -> String
+
+instance showInt :: Show Int where
+  show = showIntImpl
+
+instance showString :: Show String where
+  show = showStringImpl
+
 
 instance showFoo :: Show Foo where
-  show (Bar _ x) = x -- "(Bar)"
+  show (Bar n x) =
+    concatStringImpl "(Bar " (
+      concatStringImpl (show n) (
+        concatStringImpl " " (
+           concatStringImpl (show x) ")")))
   show Qux = "(Qux)"
 
 -- instance functorFoo :: Functor Foo where
 --   map _ (Bar x y) = Bar x y
 --   map _ Qux = Qux
 
-main' = show (Bar 100 "hello")
+main' = show (Bar 100 "h\"ello")
