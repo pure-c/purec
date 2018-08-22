@@ -262,6 +262,8 @@ prettyPrintAst AST.NoOp =
   pure unit
 prettyPrintAst AST.Null =
   emit "NULL"
+prettyPrintAst (AST.DefineTag name tag) =
+  emit $ "#define " <> name <> " " <> show tag
 prettyPrintAst x = do
   lf
   emit ("xTODO: " <> show x)

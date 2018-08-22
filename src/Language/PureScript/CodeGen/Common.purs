@@ -7,7 +7,7 @@ import Prelude
 import CoreFn.Names as C
 import Data.Array as A
 import Data.Newtype (unwrap)
+import Language.PureScript.CodeGen.C.File as C
 
 runModuleName :: C.ModuleName -> String
-runModuleName (C.ModuleName pieces) =
-  A.intercalate "." $ unwrap <$> pieces
+runModuleName = C.cModuleName

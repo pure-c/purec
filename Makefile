@@ -17,8 +17,6 @@ reference:
 		$(REFERENCE_OUTPUT_C_FILES) \
 		reference/main.c
 
-EXAMPLE1_OUTPUT_C_FILES = $(shell find .output/Example1 -type f -name '*.c')
-
 example1:
 	clang \
 		-o a.out \
@@ -30,6 +28,7 @@ example1:
 		-I . \
 		runtime/purescript.c \
 		\
-		-I .output/Example1/Example1 \
+		-I .tmp/sources/Example1 \
+		.tmp/sources/Example1/*.c \
 		-Wall \
 		$(EXAMPLE1_OUTPUT_C_FILES)

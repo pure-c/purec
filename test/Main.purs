@@ -18,7 +18,7 @@ import Data.String as Str
 import Data.Traversable (for, for_, traverse_)
 import Debug.Trace (spy, traceM)
 import Effect (Effect)
-import Effect.Aff (launchAff_)
+import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (liftAff)
 import Effect.Class.Console as Console
 import Effect.Console (log)
@@ -59,41 +59,48 @@ main = launchAff_ do
                     ((("examples/" <> moduleName) <> _) <$> subModules)
             }
 
-  for_ modules \{ name, files } ->
+  for_ modules \test ->
     let
-      outputDir =
-        ".output/" <> name
+      pursOutputDir =
+        ".tmp/output/" <> test.name
+      cOutputDir =
+        ".tmp/sources/" <> test.name
     in do
+      -- ensure directories exist
+      -- XXX: it'd be nice if mkdirp created dirs recursively
+      mkdirp ".tmp"
+      mkdirp ".tmp/sources"
+      mkdirp ".tmp/output"
+
       -- compile each module to it's corefn json rep
       runProc "purs" $
         [ "compile"
-        , "-o", outputDir
+        , "-o", pursOutputDir
         , "-g", "corefn"
-        ] <> files
+        ] <> test.files <>
+        [ "bower_components/purescript-prelude/src/Type/Data/RowList.purs"
+        ]
 
       -- compile each module's corefn json rep to cpp
-      FS.readdir outputDir >>= \fileNames -> do
-
-        Console.log "Compiling to C"
+      Console.log "Compiling all purescript to C..."
+      FS.readdir pursOutputDir >>= \fileNames -> do
         srcs <- A.concat <$>
           for fileNames \moduleName ->
             let
-              moduleOutputDir =
-                outputDir <> "/" <> moduleName
               corefnJsonFile =
-                moduleOutputDir <> "/corefn.json"
+                pursOutputDir <> "/" <> moduleName <> "/corefn.json"
             in do
               Console.log $ "Compiling to C: " <> moduleName <> "..."
-              compileToC moduleOutputDir corefnJsonFile
+              compileToC (moduleName == test.name) cOutputDir corefnJsonFile
 
         Console.log "Compiling C sources..."
-        runClang $ srcs <> [ "-I", outputDir, "-o", "a.out" ]
+        runClang $ srcs <> [ "-I", cOutputDir, "-o", "a.out" ]
         runProc "./a.out" []
 
       -- TODO: runMain (if any)
 
   where
-  compileToC outputDir jsonFile = do
+  compileToC isMain outputDir jsonFile = do
     input <- FS.readTextFile UTF8 jsonFile
     core  <- case runExcept $ C.moduleFromJSON input of
       Right v ->
@@ -120,7 +127,7 @@ main = launchAff_ do
       runSupplyT $ runExceptT do
         ast <-
           withExceptT CompileError $
-            C.moduleToAST core."module"
+            C.moduleToAST isMain core."module"
 
         let
           { init: headerAst, rest: implAst } =
@@ -130,13 +137,18 @@ main = launchAff_ do
         implSrc   <- withExceptT PrintError $ except $ C.prettyPrint implAst
 
         liftAff do
-          FS.mkdir outputDir `catchError` \e ->
-            unless (errorCode e == Just "EEXIST") do
-              throwError e
+          mkdirp outputDir
           parSequence_
             [ FS.writeTextFile UTF8 headerFilePath headerSrc
             , FS.writeTextFile UTF8 implFilePath implSrc
             ]
+
+-- XXX should work recursively
+mkdirp :: String -> Aff Unit
+mkdirp dir =
+  FS.mkdir dir `catchError` \e ->
+    unless (errorCode e == Just "EEXIST") do
+      throwError e
 
 foreign import errorCodeImpl
   :: ∀ a

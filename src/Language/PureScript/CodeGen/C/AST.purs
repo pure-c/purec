@@ -203,8 +203,6 @@ data AST
   | Var String
   -- | Unique system-wide name/constant
   | Symbol String
-  -- | Define unique system-wide name/constant
-  | DefineSymbol String
   -- | A block of expressions in braces
   | Block (Array AST)
   -- | An C++ struct declaration (name, members)
@@ -236,10 +234,13 @@ data AST
   | NoOp
   -- | Marker for header/source split
   | EndOfHeader
-  -- | Raw C (generated when parsing fails for an inline foreign import declaration)
+  -- | Raw C
   | Raw String
-  -- | Commented C++11
-  | Comment (Array C.Comment) AST
+
+  -- | Define a tag value for a purs_cons lookup
+  -- | XXX a more general #define AST would be desirable later.
+  | DefineTag String Int
+
   | Null
 
 derive instance genericAST :: Rep.Generic AST _

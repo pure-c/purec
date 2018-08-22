@@ -35,12 +35,14 @@ import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.Common (safeName)
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Pretty as P
-import Language.PureScript.CodeGen.C.Traversals (everythingOnAST)
 import Language.PureScript.CodeGen.Common (runModuleName)
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.Runtime as Runtime
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
+
+type IsMain =
+  Boolean
 
 type Env =
   { module :: C.Module C.Ann
@@ -59,22 +61,30 @@ moduleToAST
   :: ∀ m
    . MonadError CompileError m
   => MonadSupply m
-  => C.Module C.Ann
+  => IsMain
+  -> C.Module C.Ann
   -> m (Array AST)
-moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecls }) =
+moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecls }) =
   let
     cModuleName =
       runModuleName moduleName
     cIncludes =
       ("runtime/purescript" A.: _) $
        map F.cModuleName $
-        A.delete (C.ModuleName [ C.ProperName "Prim" ]) $
+        A.filter
+          (\(C.ModuleName pieces) ->
+              case A.uncons pieces of
+                Just { head: C.ProperName "Prim" } ->
+                  false
+                _ ->
+                  true
+          ) $
           A.difference <@> [ moduleName ] $
             _.moduleName <<< unwrap <$>
               moduleImports
   in runReaderT <@> { module: mod } $ do
     decls <-
-      map filterInlineFuncs <<< A.concat <$> do
+      A.concat <$> do
         traverse bindToAst moduleDecls
 
     let
@@ -85,13 +95,9 @@ moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecl
             , [ P.empty ]
             , buildConstructorDeclsWithTags mod <#>
                 \{ constructorName: C.ProperName constructorName, tag } ->
-                  -- XXX: these could be #defines instead
-                  AST.VariableIntroduction
-                    { name: qualifiedVarName moduleName constructorName
-                    , type: Type.Primitive Type.Int [ Type.Const ]
-                    , qualifiers: []
-                    , initialization: Just $ AST.NumericLiteral (Left tag)
-                    }
+                  AST.DefineTag
+                    (qualifiedVarName moduleName constructorName)
+                    tag
             , F.toHeader decls
             ]
 
@@ -104,7 +110,7 @@ moduleToAST mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecl
               , F.toBody decls
               ]
           , [ P.empty ]
-          , if true -- F.isMain moduleName (TODO)
+          , if isMain
               then [ F.nativeMain, P.empty ]
               else []
           ]
@@ -536,19 +542,6 @@ identToVarName C.UnusedIdent = pure "$__unused"
 identToVarName (C.GenIdent _ _) =
   throwError $
     InternalError "GenIdent in identToVarName"
-
--- TODO: Implement
-filterInlineFuncs :: AST -> AST
-filterInlineFuncs = identity
-
-allSymbols :: Array AST -> Array String
-allSymbols asts =
-  A.nub $
-    A.concatMap (everythingOnAST symbols) asts
-  where
-  symbols :: AST -> Array String
-  symbols (AST.Symbol s) = [s]
-  symbols _ = []
 
 type TypeName = C.ProperName
 type ConstructorName = C.ProperName

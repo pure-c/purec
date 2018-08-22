@@ -1,5 +1,7 @@
 module Example1 where
 
+import Type.Data.RowList (RLProxy(..))
+
 data Foo
   = Bar Int String
   | Qux
@@ -32,5 +34,8 @@ instance showFoo :: Show Foo where
   show (Bar _ _) = "(Bar)"
   show Qux = "(Qux)"
 
+-- instance functorFoo :: Functor Foo where
+--   map _ (Bar x y) = Bar x y
+--   map _ Qux = Qux
 
 main' = show Qux
