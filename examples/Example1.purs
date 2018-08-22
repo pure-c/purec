@@ -1,4 +1,6 @@
-module Example1 where
+module Example1
+  ( Foo (..)
+  ) where
 
 import Type.Data.RowList (RLProxy(..))
 
@@ -30,12 +32,17 @@ foo =
 class Show a where
   show :: a -> String
 
+-- foreign import showIntImpl :: Int -> String
+
+-- instance showInt :: Show Int where
+--   show = showIntImpl
+
 instance showFoo :: Show Foo where
-  show (Bar _ _) = "(Bar)"
+  show (Bar _ x) = x -- "(Bar)"
   show Qux = "(Qux)"
 
 -- instance functorFoo :: Functor Foo where
 --   map _ (Bar x y) = Bar x y
 --   map _ Qux = Qux
 
-main' = show Qux
+main' = show (Bar 100 "hello")

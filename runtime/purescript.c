@@ -44,9 +44,9 @@ const managed_utf8str_t * managed_utf8str_new (const void * data) {
 // -----------------------------------------------------------------------------
 
 inline const void * purs_assert_not_null(const void * data, const char * message) {
-	if (data == NULL) {
-		assert(0 && message);
-	}
+	char * message_ = afmt(message);
+	purs_assertf(data != NULL, message_);
+	free (message_);
 	return data;
 }
 
@@ -59,6 +59,18 @@ inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
 		x = x->value.fn(NULL);
 	}
 	return x;
+}
+
+inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
+	if      (x->tag == INT)		return &x->tag;
+	else if (x->tag == FLOAT)		return &x->tag;
+	else if (x->tag == ABS)		return &x->tag;
+	else if (x->tag == ABS_BLOCK)	return &x->tag;
+	else if (x->tag == CONS)		return &x->tag;
+	else if (x->tag == RECORD)		return &x->tag;
+	else if (x->tag == STRING)		return &x->tag;
+	else if (x->tag == THUNK)		return &x->tag;
+	else return NULL;
 }
 
 const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
@@ -124,9 +136,22 @@ const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
 	}
 }
 
-#define PURS_ANY_GET_IMPL($t, $x) \
-	const $t purs_any_get_##$x (const purs_any_t * x) { \
-		return purs_assert_not_null(purs_any_get_##$x##_maybe(x), "Expected $x"); \
+#define PURS_ANY_GET_IMPL(T, X) \
+	const T purs_any_get_##X (const purs_any_t * x) { \
+		purs_assert_not_null(x, "(purs_any_get_" #X ") expected: " #X); \
+		char * msg = afmt( \
+			"(purs_any_get_" #X ") invalid type: %d", \
+			* (const int *) purs_assert_not_null( \
+				purs_any_get_tag_maybe(x), \
+				"(purs_any_get_" #X ") expected purs_any_t" \
+			) \
+		); \
+		const T r = purs_assert_not_null( \
+			purs_any_get_##X##_maybe(x), \
+			msg \
+		); \
+		free(msg); \
+		return r; \
 	}
 
 PURS_ANY_GET_IMPL(purs_cons_t *, cons);
@@ -137,10 +162,10 @@ PURS_ANY_GET_IMPL(managed_block_t *, abs_block);
 PURS_ANY_GET_IMPL(managed_utf8str_t *, string);
 PURS_ANY_GET_IMPL(purs_record_t *, record);
 
-#define PURS_ANY_SET_IMPL(_name, _type, _tag, _key) \
-	purs_any_t * _name (purs_any_t * any, _type val) { \
-		any->tag = _tag; \
-		any->value._key = val; \
+#define PURS_ANY_SET_IMPL(NAME, TYPE, TAG, KEY) \
+	purs_any_t * NAME (purs_any_t * any, TYPE val) { \
+		any->tag = TAG; \
+		any->value.KEY = val; \
 		return any; \
 	}
 
@@ -173,7 +198,7 @@ const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 		return ((abs_t) f)(arg);
 	}
 
-	PURS_ASSERT(0, "expected function");
+	purs_assertf(0, "expected function");
 }
 
 int purs_any_eq_string (const purs_any_t * x, const void * str) {

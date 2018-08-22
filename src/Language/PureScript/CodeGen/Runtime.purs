@@ -14,7 +14,9 @@ module Language.PureScript.CodeGen.Runtime
   , _PURS_ANY_STRING
   , _PURS_ANY_RECORD
   , _PURS_CONS_VALUES_NEW
+  , _PURS_CONS_LIT
   , any
+  , any'
   , assert
   , assert'
   ) where
@@ -25,6 +27,9 @@ import Data.Either (Either(..))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
+
+any' :: AST.Type
+any' = Type.Pointer (Type.Any [])
 
 any :: AST.Type
 any = Type.Pointer (Type.Any [ Type.Const ])
@@ -74,9 +79,12 @@ _PURS_ANY_RECORD = AST.Var "PURS_ANY_RECORD"
 _PURS_CONS_VALUES_NEW :: AST
 _PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"
 
+_PURS_CONS_LIT :: AST
+_PURS_CONS_LIT = AST.Var "PURS_CONS_LIT"
+
 assert :: AST -> String -> AST
 assert condAst message =
-  AST.App (AST.Var "PURS_ASSERT")
+  AST.App (AST.Var "purs_assertf")
     [ condAst
     , AST.StringLiteral message
     ]

@@ -30,8 +30,6 @@ runClang inputs =
         , "-lBlocksRuntime"
         , "-lgc"
         , "-fcolor-diagnostics"
-        , "-Duthash_malloc=purs_uthash_malloc"
-        , "-Duthash_free=purs_uthash_free"
         , "-I", "."
         , "runtime/purescript.c"
         , "ccan/asprintf/asprintf.c"

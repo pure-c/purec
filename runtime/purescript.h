@@ -48,8 +48,18 @@ const managed_utf8str_t * managed_utf8str_new (const void *);
 // misc
 // -----------------------------------------------------------------------------
 
-#define PURS_ASSERT(cond, message) assert(cond && message)
 const void * purs_assert_not_null(const void *, const char * message);
+
+#define purs_log_error(M) \
+	fprintf(stderr, "[ERROR] (%s:%d) %s\n", __FILE__, __LINE__, M)
+
+#define purs_assertf(A, M) \
+	do { \
+		if (!(A)) { \
+			purs_log_error(M);\
+			assert(A); \
+		} \
+	} while (0)
 
 // -----------------------------------------------------------------------------
 // any: dynamically typed values
@@ -65,7 +75,7 @@ typedef const purs_any_t * (*abs_t) (const purs_any_t*);
 
 struct purs_cons {
 	int tag;
-	const purs_any_t ** values;
+	const purs_any_t * const * values;
 };
 
 enum purs_any_tag {
@@ -94,7 +104,8 @@ struct purs_any {
 	purs_any_value_t value;
 };
 
-const purs_any_t * purs_any_unthunk (const purs_any_t * x);
+const purs_any_t *     purs_any_unthunk       (const purs_any_t *);
+const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t *);
 
 const abs_t               purs_any_get_abs_maybe       (const purs_any_t *);
 const int *               purs_any_get_int_maybe       (const purs_any_t *);
@@ -184,6 +195,8 @@ int purs_any_eq_float  (const purs_any_t *, float);
  */
 #define PURS_CONS_VALUES_NEW(n) \
 	GC_MALLOC(sizeof (purs_any_t *) * n)
+#define PURS_CONS_LIT(TAG, VALUES) \
+	((purs_cons_t) { .tag = TAG, .values = VALUES })
 
 // -----------------------------------------------------------------------------
 // records

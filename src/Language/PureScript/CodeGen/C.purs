@@ -156,7 +156,7 @@ declToAst (_ /\ ident) val = do
   pure $
     AST.VariableIntroduction
       { name
-      , type: Type.Pointer (Type.Any [])
+      , type: R.any
       , qualifiers: []
       , initialization: Just initAst
       }
@@ -185,24 +185,28 @@ exprToAst (C.Var ann ident) =
           identToVarName ident
 exprToAst (C.Literal _ (C.NumericLiteral n)) =
   pure $
+   AST.Cast (R.any) $
     AST.App
       (either (const R._PURS_ANY_INT) (const R._PURS_ANY_FLOAT) n)
       [ AST.NumericLiteral n
       ]
 exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
+   AST.Cast (R.any) $
     AST.App
       R._PURS_ANY_STRING
       [ AST.StringLiteral s
       ]
 exprToAst (C.Literal _ (C.CharLiteral c)) =
   pure $
+   AST.Cast (R.any) $
     AST.App
       R._PURS_ANY_STRING
       [ AST.StringLiteral (Str.fromCharArray [ c ])
       ]
 exprToAst (C.Literal _ (C.BooleanLiteral b)) =
   pure $
+   AST.Cast (R.any) $
     AST.App
       R._PURS_ANY_INT
       [ AST.NumericLiteral $ Left $ if b then 1 else 0
@@ -213,6 +217,7 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
       vAst <- exprToAst v
       in [ AST.StringLiteral k, vAst ]
   pure $
+   AST.Cast (R.any) $
     AST.App
       R._PURS_ANY_RECORD $
       [ AST.NumericLiteral $ Left $ A.length kvpAsts
@@ -242,7 +247,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         , ast:
             AST.VariableIntroduction
               { name
-              , type: Type.Pointer (Type.Any [])
+              , type: R.any
               , qualifiers: []
               , initialization: Just valueAst
               }
@@ -290,7 +295,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
       [
         AST.Lambda
           { arguments: []
-          , returnType: Type.Pointer (Type.Any [])
+          , returnType: R.any
           , body:
               AST.Block $ A.concat
                 [ map _.ast assignments
@@ -354,7 +359,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
     in
       AST.VariableIntroduction
         { name
-        , type: Type.Pointer (Type.Any [])
+        , type: R.any
         , qualifiers: []
         , initialization: Just $ AST.Var varName
         } A.: next
@@ -432,6 +437,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
 exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
   | Just { init: initArgs, last: lastArg } <- A.unsnoc fields
   = do
+  { module: C.Module { moduleName } } <- ask
 
   finalLambda <- do
     argName     <- identToVarName lastArg
@@ -441,8 +447,10 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
         name <- identToVarName v
         in
           AST.Assignment
-            (AST.Indexer (AST.Var valuesName) (AST.NumericLiteral (Left i)))
-            (AST.Var name)
+            (AST.Indexer
+              (AST.NumericLiteral (Left i))
+              (AST.Var valuesName))
+            (AST.Cast R.any' $ AST.Var name)
     pure $
      AST.Lambda
       { arguments: [ { name: argName, type: R.any } ]
@@ -451,7 +459,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
           AST.Block $
             [ AST.VariableIntroduction
                 { name: valuesName
-                , type: Type.Pointer R.any
+                , type: Type.Pointer R.any'
                 , qualifiers: []
                 , initialization:
                     Just $
@@ -459,7 +467,20 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
                         R._PURS_CONS_VALUES_NEW
                         [ AST.NumericLiteral (Left $ A.length fields) ]
                 }
-            ] <> assignments <> [ AST.Return (AST.Var valuesName) ]
+            ] <> assignments <> [
+              AST.Return $
+               AST.Cast R.any $
+                AST.App R._PURS_ANY_CONS
+                  [ AST.App R._PURS_CONS_LIT
+                      [ let
+                          tag =
+                            qualifiedVarName moduleName constructorName
+                        in AST.Var tag
+                      , AST.Cast (Type.Pointer R.any) $
+                          AST.Var valuesName
+                      ]
+                  ]
+            ]
       }
 
   A.foldM
@@ -503,10 +524,10 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
       { arguments:
           [
             { name: argName
-            , type: Type.Pointer (Type.Any [])
+            , type: R.any
             }
           ]
-      , returnType: Type.Pointer (Type.Any [])
+      , returnType: R.any
       , body:
           AST.Block
             [ AST.Return bodyAst -- TODO: optIndexers/classes etc.
@@ -526,10 +547,6 @@ exprToAst (C.Accessor _ k exp) = ado
       , AST.StringLiteral k
       ])
 
-  -- in
-  --   AST.Accessor
-  --     (AST.Raw k)
-  --     valueAst
 exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
 
 qualifiedVarName :: C.ModuleName -> String -> String

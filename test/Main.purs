@@ -53,6 +53,7 @@ main = launchAff_ do
                    else throwError e
           in
             { name: moduleName
+            , directory: "examples"
             , files:
                 ("examples/" <> file)
                   A.:
@@ -91,7 +92,24 @@ main = launchAff_ do
                 pursOutputDir <> "/" <> moduleName <> "/corefn.json"
             in do
               Console.log $ "Compiling to C: " <> moduleName <> "..."
-              compileToC (moduleName == test.name) cOutputDir corefnJsonFile
+              srcs <- emitC (moduleName == test.name) cOutputDir corefnJsonFile
+              srcs <$
+                let
+                  ffiHeader =
+                    test.directory <> "/" <> test.name <> ".h"
+                  ffiImplementation =
+                    test.directory <> "/" <> test.name <> ".c"
+                  cpTextFile src dst =
+                    FS.writeTextFile UTF8 dst =<<
+                      FS.readTextFile UTF8 src
+                in do
+                  whenM (FS.exists ffiHeader) $
+                    cpTextFile ffiHeader $
+                      cOutputDir <> "/" <> test.name <> "_ffi.h"
+
+                  whenM (FS.exists ffiImplementation) $
+                    cpTextFile ffiImplementation $
+                      cOutputDir <> "/" <> test.name <> "_ffi.c"
 
         Console.log "Compiling C sources..."
         runClang $ srcs <> [ "-I", cOutputDir, "-o", "a.out" ]
@@ -100,7 +118,7 @@ main = launchAff_ do
       -- TODO: runMain (if any)
 
   where
-  compileToC isMain outputDir jsonFile = do
+  emitC isMain outputDir jsonFile = do
     input <- FS.readTextFile UTF8 jsonFile
     core  <- case runExcept $ C.moduleFromJSON input of
       Right v ->
