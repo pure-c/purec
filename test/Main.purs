@@ -6,7 +6,7 @@ import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExcept, withExceptT)
 import Control.Monad.Except.Trans (catchError)
 import Control.Monad.Trans.Class (lift)
-import Control.Parallel (parSequence_)
+import Control.Parallel (parSequence, parSequence_)
 import CoreFn.FromJSON as C
 import CoreFn.Module as C
 import CoreFn.Names as C
@@ -18,7 +18,7 @@ import Data.Newtype (wrap)
 import Data.String (Pattern(..))
 import Data.String as Str
 import Data.Traversable (for, for_, traverse, traverse_)
-import Debug.Trace (spy, traceM)
+import Debug.Trace (spy)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (liftAff)
@@ -44,7 +44,7 @@ data PipelineError
 main :: Effect Unit
 main = launchAff_ do
   exampleFiles <- FS.readdir "examples"
-  modules <-
+  suites <-
     map A.catMaybes $
       for exampleFiles \file ->
         for (Str.stripSuffix (Pattern ".purs") file) \moduleName -> ado
@@ -65,7 +65,7 @@ main = launchAff_ do
                     ((("examples/" <> moduleName) <> _) <$> subModules)
             }
 
-  for_ modules \test ->
+  for_ suites \test ->
     let
       pursOutputDir =
         ".tmp/output/" <> test.name
@@ -88,7 +88,7 @@ main = launchAff_ do
       Console.log "Compiling all purescript to C..."
       srcs <- do
         -- compile each module's corefn json rep to c
-        compiledModules <- FS.readdir pursOutputDir >>= traverse \moduleName ->
+        FS.readdir pursOutputDir >>= traverse \moduleName ->
           let
             corefnJsonFile =
               pursOutputDir <> "/" <> moduleName <> "/corefn.json"
@@ -96,33 +96,11 @@ main = launchAff_ do
             Console.log $ "Compiling to C: " <> moduleName <> "..."
             emitC (moduleName == test.name) cOutputDir corefnJsonFile
 
-        -- copy the FFI headers
-        -- TODO do this properly
-        void $
-          let
-            cpTextFile src dst =
-              FS.writeTextFile UTF8 dst =<<
-                FS.readTextFile UTF8 src
-          in do
-            cpTextFile
-              "examples/Example1.h" $
-              cOutputDir <> "/Example1_ffi.h"
-            cpTextFile
-              "bower_components/purescript-prelude/src/Data/Symbol.c" $
-              cOutputDir <> "/Data_Symbol_ffi.c"
-            cpTextFile
-              "bower_components/purescript-prelude/src/Data/Symbol.h" $
-              cOutputDir <> "/Data_Symbol_ffi.h"
-
-        pure $ A.concat $ map _.files compiledModules
-
       Console.log "Compiling C sources..."
-      runClang $ srcs <> [ "-I", cOutputDir, "-o", "a.out" ]
+      runClang $ [ "-I", cOutputDir, "-o", "a.out" ] <> A.concat srcs
 
       Console.log "Running module..."
       runProc "./a.out" []
-
-      -- TODO: runMain (if any)
 
   where
   emitC isMain outputDir jsonFile = do
@@ -134,34 +112,79 @@ main = launchAff_ do
         throwError $ error "Failed to parse Corefn"
 
     let
-      { module: mod@C.Module { moduleName } } = core
-      cModuleName = C.runModuleName moduleName
-      implFileName = cModuleName <> ".c"
-      headerFileName = cModuleName <> ".h"
-      implFilePath = outputDir <> "/" <> implFileName
-      headerFilePath = outputDir <> "/" <> headerFileName
-
-    -- TODO: add `Show` instance for errors
-    { cModuleName, files: [ implFilePath ] } <$ do
-     either (throwError <<< error <<< const "FAILURE" <<< spy "compile") pure =<< do
-      runSupplyT $ runExceptT do
-        ast <-
-          withExceptT CompileError $
-            C.moduleToAST isMain core."module"
-
+      { module: mod@C.Module { moduleName, modulePath: C.FilePath modulePath } } = core
+      sourceFilePaths =
         let
-          { init: headerAst, rest: implAst } =
-            A.span (notEq AST.EndOfHeader) ast
+          mkSourcePath ext = (_ <> ext) <<<
+            ((FilePath.dirname modulePath <> "/") <> _) <$>
+              Str.stripSuffix (wrap ".purs") (FilePath.basename modulePath)
+        in
+          { ffi:
+              { c: mkSourcePath ".c"
+              , h: mkSourcePath ".h"
+              }
+          }
+      targetFilePaths =
+        let
+          mkOutputFilePath ext =
+            outputDir <> "/" <> C.runModuleName moduleName <> ext
+        in
+          { h: mkOutputFilePath ".h"
+          , c: mkOutputFilePath ".c"
+          , ffi:
+              { h: mkOutputFilePath "_ffi.h"
+              , c: mkOutputFilePath "_ffi.c"
+              }
+          }
 
-        headerSrc <- withExceptT PrintError $ except $ C.prettyPrint headerAst
-        implSrc   <- withExceptT PrintError $ except $ C.prettyPrint implAst
+    { header, implementation } <-
+      -- TODO: add `Show` instance for errors
+      either (throwError <<< error <<< const "FAILURE" <<< spy "compile") pure =<< do
+        runSupplyT $ runExceptT do
+          ast <-
+            withExceptT CompileError $
+              C.moduleToAST isMain core."module"
+          let
+            { init: headerAst, rest: implAst } =
+              A.span (notEq AST.EndOfHeader) ast
+          header         <- withExceptT PrintError $ except $ C.prettyPrint headerAst
+          implementation <- withExceptT PrintError $ except $ C.prettyPrint implAst
+          pure { header, implementation }
 
-        liftAff do
-          mkdirp outputDir
-          parSequence_
-            [ FS.writeTextFile UTF8 headerFilePath headerSrc
-            , FS.writeTextFile UTF8 implFilePath implSrc
-            ]
+    -- ensure output directory exists
+    liftAff $ mkdirp outputDir
+
+    map A.catMaybes $ liftAff $
+      -- XXX this should be pulled from a library somewhere
+      let
+        cpTextFile src dst =
+          FS.writeTextFile UTF8 dst =<<
+            FS.readTextFile UTF8 src
+      in
+        parSequence
+          [ Nothing <$
+              FS.writeTextFile UTF8 targetFilePaths.h header
+          , Just targetFilePaths.c <$
+              FS.writeTextFile UTF8 targetFilePaths.c implementation
+          , case sourceFilePaths.ffi.h of
+              Nothing ->
+                pure Nothing
+              Just sourceFile ->
+                Nothing <$ do
+                  whenM (FS.exists sourceFile) $
+                    cpTextFile sourceFile targetFilePaths.ffi.h
+          , case sourceFilePaths.ffi.c of
+              Nothing ->
+                pure Nothing
+              Just sourceFile ->
+                FS.exists sourceFile >>=
+                  if _
+                    then
+                      Just targetFilePaths.ffi.c <$
+                        cpTextFile sourceFile targetFilePaths.ffi.c
+                    else pure Nothing
+          ]
+
 
 -- XXX should work recursively
 mkdirp :: String -> Aff Unit

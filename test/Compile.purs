@@ -6,6 +6,7 @@ module Test.Compile
 import Prelude
 
 import Data.Array as A
+import Debug.Trace (traceM)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.AVar as AVar
 import Effect.Class (liftEffect)
@@ -27,12 +28,12 @@ runClang inputs =
   runProc "clang" $
     A.concat
       [ [ "-fblocks"
-        , "-lBlocksRuntime"
-        , "-lgc"
         , "-fcolor-diagnostics"
         , "-I", "."
-        , "runtime/purescript.c"
-        , "ccan/asprintf/asprintf.c"
+        , "-lBlocksRuntime"          -- XXX statically link into some runtime.so?
+        , "-lgc"                     -- XXX statically link into some runtime.so?
+        , "runtime/purescript.c"     -- XXX should be in some runtime.so
+        , "ccan/asprintf/asprintf.c" -- XXX should be in some runtime.so
         ]
       , inputs
       ]
@@ -42,7 +43,7 @@ runProc
   :: String
   -> Array String
   -> Aff Unit
-runProc cmd args = do
+runProc cmd args = traceM args *> do
   process <-
     liftEffect $
       ChildProcess.spawn cmd args $
