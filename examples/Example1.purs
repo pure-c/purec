@@ -2,6 +2,7 @@ module Example1
   ( Foo (..)
   ) where
 
+import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Type.Data.RowList (RLProxy(..))
 
 data Foo

@@ -143,25 +143,33 @@ int purs_any_eq_int    (const purs_any_t *, int);
 int purs_any_eq_float  (const purs_any_t *, float);
 
 /**
+ * Declare a lazily evaluated top-level value.
+ */
+#define PURS_ANY_THUNK_DECL(NAME) \
+	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t *); \
+	const purs_any_t NAME##____thunk____; \
+	const purs_any_t * NAME;
+
+/**
  * Create a lazily evaluated top-level value.
  */
-#define PURS_ANY_THUNK_DECL($name, $init) \
-	const purs_any_t * $name##____thunk_fn____ (const purs_any_t * ____unused____) { \
-		static const purs_any_t * $name##____thunk_val____ = NULL; \
-		if ($name##____thunk_val____ == NULL) { \
-			$name##____thunk_val____ = $init; \
+#define PURS_ANY_THUNK_DEF(NAME, INIT) \
+	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t * ____unused____) { \
+		static const purs_any_t * NAME##____thunk_val____ = NULL; \
+		if (NAME##____thunk_val____ == NULL) { \
+			NAME##____thunk_val____ = INIT; \
 		} \
-		return $name##____thunk_val____; \
+		return NAME##____thunk_val____; \
 	} \
 	\
-	const purs_any_t $name##____thunk____ = { \
+	const purs_any_t NAME##____thunk____ = { \
 		.tag = THUNK, \
 		.value = { \
-			.fn = $name##____thunk_fn____ \
+			.fn = NAME##____thunk_fn____ \
 		} \
 	}; \
 	\
-	const purs_any_t * $name = & $name##____thunk____; \
+	const purs_any_t * NAME = & NAME##____thunk____; \
 
 #define PURS_ANY_NEW(n, x) \
 	purs_any_set_##n( \
@@ -180,6 +188,9 @@ int purs_any_eq_float  (const purs_any_t *, float);
 
 #define PURS_ANY_CONS(x) \
 	PURS_ANY_NEW(cons, x)
+
+#define PURS_ANY_STRING_FROM_LIT(x) \
+	PURS_ANY_NEW(string, managed_utf8str_new(afmt("%s", x)))
 
 #define PURS_ANY_STRING(x) \
 	PURS_ANY_NEW(string, managed_utf8str_new(x))
@@ -243,8 +254,12 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 // -----------------------------------------------------------------------------
 
 /* note: The '$' is currently appended to all names (see code generation) */
+#define PURS_FFI_FUNC_DECL(NAME) \
+	PURS_ANY_THUNK_DECL(NAME##$)
+
+/* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_FUNC(NAME, ARG_VARNAME, BODY) \
-	PURS_ANY_THUNK_DECL( \
+	PURS_ANY_THUNK_DEF( \
 		NAME##$, \
 		PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY))
 

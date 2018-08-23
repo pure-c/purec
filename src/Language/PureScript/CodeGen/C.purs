@@ -98,7 +98,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
   in runReaderT <@> { module: mod } $ do
     decls <-
       A.concat <$> do
-        traverse bindToAst moduleDecls
+        traverse (bindToAst true) moduleDecls
 
     let
       moduleHeader =
@@ -128,11 +128,6 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
               else []
           ]
 
-    traceM moduleDecls
-
-    -- traceM decls
-    -- traceM moduleBody
-
     pure $
       A.concat $
         [ moduleHeader
@@ -146,12 +141,13 @@ bindToAst
    . MonadError CompileError m
   => MonadSupply m
   => MonadAsk Env m
-  => C.Bind C.Ann
+  => Boolean -- ^ top-level?
+  -> C.Bind C.Ann
   -> m (Array AST)
-bindToAst (C.NonRec ann ident val) =
+bindToAst isTopLevel (C.NonRec ann ident val) =
   A.singleton <$>
-    declToAst (ann /\ ident) val
-bindToAst _ =
+    declToAst isTopLevel (ann /\ ident) val
+bindToAst _ _ =
   throwError $ NotImplementedError "bindToAst"
 
 declToAst
@@ -159,12 +155,16 @@ declToAst
    . MonadError CompileError m
   => MonadSupply m
   => MonadAsk Env m
-  => (C.Ann /\ C.Ident)
+  => Boolean -- ^ is top level?
+  -> (C.Ann /\ C.Ident)
   -> C.Expr C.Ann
   -> m AST
-declToAst (_ /\ ident) val = do
+declToAst isTopLevel (x /\ ident) val = do
   { module: C.Module { moduleName } } <- ask
-  name    <- qualifiedVarName moduleName <$> identToVarName ident
+  name <-
+    if isTopLevel
+      then qualifiedVarName moduleName <$> identToVarName ident
+      else identToVarName ident
   initAst <- exprToAst val
   pure $
     AST.VariableIntroduction
@@ -173,7 +173,7 @@ declToAst (_ /\ ident) val = do
       , qualifiers: []
       , initialization: Just initAst
       }
-declToAst _ _ = throwError $ NotImplementedError "declToAst"
+declToAst _ _ _ = throwError $ NotImplementedError "declToAst"
 
 exprToAst
   :: ∀ m
@@ -236,7 +236,7 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
       [ AST.NumericLiteral $ Left $ A.length kvpAsts
       ] <> A.concat kvpAsts
 exprToAst (C.Let _ binders val) = do
-  bindersAsts <- A.concat <$> traverse bindToAst binders
+  bindersAsts <- A.concat <$> traverse (bindToAst false) binders
   valAst      <- exprToAst val
   pure $
     AST.App R.purs_any_app
@@ -527,7 +527,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
 exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   f   <- exprToAst ident
   arg <- exprToAst expr
-  pure $ AST.App Runtime.purs_any_app [f, arg]
+  pure $ AST.App R.purs_any_app [f, arg]
 exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
   -- TODO: implement and apply `innerLambdas` to `bodyAst`
   bodyAst <- exprToAst expr

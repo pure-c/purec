@@ -85,14 +85,14 @@ toBody = A.catMaybes <<< map go
       AST.App a xs ->
         Just $
           AST.App
-            R._PURS_ANY_THUNK_DECL
+            R._PURS_ANY_THUNK_DEF
             [ AST.Raw name
             , AST.App a xs
             ]
       AST.Lambda { arguments, returnType, body } ->
         Just $
           AST.App
-            R._PURS_ANY_THUNK_DECL
+            R._PURS_ANY_THUNK_DEF
             [ AST.Raw name
             , initialization
             ]

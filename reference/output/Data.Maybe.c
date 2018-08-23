@@ -1,6 +1,6 @@
 #include "Data.Maybe.h"
 
-PURS_ANY_THUNK_DECL(
+PURS_ANY_THUNK_DEF(
 	Data_Maybe_Nothing,
 	PURS_ANY_CONS(
 		((purs_cons_t) {

@@ -9,13 +9,15 @@ import Control.Monad.Trans.Class (lift)
 import Control.Parallel (parSequence_)
 import CoreFn.FromJSON as C
 import CoreFn.Module as C
+import CoreFn.Names as C
 import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either, fromRight)
 import Data.Maybe (Maybe(..))
+import Data.Newtype (wrap)
 import Data.String (Pattern(..))
 import Data.String as Str
-import Data.Traversable (for, for_, traverse_)
+import Data.Traversable (for, for_, traverse, traverse_)
 import Debug.Trace (spy, traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
@@ -31,6 +33,7 @@ import Language.PureScript.CodeGen.CompileError as C
 import Language.PureScript.CodeGen.SupplyT (runSupplyT)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
+import Node.Path as FilePath
 import Partial.Unsafe (unsafePartial)
 import Test.Compile (runClang, runProc)
 
@@ -55,6 +58,8 @@ main = launchAff_ do
             { name: moduleName
             , directory: "examples"
             , files:
+                ("bower_components/purescript-prelude/src/Type/Data/RowList.purs") A.:
+                ("bower_components/purescript-prelude/src/Data/Symbol.purs") A.:
                 ("examples/" <> file)
                   A.:
                     ((("examples/" <> moduleName) <> _) <$> subModules)
@@ -78,42 +83,44 @@ main = launchAff_ do
         [ "compile"
         , "-o", pursOutputDir
         , "-g", "corefn"
-        ] <> test.files <>
-        [ "bower_components/purescript-prelude/src/Type/Data/RowList.purs"
-        ]
+        ] <> test.files
 
-      -- compile each module's corefn json rep to cpp
       Console.log "Compiling all purescript to C..."
-      FS.readdir pursOutputDir >>= \fileNames -> do
-        srcs <- A.concat <$>
-          for fileNames \moduleName ->
-            let
-              corefnJsonFile =
-                pursOutputDir <> "/" <> moduleName <> "/corefn.json"
-            in do
-              Console.log $ "Compiling to C: " <> moduleName <> "..."
-              srcs <- emitC (moduleName == test.name) cOutputDir corefnJsonFile
-              srcs <$
-                let
-                  ffiHeader =
-                    test.directory <> "/" <> test.name <> ".h"
-                  ffiImplementation =
-                    test.directory <> "/" <> test.name <> ".c"
-                  cpTextFile src dst =
-                    FS.writeTextFile UTF8 dst =<<
-                      FS.readTextFile UTF8 src
-                in do
-                  whenM (FS.exists ffiHeader) $
-                    cpTextFile ffiHeader $
-                      cOutputDir <> "/" <> test.name <> "_ffi.h"
+      srcs <- do
+        -- compile each module's corefn json rep to c
+        compiledModules <- FS.readdir pursOutputDir >>= traverse \moduleName ->
+          let
+            corefnJsonFile =
+              pursOutputDir <> "/" <> moduleName <> "/corefn.json"
+          in do
+            Console.log $ "Compiling to C: " <> moduleName <> "..."
+            emitC (moduleName == test.name) cOutputDir corefnJsonFile
 
-                  whenM (FS.exists ffiImplementation) $
-                    cpTextFile ffiImplementation $
-                      cOutputDir <> "/" <> test.name <> "_ffi.c"
+        -- copy the FFI headers
+        -- TODO do this properly
+        void $
+          let
+            cpTextFile src dst =
+              FS.writeTextFile UTF8 dst =<<
+                FS.readTextFile UTF8 src
+          in do
+            cpTextFile
+              "examples/Example1.h" $
+              cOutputDir <> "/Example1_ffi.h"
+            cpTextFile
+              "bower_components/purescript-prelude/src/Data/Symbol.c" $
+              cOutputDir <> "/Data_Symbol_ffi.c"
+            cpTextFile
+              "bower_components/purescript-prelude/src/Data/Symbol.h" $
+              cOutputDir <> "/Data_Symbol_ffi.h"
 
-        Console.log "Compiling C sources..."
-        runClang $ srcs <> [ "-I", cOutputDir, "-o", "a.out" ]
-        runProc "./a.out" []
+        pure $ A.concat $ map _.files compiledModules
+
+      Console.log "Compiling C sources..."
+      runClang $ srcs <> [ "-I", cOutputDir, "-o", "a.out" ]
+
+      Console.log "Running module..."
+      runProc "./a.out" []
 
       -- TODO: runMain (if any)
 
@@ -127,20 +134,15 @@ main = launchAff_ do
         throwError $ error "Failed to parse Corefn"
 
     let
-      { module: mod@C.Module { moduleName } } =
-        core
-      implFileName =
-        C.runModuleName moduleName <> ".c"
-      headerFileName =
-        C.runModuleName moduleName <> ".h"
-      implFilePath =
-        outputDir <> "/" <> implFileName
-      headerFilePath =
-        outputDir <> "/" <> headerFileName
+      { module: mod@C.Module { moduleName } } = core
+      cModuleName = C.runModuleName moduleName
+      implFileName = cModuleName <> ".c"
+      headerFileName = cModuleName <> ".h"
+      implFilePath = outputDir <> "/" <> implFileName
+      headerFilePath = outputDir <> "/" <> headerFileName
 
-    -- compile the module to cpp and write header and implementation files
     -- TODO: add `Show` instance for errors
-    [ implFilePath ] <$ do
+    { cModuleName, files: [ implFilePath ] } <$ do
      either (throwError <<< error <<< const "FAILURE" <<< spy "compile") pure =<< do
       runSupplyT $ runExceptT do
         ast <-

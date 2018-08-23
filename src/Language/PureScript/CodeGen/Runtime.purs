@@ -8,6 +8,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_cons_get_tag
   , purs_record_find_by_key
   , _PURS_ANY_THUNK_DECL
+  , _PURS_ANY_THUNK_DEF
   , _PURS_ANY_CONS
   , _PURS_ANY_INT
   , _PURS_ANY_FLOAT
@@ -57,6 +58,9 @@ purs_any_app = AST.Var "purs_any_app"
 
 purs_record_find_by_key :: AST
 purs_record_find_by_key = AST.Var "purs_record_find_by_key"
+
+_PURS_ANY_THUNK_DEF :: AST
+_PURS_ANY_THUNK_DEF = AST.Var "PURS_ANY_THUNK_DEF"
 
 _PURS_ANY_THUNK_DECL :: AST
 _PURS_ANY_THUNK_DECL = AST.Var "PURS_ANY_THUNK_DECL"
