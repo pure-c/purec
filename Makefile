@@ -2,6 +2,7 @@
 
 CCAN_C_FILES = $(shell find ccan -type f -name '*.c')
 REFERENCE_OUTPUT_C_FILES = $(shell find reference/output -type f -name '*.c')
+EXAMPLE1_OUTPUT_C_FILES = $(shell find .tmp/sources/Example1 -type f -name '*.c')
 
 reference:
 	clang \
@@ -29,6 +30,5 @@ example1:
 		runtime/purescript.c \
 		\
 		-I .tmp/sources/Example1 \
-		.tmp/sources/Example1/*.c \
 		-Wall \
 		$(EXAMPLE1_OUTPUT_C_FILES)

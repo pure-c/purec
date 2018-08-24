@@ -3,6 +3,7 @@ module Language.PureScript.CodeGen.C.File
   , toHeader
   , toBody
   , cModuleName
+  , cModulePath
   , nativeMain
   , isMain
   ) where
@@ -39,6 +40,13 @@ cModuleName (C.ModuleName pieces) =
   A.intercalate "_" $
     unwrap <$> pieces
 
+cModulePath
+  :: C.ModuleName
+  -> String
+cModulePath (C.ModuleName pieces) =
+  A.intercalate "/" $
+    unwrap <$> pieces
+
 withHeaderGuard
   :: C.ModuleName
   -> Array AST
@@ -46,7 +54,7 @@ withHeaderGuard
 withHeaderGuard moduleName asts =
   let
     headerGuard =
-      cModuleName moduleName <> "_H"
+      cModuleName moduleName <> "__GENERATED__H"
   in
     A.concat
       [ [ AST.Raw $ "#ifndef " <> headerGuard

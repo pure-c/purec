@@ -13,12 +13,12 @@ import CoreFn.Names as C
 import Data.Array as A
 import Data.Bifunctor (lmap)
 import Data.Either (Either(..), either, fromRight)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (wrap)
 import Data.String (Pattern(..))
 import Data.String as Str
-import Data.Traversable (for, for_, traverse, traverse_)
-import Debug.Trace (spy)
+import Data.Traversable (for, for_, sequence, traverse, traverse_)
+import Debug.Trace (spy, traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (liftAff)
@@ -27,6 +27,7 @@ import Effect.Console (log)
 import Effect.Exception (Error, error)
 import Language.PureScript.CodeGen.C as C
 import Language.PureScript.CodeGen.C.AST as AST
+import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Pretty as C
 import Language.PureScript.CodeGen.Common as C
 import Language.PureScript.CodeGen.CompileError as C
@@ -58,11 +59,10 @@ main = launchAff_ do
             { name: moduleName
             , directory: "examples"
             , files:
-                ("bower_components/purescript-prelude/src/Type/Data/RowList.purs") A.:
-                ("bower_components/purescript-prelude/src/Data/Symbol.purs") A.:
-                ("examples/" <> file)
-                  A.:
-                    ((("examples/" <> moduleName) <> _) <$> subModules)
+                ("/home/felix/projects/purescript-c-prelude/src/Type/Data/RowList.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Symbol.purs") A.:
+                ("examples/" <> file) A.:
+                ((("examples/" <> moduleName) <> _) <$> subModules)
             }
 
   for_ suites \test ->
@@ -72,12 +72,6 @@ main = launchAff_ do
       cOutputDir =
         ".tmp/sources/" <> test.name
     in do
-      -- ensure directories exist
-      -- XXX: it'd be nice if mkdirp created dirs recursively
-      mkdirp ".tmp"
-      mkdirp ".tmp/sources"
-      mkdirp ".tmp/output"
-
       -- compile each module to it's corefn json rep
       runProc "purs" $
         [ "compile"
@@ -127,7 +121,7 @@ main = launchAff_ do
       targetFilePaths =
         let
           mkOutputFilePath ext =
-            outputDir <> "/" <> C.runModuleName moduleName <> ext
+            outputDir <> "/" <> F.cModulePath moduleName <> ext
         in
           { h: mkOutputFilePath ".h"
           , c: mkOutputFilePath ".c"
@@ -151,9 +145,6 @@ main = launchAff_ do
           implementation <- withExceptT PrintError $ except $ C.prettyPrint implAst
           pure { header, implementation }
 
-    -- ensure output directory exists
-    liftAff $ mkdirp outputDir
-
     map A.catMaybes $ liftAff $
       -- XXX this should be pulled from a library somewhere
       let
@@ -161,17 +152,20 @@ main = launchAff_ do
           FS.writeTextFile UTF8 dst =<<
             FS.readTextFile UTF8 src
       in
-        parSequence
-          [ Nothing <$
+        sequence
+          [ Nothing <$ do
+              mkdirp $ FilePath.dirname targetFilePaths.h
               FS.writeTextFile UTF8 targetFilePaths.h header
-          , Just targetFilePaths.c <$
+          , Just targetFilePaths.c <$ do
+              mkdirp $ FilePath.dirname targetFilePaths.c
               FS.writeTextFile UTF8 targetFilePaths.c implementation
           , case sourceFilePaths.ffi.h of
               Nothing ->
                 pure Nothing
               Just sourceFile ->
                 Nothing <$ do
-                  whenM (FS.exists sourceFile) $
+                  whenM (FS.exists sourceFile) do
+                    mkdirp $ FilePath.dirname targetFilePaths.ffi.h
                     cpTextFile sourceFile targetFilePaths.ffi.h
           , case sourceFilePaths.ffi.c of
               Nothing ->
@@ -180,18 +174,32 @@ main = launchAff_ do
                 FS.exists sourceFile >>=
                   if _
                     then
-                      Just targetFilePaths.ffi.c <$
+                      Just targetFilePaths.ffi.c <$ do
+                        mkdirp $ FilePath.dirname targetFilePaths.ffi.c
                         cpTextFile sourceFile targetFilePaths.ffi.c
                     else pure Nothing
           ]
 
-
 -- XXX should work recursively
 mkdirp :: String -> Aff Unit
-mkdirp dir =
-  FS.mkdir dir `catchError` \e ->
-    unless (errorCode e == Just "EEXIST") do
-      throwError e
+mkdirp dir = go Nothing (Str.split (wrap "/") dir)
+  where
+  go cd xs
+    | Just { head: x, tail: xs' } <- A.uncons xs
+    =
+      let
+        cd' =
+          maybe "" (_ <> "/") cd <> x
+      in do
+        mkdir cd'
+        go (Just cd') xs'
+  go _ _ =
+    pure unit
+
+  mkdir dir' =
+    FS.mkdir dir' `catchError` \e ->
+      unless (errorCode e == Just "EEXIST") do
+        throwError e
 
 foreign import errorCodeImpl
   :: ∀ a

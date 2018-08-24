@@ -258,7 +258,7 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 	PURS_ANY_THUNK_DECL(NAME##$)
 
 /* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_FUNC(NAME, ARG_VARNAME, BODY) \
+#define PURS_FFI_FUNC_DEF(NAME, ARG_VARNAME, BODY) \
 	PURS_ANY_THUNK_DEF( \
 		NAME##$, \
 		PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY))

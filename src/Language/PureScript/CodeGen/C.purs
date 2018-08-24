@@ -69,9 +69,11 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
   let
     cModuleName =
       runModuleName moduleName
+    cModulePath =
+      F.cModulePath moduleName
     cIncludes =
       ("runtime/purescript" A.: _) $
-       map F.cModuleName $
+       map F.cModulePath $
         (A.catMaybes [
           let
             C.ModuleName pieces =
@@ -116,7 +118,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
 
       moduleBody =
         A.concat
-          [ [ AST.Include { path: cModuleName } ]
+          [ [ AST.Include { path: cModulePath } ]
           , A.concat
               [ AST.Include <<< { path: _ } <$> cIncludes
               , [ P.empty ]

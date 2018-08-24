@@ -6,7 +6,6 @@ module Test.Compile
 import Prelude
 
 import Data.Array as A
-import Debug.Trace (traceM)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.AVar as AVar
 import Effect.Class (liftEffect)
@@ -43,7 +42,7 @@ runProc
   :: String
   -> Array String
   -> Aff Unit
-runProc cmd args = traceM args *> do
+runProc cmd args = do
   process <-
     liftEffect $
       ChildProcess.spawn cmd args $
