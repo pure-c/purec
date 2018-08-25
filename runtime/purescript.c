@@ -31,8 +31,8 @@ const managed_block_t * managed_block_new (const void * block) {
 // -----------------------------------------------------------------------------
 // managed utf8 strings
 // -----------------------------------------------------------------------------
-void managed_utf8str_release (managed_t * data) {
-	free(data);
+void managed_utf8str_release (managed_t * managed) {
+	free((void *) managed->data);
 }
 
 const managed_utf8str_t * managed_utf8str_new (const void * data) {
@@ -231,7 +231,38 @@ const purs_any_t * purs_any_concat(const purs_any_t * a, const purs_any_t * b) {
 }
 
 // -----------------------------------------------------------------------------
-// records
+// arrays (via vectors)
+// -----------------------------------------------------------------------------
+
+void purs_vec_release (purs_vec_t * vec) {
+	vec_deinit(vec);
+}
+
+const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count) {
+	purs_vec_t * v = GC_NEW(purs_vec_t);
+	GC_register_finalizer(v,
+						  (GC_finalization_proc) purs_vec_release,
+						  0, 0, 0);
+	vec_init(v);
+	vec_pusharr(v, items, count);
+	return (const purs_vec_t *) v;
+}
+
+const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
+	purs_vec_t * copy = (purs_vec_t *) purs_vec_new(NULL, 0);
+	vec_expand_((char**)&copy->data,
+				(int *)&vec->length,
+				(int *)&vec->capacity,
+				sizeof(*copy->data));
+	memcpy(copy->data,
+		   vec->data,
+		   sizeof (*copy->data) * vec->capacity);
+	return (const purs_vec_t *) copy;
+}
+
+
+// -----------------------------------------------------------------------------
+// records (via hash tables)
 // -----------------------------------------------------------------------------
 
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {

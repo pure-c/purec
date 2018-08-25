@@ -1,5 +1,6 @@
 .PHONY: reference example1
 
+VENDOR_C_FILES = $(shell find vendor -type f -name '*.c')
 CCAN_C_FILES = $(shell find ccan -type f -name '*.c')
 REFERENCE_OUTPUT_C_FILES = $(shell find reference/output -type f -name '*.c')
 EXAMPLE1_OUTPUT_C_FILES = $(shell find .tmp/sources/Example1 -type f -name '*.c')
@@ -10,6 +11,7 @@ reference:
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \
+		$(VENDOR_C_FILES) \
 		$(CCAN_C_FILES) \
 		-I . \
 		runtime/purescript.c \
@@ -25,6 +27,7 @@ example1:
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \
+		$(VENDOR_C_FILES) \
 		$(CCAN_C_FILES) \
 		-I . \
 		runtime/purescript.c \

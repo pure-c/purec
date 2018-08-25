@@ -1,14 +1,16 @@
 #ifndef PURESCRIPT_RUNTIME_H
 #define PURESCRIPT_RUNTIME_H
 
-#include "Block.h"
-#include <gc.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+
+#include <Block.h>
+#include <gc.h>
+#include <uthash.h>
 #include "vendor/utf8.h"
+#include "vendor/vec.h"
 #include "ccan/asprintf/asprintf.h"
-#include "uthash.h"
 
 /* undefine the defaults */
 #undef uthash_malloc
@@ -65,8 +67,9 @@ const void * purs_assert_not_null(const void *, const char * message);
 // any: dynamically typed values
 // -----------------------------------------------------------------------------
 
-typedef struct purs_record purs_record_t;
 typedef struct purs_any purs_any_t;
+typedef vec_t(const purs_any_t*) purs_vec_t;
+typedef struct purs_record purs_record_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef enum purs_any_tag purs_any_tag_t;
@@ -210,7 +213,15 @@ int purs_any_eq_float  (const purs_any_t *, float);
 	((purs_cons_t) { .tag = TAG, .values = VALUES })
 
 // -----------------------------------------------------------------------------
-// records
+// arrays (via vectors)
+// -----------------------------------------------------------------------------
+
+void purs_vec_release (purs_vec_t *);
+const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count);
+const purs_vec_t * purs_vec_copy (const purs_vec_t *);
+
+// -----------------------------------------------------------------------------
+// records (via hash table)
 // -----------------------------------------------------------------------------
 
 typedef struct purs_record {
