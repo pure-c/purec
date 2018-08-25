@@ -69,6 +69,7 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 	else if (x->tag == CONS)		return &x->tag;
 	else if (x->tag == RECORD)		return &x->tag;
 	else if (x->tag == STRING)		return &x->tag;
+	else if (x->tag == ARRAY)		return &x->tag;
 	else if (x->tag == THUNK)		return &x->tag;
 	else return NULL;
 }
@@ -136,6 +137,16 @@ const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
 	}
 }
 
+const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
+	if (x->tag == ARRAY) {
+		return (const purs_vec_t *) x->value.array;
+	} else {
+		return NULL;
+	}
+}
+
+
 #define PURS_ANY_GET_IMPL(T, X) \
 	const T purs_any_get_##X (const purs_any_t * x) { \
 		purs_assert_not_null(x, "(purs_any_get_" #X ") expected: " #X); \
@@ -161,6 +172,7 @@ PURS_ANY_GET_IMPL(float *, float);
 PURS_ANY_GET_IMPL(managed_block_t *, abs_block);
 PURS_ANY_GET_IMPL(managed_utf8str_t *, string);
 PURS_ANY_GET_IMPL(purs_record_t *, record);
+PURS_ANY_GET_IMPL(purs_vec_t *, array);
 
 #define PURS_ANY_SET_IMPL(NAME, TYPE, TAG, KEY) \
 	purs_any_t * NAME (purs_any_t * any, TYPE val) { \
@@ -176,6 +188,7 @@ PURS_ANY_SET_IMPL(purs_any_set_int, int, INT, num_int)
 PURS_ANY_SET_IMPL(purs_any_set_cons, purs_cons_t, CONS, cons)
 PURS_ANY_SET_IMPL(purs_any_set_string, const managed_utf8str_t *, STRING, string)
 PURS_ANY_SET_IMPL(purs_any_set_record, const purs_record_t *, RECORD, record)
+PURS_ANY_SET_IMPL(purs_any_set_array, const purs_vec_t *, ARRAY, array)
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons) {

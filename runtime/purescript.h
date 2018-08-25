@@ -90,6 +90,7 @@ enum purs_any_tag {
 	RECORD = 5,    // a record (hash table)
 	STRING = 6,    // UTF8 string
 	THUNK = 7,     // thunk
+	ARRAY = 8,     // array
 };
 
 union purs_any_value {
@@ -99,6 +100,7 @@ union purs_any_value {
 	const managed_utf8str_t * string;
 	const managed_block_t * block;
 	const purs_record_t * record;
+	const purs_vec_t * array;
 	purs_cons_t cons;
 };
 
@@ -117,6 +119,7 @@ const managed_block_t *   purs_any_get_abs_block_maybe (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons_maybe      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string_maybe    (const purs_any_t *);
 const purs_record_t *     purs_any_get_record_maybe    (const purs_any_t *);
+const purs_vec_t *        purs_any_get_array_maybe     (const purs_any_t *);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
 const int *               purs_any_get_int       (const purs_any_t *);
@@ -125,6 +128,7 @@ const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
 const purs_record_t *     purs_any_get_record    (const purs_any_t *);
+const purs_vec_t *        purs_any_get_array     (const purs_any_t *);
 
 // XXX: caution, these functions mutate the input!
 purs_any_t * purs_any_set_abs       (purs_any_t *, const abs_t);
@@ -134,6 +138,7 @@ purs_any_t * purs_any_set_int       (purs_any_t *, const int);
 purs_any_t * purs_any_set_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_set_string    (purs_any_t *, const managed_utf8str_t *);
 purs_any_t * purs_any_set_record    (purs_any_t *, const purs_record_t *);
+purs_any_t * purs_any_set_array     (purs_any_t *, const purs_vec_t *);
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons);
