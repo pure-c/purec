@@ -52,15 +52,15 @@ const managed_utf8str_t * managed_utf8str_new (const void *);
 
 const void * purs_assert_not_null(const void *, const char * message);
 
-#define purs_log_error(M) \
+#define purs_log_error(M)\
 	fprintf(stderr, "[ERROR] (%s:%d) %s\n", __FILE__, __LINE__, M)
 
-#define purs_assertf(A, M) \
-	do { \
-		if (!(A)) { \
+#define purs_assertf(A, M)\
+	do {\
+		if (!(A)) {\
 			purs_log_error(M);\
-			assert(A); \
-		} \
+			assert(A);\
+		}\
 	} while (0)
 
 // -----------------------------------------------------------------------------
@@ -148,57 +148,57 @@ int purs_any_eq_float  (const purs_any_t *, float);
 /**
  * Declare a lazily evaluated top-level value.
  */
-#define PURS_ANY_THUNK_DECL(NAME) \
-	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t *); \
-	const purs_any_t NAME##____thunk____; \
+#define PURS_ANY_THUNK_DECL(NAME)\
+	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t *);\
+	const purs_any_t NAME##____thunk____;\
 	const purs_any_t * NAME;
 
 /**
  * Create a lazily evaluated top-level value.
  */
-#define PURS_ANY_THUNK_DEF(NAME, INIT) \
-	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t * ____unused____) { \
-		static const purs_any_t * NAME##____thunk_val____ = NULL; \
-		if (NAME##____thunk_val____ == NULL) { \
-			NAME##____thunk_val____ = INIT; \
-		} \
-		return NAME##____thunk_val____; \
-	} \
+#define PURS_ANY_THUNK_DEF(NAME, INIT)\
+	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t * ____unused____) {\
+		static const purs_any_t * NAME##____thunk_val____ = NULL;\
+		if (NAME##____thunk_val____ == NULL) {\
+			NAME##____thunk_val____ = INIT;\
+		}\
+		return NAME##____thunk_val____;\
+	}\
 	\
-	const purs_any_t NAME##____thunk____ = { \
-		.tag = THUNK, \
-		.value = { \
-			.fn = NAME##____thunk_fn____ \
-		} \
-	}; \
+	const purs_any_t NAME##____thunk____ = {\
+		.tag = THUNK,\
+		.value = {\
+			.fn = NAME##____thunk_fn____\
+		}\
+	};\
 	\
-	const purs_any_t * NAME = & NAME##____thunk____; \
+	const purs_any_t * NAME = & NAME##____thunk____;\
 
-#define PURS_ANY_NEW(n, x) \
-	purs_any_set_##n( \
-		GC_NEW(purs_any_t), \
-		x \
+#define PURS_ANY_NEW(n, x)\
+	purs_any_set_##n(\
+		GC_NEW(purs_any_t),\
+		x\
 	)
 
-#define PURS_ANY_BLOCK(x) \
+#define PURS_ANY_BLOCK(x)\
 	PURS_ANY_NEW(abs_block, managed_block_new(Block_copy(^ x)))
 
-#define PURS_ANY_INT(x) \
+#define PURS_ANY_INT(x)\
 	PURS_ANY_NEW(int, x)
 
-#define PURS_ANY_FLOAT(x) \
+#define PURS_ANY_FLOAT(x)\
 	PURS_ANY_NEW(float, x)
 
-#define PURS_ANY_CONS(x) \
+#define PURS_ANY_CONS(x)\
 	PURS_ANY_NEW(cons, x)
 
-#define PURS_ANY_STRING_FROM_LIT(x) \
+#define PURS_ANY_STRING_FROM_LIT(x)\
 	PURS_ANY_NEW(string, managed_utf8str_new(afmt("%s", x)))
 
-#define PURS_ANY_STRING(x) \
+#define PURS_ANY_STRING(x)\
 	PURS_ANY_NEW(string, managed_utf8str_new(x))
 
-#define PURS_ANY_RECORD(n, ...) \
+#define PURS_ANY_RECORD(n, ...)\
 	PURS_ANY_NEW(record, purs_record_add_multi(NULL, n, __VA_ARGS__))
 
 /**
@@ -207,9 +207,9 @@ int purs_any_eq_float  (const purs_any_t *, float);
  *
  * XXX: this macro only exist for easy code emission from PureScript.
  */
-#define PURS_CONS_VALUES_NEW(n) \
+#define PURS_CONS_VALUES_NEW(n)\
 	GC_MALLOC(sizeof (purs_any_t *) * n)
-#define PURS_CONS_LIT(TAG, VALUES) \
+#define PURS_CONS_LIT(TAG, VALUES)\
 	((purs_cons_t) { .tag = TAG, .values = VALUES })
 
 // -----------------------------------------------------------------------------
@@ -240,8 +240,8 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t *);
  * Add a given set of key/value pairs to the given record.
  */
 const purs_record_t * purs_record_add_multi(const purs_record_t *,
-											size_t count,
-											...);
+					    size_t count,
+					    ...);
 
 /**
  * Add a given key/value pair to the given record.
@@ -252,29 +252,29 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
  * Find an entry by it's key.
  */
 purs_record_t * purs_record_find_by_key(const purs_record_t *,
-										const void * key);
+					const void * key);
 
 /**
  * Remove an entry by it's key.
  */
 const purs_record_t * purs_record_remove(const purs_record_t *,
-										 const void * key);
+					 const void * key);
 
 // -----------------------------------------------------------------------------
 // FFI Helpers
 // -----------------------------------------------------------------------------
 
 /* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_FUNC_DECL(NAME) \
+#define PURS_FFI_FUNC_DECL(NAME)\
 	PURS_ANY_THUNK_DECL(NAME##$)
 
 /* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_FUNC_DEF(NAME, ARG_VARNAME, BODY) \
-	PURS_ANY_THUNK_DEF( \
-		NAME##$, \
+#define PURS_FFI_FUNC_DEF(NAME, ARG_VARNAME, BODY)\
+	PURS_ANY_THUNK_DEF(\
+		NAME##$,\
 		PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY))
 
-#define PURS_FFI_LAMBDA(ARG_VARNAME, BODY) \
+#define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
 	PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY)
 
 #endif // PURESCRIPT_RUNTIME_H

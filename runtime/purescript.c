@@ -241,8 +241,8 @@ void purs_vec_release (purs_vec_t * vec) {
 const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count) {
 	purs_vec_t * v = GC_NEW(purs_vec_t);
 	GC_register_finalizer(v,
-						  (GC_finalization_proc) purs_vec_release,
-						  0, 0, 0);
+			      (GC_finalization_proc) purs_vec_release,
+			      0, 0, 0);
 	vec_init(v);
 	vec_pusharr(v, items, count);
 	return (const purs_vec_t *) v;
@@ -251,12 +251,12 @@ const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count) {
 const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
 	purs_vec_t * copy = (purs_vec_t *) purs_vec_new(NULL, 0);
 	vec_expand_((char**)&copy->data,
-				(int *)&vec->length,
-				(int *)&vec->capacity,
-				sizeof(*copy->data));
+		    (int *)&vec->length,
+		    (int *)&vec->capacity,
+		    sizeof(*copy->data));
 	memcpy(copy->data,
-		   vec->data,
-		   sizeof (*copy->data) * vec->capacity);
+	       vec->data,
+	       sizeof (*copy->data) * vec->capacity);
 	return (const purs_vec_t *) copy;
 }
 
@@ -317,7 +317,7 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t
  * Remove a value at a given key
  */
 const purs_record_t * purs_record_remove(const purs_record_t * source,
-										 const void * key) {
+					 const void * key) {
 	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 	purs_record_t * v = purs_record_find_by_key(source, key);
 	if (v != NULL) {
@@ -330,9 +330,9 @@ const purs_record_t * purs_record_remove(const purs_record_t * source,
  * Find a value at a given key
  */
 purs_record_t * purs_record_find_by_key(const purs_record_t * record,
-										const void * key) {
+					const void * key) {
 	purs_record_t * result;
-    size_t len = utf8size(key);
+	size_t len = utf8size(key);
 	HASH_FIND(hh, record, key, len, result);
 	return result;
 }
