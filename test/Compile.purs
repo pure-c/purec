@@ -32,6 +32,7 @@ runClang inputs =
         , "-lBlocksRuntime"          -- XXX statically link into some runtime.so?
         , "-lgc"                     -- XXX statically link into some runtime.so?
         , "runtime/purescript.c"     -- XXX should be in some runtime.so
+        , "vendor/vec.c"             -- XXX should be in some runtime.so
         , "ccan/asprintf/asprintf.c" -- XXX should be in some runtime.so
         ]
       , inputs

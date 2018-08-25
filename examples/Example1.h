@@ -14,14 +14,65 @@ PURS_FFI_FUNC_DEF(Example1_showIntImpl, x, {
 		afmt("%d", * purs_any_get_int(x)));
 })
 
+#define purs_any_string_concat(u, v)\
+	PURS_ANY_STRING(\
+		afmt("%s%s",\
+		     purs_any_get_string(u)->data,\
+		     purs_any_get_string(v)->data))
+
 PURS_FFI_FUNC_DEF(Example1_concatStringImpl, x, {
 	return PURS_FFI_LAMBDA(y, {
-		return PURS_ANY_STRING(
-			afmt("%s%s",
-				 purs_any_get_string(x)->data,
-				 purs_any_get_string(y)->data));
+		return purs_any_string_concat(x, y);
 	});
 })
 
+PURS_FFI_FUNC_DEF(Example1_mapArrayImpl, f, {
+	return PURS_FFI_LAMBDA(xs, {
+		const purs_vec_t * zs = purs_any_get_array(xs);
+		const purs_vec_t * out = purs_vec_copy(zs);
+		const purs_any_t * tmp;
+		int i;
+		purs_vec_foreach(out, tmp, i) {
+			out->data[i] = purs_any_app(f, tmp);
+		}
+		return PURS_ANY_ARRAY(out);
+	});
+})
+
+PURS_FFI_FUNC_DEF(Example1_showArrayImpl, f, {
+	return PURS_FFI_LAMBDA(xs, {
+		const purs_vec_t * zs = purs_any_get_array(xs);
+		const purs_any_t * tmp;
+		const managed_utf8str_t * tmp_s;
+		int i;
+		char * out;
+		char * tmp_out;
+
+		purs_vec_foreach(zs, tmp, i) {
+			tmp_s = purs_any_get_string(purs_any_app(f, tmp));
+			tmp_out = out;
+
+			if (i == 0) {
+				if (i == zs->length - 1) {
+					out = afmt("[]");
+				} else {
+					out = afmt("[%s, ", tmp_s->data);
+				}
+			} else {
+				if (i == zs->length - 1) {
+					out = afmt("%s%s]", out, tmp_s->data);
+				} else {
+					out = afmt("%s%s, ", out, tmp_s->data);
+				}
+			}
+
+			if (tmp_out != NULL) {
+				free(tmp_out);
+			}
+		}
+
+		return PURS_ANY_STRING(out);
+	});
+})
 
 #endif // Example1_FFI_H

@@ -1,25 +1,29 @@
 module Language.PureScript.CodeGen.Runtime
-  ( purs_any_app
+  ( -- * purs_any_t
+    purs_any_app
   , purs_any_eq_int
   , purs_any_eq_float
   , purs_any_get_cons
   , purs_any_get_record
-  , purs_cons_t
-  , purs_cons_get_tag
-  , purs_record_find_by_key
-  , _PURS_ANY_THUNK_DECL
-  , _PURS_ANY_THUNK_DEF
   , _PURS_ANY_CONS
   , _PURS_ANY_INT
   , _PURS_ANY_FLOAT
   , _PURS_ANY_STRING
   , _PURS_ANY_RECORD
+  , _PURS_ANY_ARRAY
   , _PURS_CONS_VALUES_NEW
   , _PURS_CONS_LIT
+  , purs_cons_t
+  , purs_cons_get_tag
+  , purs_vec_new_from_array
+  , purs_record_find_by_key
+  , purs_record_new_from_kvps
   , any
   , any'
   , assert
   , assert'
+  , _PURS_ANY_THUNK_DECL
+  , _PURS_ANY_THUNK_DEF
   ) where
 
 import Prelude
@@ -56,8 +60,14 @@ purs_cons_get_tag = AST.Var "purs_cons_get_tag"
 purs_any_app :: AST
 purs_any_app = AST.Var "purs_any_app"
 
+purs_record_new_from_kvps :: AST
+purs_record_new_from_kvps = AST.Var "purs_record_new_from_kvps"
+
 purs_record_find_by_key :: AST
 purs_record_find_by_key = AST.Var "purs_record_find_by_key"
+
+purs_vec_new_from_array :: AST
+purs_vec_new_from_array = AST.Var "purs_vec_new_from_array"
 
 _PURS_ANY_THUNK_DEF :: AST
 _PURS_ANY_THUNK_DEF = AST.Var "PURS_ANY_THUNK_DEF"
@@ -76,6 +86,9 @@ _PURS_ANY_STRING = AST.Var "PURS_ANY_STRING"
 
 _PURS_ANY_FLOAT :: AST
 _PURS_ANY_FLOAT = AST.Var "PURS_ANY_FLOAT"
+
+_PURS_ANY_ARRAY :: AST
+_PURS_ANY_ARRAY = AST.Var "PURS_ANY_ARRAY"
 
 _PURS_ANY_RECORD :: AST
 _PURS_ANY_RECORD = AST.Var "PURS_ANY_RECORD"

@@ -170,16 +170,20 @@ prettyPrintAst (AST.Cast typ ast) = do
   emit ")"
 prettyPrintAst (AST.App fnAst argsAsts) = do
   prettyPrintAst fnAst
-  emit "("
   case A.unsnoc argsAsts of
     Nothing ->
-      pure unit
+      emit "()"
     Just { init, last } -> do
-      for_ init \ast -> do
-        prettyPrintAst ast
-        emit ", "
-      prettyPrintAst last
-  emit ")"
+      emit "("
+      lf
+      withNextIndent do
+        for_ init \ast -> do
+          indent *> prettyPrintAst ast
+          emit ","
+          lf
+        indent *> prettyPrintAst last
+      lf
+      indent *> emit ")"
 prettyPrintAst (AST.Assignment l r) = do
   prettyPrintAst l
   emit " ="

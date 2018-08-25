@@ -5,6 +5,14 @@ module Example1
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Type.Data.RowList (RLProxy(..))
 
+data Maybe a
+  = Nothing
+  | Just a
+
+x :: Boolean -> Foo
+x true = Qux
+x false = Bar 0 "hi"
+
 data Foo
   = Bar Int String
   | Qux
@@ -45,6 +53,17 @@ instance showInt :: Show Int where
 instance showString :: Show String where
   show = showStringImpl
 
+zzx :: Int
+zzx = 10
+
+xs :: Array String
+xs = mapArrayImpl show [ 10 ]
+
+foreign import mapArrayImpl :: ∀ a b. (a -> b) -> Array a -> Array b
+foreign import showArrayImpl :: ∀ a. (a -> String) -> Array a -> String
+
+instance showArray :: Show a => Show (Array a) where
+  show = showArrayImpl show
 
 instance showFoo :: Show Foo where
   show (Bar n x) =
@@ -54,8 +73,4 @@ instance showFoo :: Show Foo where
            concatStringImpl (show x) ")")))
   show Qux = "(Qux)"
 
--- instance functorFoo :: Functor Foo where
---   map _ (Bar x y) = Bar x y
---   map _ Qux = Qux
-
-main' = show (Bar 100 "h\"ello")
+main' = show xs

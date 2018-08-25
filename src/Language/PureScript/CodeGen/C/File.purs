@@ -88,30 +88,28 @@ toBody :: Array AST -> Array AST
 toBody = A.catMaybes <<< map go
   where
   go :: AST -> Maybe AST
-  go (AST.VariableIntroduction { name, initialization: Just initialization }) = do
-    case initialization of
-      AST.App a xs ->
-        Just $
-          AST.App
-            R._PURS_ANY_THUNK_DEF
-            [ AST.Raw name
-            , AST.App a xs
+  go (AST.VariableIntroduction { name, type: typ, initialization: Just initialization }) =
+    go' initialization
+    where
+    go' = case _ of
+      AST.Cast _ ast@(AST.App f _)
+        | f `A.elem`
+            [ R._PURS_ANY_CONS
+            , R._PURS_ANY_CONS
+            , R._PURS_ANY_INT
+            , R._PURS_ANY_FLOAT
+            , R._PURS_ANY_STRING
+            , R._PURS_ANY_RECORD
+            , R._PURS_ANY_ARRAY
             ]
-      AST.Lambda { arguments, returnType, body } ->
+        -> go' ast
+      _ ->
         Just $
           AST.App
             R._PURS_ANY_THUNK_DEF
             [ AST.Raw name
             , initialization
             ]
-      _ ->
-        Just $
-          AST.VariableIntroduction
-            { name
-            , type: Type.Pointer (Type.Any [ Type.Const ])
-            , qualifiers: []
-            , initialization: Just initialization
-            }
   go _ = Nothing
 
 -- XXX: should be configurable
@@ -130,8 +128,13 @@ nativeMain =
         AST.Block
           [ AST.App (AST.Var "GC_INIT") []
           -- , AST.App (AST.Var (safeName "main")) []
-
-          , AST.Raw("printf(\"%s\\n\", (char*) purs_any_get_string(Example1_main$$)->data);")
+          , AST.Raw(
+               """
+                printf(
+                  "%s\n",
+                  (char*) purs_any_get_string(Example1_main$$)->data
+                );
+              """)
           , AST.Return (AST.NumericLiteral (Left 0))
           ]
     }

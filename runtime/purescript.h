@@ -89,9 +89,11 @@ enum purs_any_tag {
 	CONS = 4,      // data constructor
 	RECORD = 5,    // a record (hash table)
 	STRING = 6,    // UTF8 string
-	THUNK = 7,     // thunk
-	ARRAY = 8,     // array
+	ARRAY = 7,     // array
+	THUNK = 8,     // thunk
 };
+
+const char * purs_any_tag_str (const purs_any_tag_t);
 
 union purs_any_value {
 	int num_int;
@@ -131,14 +133,14 @@ const purs_record_t *     purs_any_get_record    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array     (const purs_any_t *);
 
 // XXX: caution, these functions mutate the input!
-purs_any_t * purs_any_set_abs       (purs_any_t *, const abs_t);
-purs_any_t * purs_any_set_abs_block (purs_any_t *, const managed_t *);
-purs_any_t * purs_any_set_float     (purs_any_t *, const float);
-purs_any_t * purs_any_set_int       (purs_any_t *, const int);
-purs_any_t * purs_any_set_cons      (purs_any_t *, const purs_cons_t);
-purs_any_t * purs_any_set_string    (purs_any_t *, const managed_utf8str_t *);
-purs_any_t * purs_any_set_record    (purs_any_t *, const purs_record_t *);
-purs_any_t * purs_any_set_array     (purs_any_t *, const purs_vec_t *);
+purs_any_t * purs_any_init_abs       (purs_any_t *, const abs_t);
+purs_any_t * purs_any_init_abs_block (purs_any_t *, const managed_t *);
+purs_any_t * purs_any_init_float     (purs_any_t *, const float);
+purs_any_t * purs_any_init_int       (purs_any_t *, const int);
+purs_any_t * purs_any_init_cons      (purs_any_t *, const purs_cons_t);
+purs_any_t * purs_any_init_string    (purs_any_t *, const managed_utf8str_t *);
+purs_any_t * purs_any_init_record    (purs_any_t *, const purs_record_t *);
+purs_any_t * purs_any_init_array     (purs_any_t *, const purs_vec_t *);
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons);
@@ -180,7 +182,7 @@ int purs_any_eq_float  (const purs_any_t *, float);
 	const purs_any_t * NAME = & NAME##____thunk____;\
 
 #define PURS_ANY_NEW(n, x)\
-	purs_any_set_##n(\
+	purs_any_init_##n(\
 		GC_NEW(purs_any_t),\
 		x\
 	)
@@ -203,8 +205,11 @@ int purs_any_eq_float  (const purs_any_t *, float);
 #define PURS_ANY_STRING(x)\
 	PURS_ANY_NEW(string, managed_utf8str_new(x))
 
-#define PURS_ANY_RECORD(n, ...)\
-	PURS_ANY_NEW(record, purs_record_add_multi(NULL, n, __VA_ARGS__))
+#define PURS_ANY_RECORD(x)\
+	PURS_ANY_NEW(record, x)
+
+#define PURS_ANY_ARRAY(x)\
+	PURS_ANY_NEW(array, x)
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of
@@ -214,6 +219,7 @@ int purs_any_eq_float  (const purs_any_t *, float);
  */
 #define PURS_CONS_VALUES_NEW(n)\
 	GC_MALLOC(sizeof (purs_any_t *) * n)
+
 #define PURS_CONS_LIT(TAG, VALUES)\
 	((purs_cons_t) { .tag = TAG, .values = VALUES })
 
@@ -223,7 +229,14 @@ int purs_any_eq_float  (const purs_any_t *, float);
 
 void purs_vec_release (purs_vec_t *);
 const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count);
+const purs_vec_t * purs_vec_new_va (int count, ...);
 const purs_vec_t * purs_vec_copy (const purs_vec_t *);
+
+#define purs_vec_new_from_array(count, ...)\
+	purs_vec_new_va(count, __VA_ARGS__)
+
+#define purs_vec_foreach(v, var, iter)\
+	vec_foreach(v, var, iter)
 
 // -----------------------------------------------------------------------------
 // records (via hash table)
@@ -265,18 +278,25 @@ purs_record_t * purs_record_find_by_key(const purs_record_t *,
 const purs_record_t * purs_record_remove(const purs_record_t *,
 					 const void * key);
 
+/**
+ * Create a new record from a bunch of key value pairs.
+ * The 'count' is the count of pairs, not elements in the va_list.
+ */
+#define purs_record_new_from_kvps(count, ...)\
+    purs_record_add_multi(NULL, count, __VA_ARGS__)
+
 // -----------------------------------------------------------------------------
 // FFI Helpers
 // -----------------------------------------------------------------------------
 
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_FUNC_DECL(NAME)\
-	PURS_ANY_THUNK_DECL(NAME##$)
+	PURS_ANY_THUNK_DECL(NAME ## $)
 
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_FUNC_DEF(NAME, ARG_VARNAME, BODY)\
 	PURS_ANY_THUNK_DEF(\
-		NAME##$,\
+		NAME ## $,\
 		PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY))
 
 #define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\

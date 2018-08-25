@@ -17,13 +17,6 @@ const Data_Show_Show * Data_Maybe_showInt () {
 	return value0;
 }
 
-void foobar () {
-	do {
-		/* purs_vec_t * xs = purs_vec_new(); */
-		/* vec_pusharr(xs, (const purs_any_t * [1]) { a }, 1); */
-	} while (0);
-}
-
 int main () {
 	const purs_any_t * a = Data_Maybe_Just(foo);
 	const Data_Show_Show * x = Data_Maybe_showMaybe(Data_Maybe_showInt());

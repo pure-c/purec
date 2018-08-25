@@ -226,6 +226,17 @@ exprToAst (C.Literal _ (C.BooleanLiteral b)) =
       R._PURS_ANY_INT
       [ AST.NumericLiteral $ Left $ if b then 1 else 0
       ]
+exprToAst (C.Literal _ (C.ArrayLiteral xs)) = do
+  asts <- traverse exprToAst xs
+  pure $
+   AST.Cast (R.any) $
+    AST.App
+      R._PURS_ANY_ARRAY $
+      [ AST.App
+        R.purs_vec_new_from_array $
+        [ AST.NumericLiteral $ Left $ A.length xs
+        ] <> asts
+      ]
 exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
   kvpAsts <-
     for kvps \(k /\ v) -> ado
@@ -235,8 +246,11 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
    AST.Cast (R.any) $
     AST.App
       R._PURS_ANY_RECORD $
-      [ AST.NumericLiteral $ Left $ A.length kvpAsts
-      ] <> A.concat kvpAsts
+        [ AST.App
+          R.purs_record_new_from_kvps $
+          [ AST.NumericLiteral $ Left $ A.length kvpAsts
+          ] <> A.concat kvpAsts
+        ]
 exprToAst (C.Let _ binders val) = do
   bindersAsts <- A.concat <$> traverse (bindToAst false) binders
   valAst      <- exprToAst val
