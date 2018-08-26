@@ -9,22 +9,19 @@
 		     purs_any_get_string(u)->data,\
 		     purs_any_get_string(v)->data))
 
-PURS_FFI_FUNC_DEF(Example1_concatStringImpl, x, {
-	return PURS_FFI_LAMBDA(y, {
-		return purs_any_string_concat(x, y);
-	});
+PURS_FFI_FUNC_DEF_2(Example1_concatStringImpl, x, y, {
+	return purs_any_string_concat(x, y);
 })
 
-PURS_FFI_FUNC_DEF(Example1_mapArrayImpl, f, {
-	return PURS_FFI_LAMBDA(xs, {
-		const purs_vec_t * zs = purs_any_get_array(xs);
-		const purs_vec_t * out = purs_vec_copy(zs);
-		const purs_any_t * tmp;
-		int i;
-		purs_vec_foreach(out, tmp, i) {
-			out->data[i] = purs_any_app(f, tmp);
-		}
-		return PURS_ANY_ARRAY(out);
-	});
+PURS_FFI_FUNC_DEF_2(Example1_mapArrayImpl, f, xs, {
+	const purs_vec_t * zs = purs_any_get_array(xs);
+	const purs_vec_t * out = purs_vec_copy(zs);
+	const purs_any_t * tmp;
+	int i;
+	purs_vec_foreach(out, tmp, i) {
+		out->data[i] = purs_any_app(f, tmp);
+	}
+	return PURS_ANY_ARRAY(out);
 })
+
 #endif // Example1_FFI_H

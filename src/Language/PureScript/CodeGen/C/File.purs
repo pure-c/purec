@@ -97,7 +97,7 @@ toBody = A.catMaybes <<< map go
             [ R._PURS_ANY_CONS
             , R._PURS_ANY_CONS
             , R._PURS_ANY_INT
-            , R._PURS_ANY_FLOAT
+            , R._PURS_ANY_NUMBER
             , R._PURS_ANY_STRING
             , R._PURS_ANY_STRING_FROM_LIT
             , R._PURS_ANY_RECORD

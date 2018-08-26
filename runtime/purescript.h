@@ -86,7 +86,7 @@ struct purs_cons {
 
 enum purs_any_tag {
 	INT = 0,       // integer
-	FLOAT = 1,     // float
+	NUMBER = 1,    // number
 	ABS = 2,       // abstraction
 	ABS_BLOCK = 3, // lambda abstraction
 	CONS = 4,      // data constructor
@@ -99,8 +99,8 @@ enum purs_any_tag {
 const char * purs_any_tag_str (const purs_any_tag_t);
 
 union purs_any_value {
-	int num_int;
-	float num_float;
+	int   integer;
+	float number;
 	abs_t fn;
 	const managed_utf8str_t * string;
 	const managed_block_t * block;
@@ -119,7 +119,7 @@ const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t *);
 
 const abs_t               purs_any_get_abs_maybe       (const purs_any_t *);
 const int *               purs_any_get_int_maybe       (const purs_any_t *);
-const float *             purs_any_get_float_maybe     (const purs_any_t *);
+const float *             purs_any_get_number_maybe    (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block_maybe (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons_maybe      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string_maybe    (const purs_any_t *);
@@ -128,7 +128,7 @@ const purs_vec_t *        purs_any_get_array_maybe     (const purs_any_t *);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
 const int *               purs_any_get_int       (const purs_any_t *);
-const float *             purs_any_get_float     (const purs_any_t *);
+const float *             purs_any_get_number    (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
@@ -138,7 +138,7 @@ const purs_vec_t *        purs_any_get_array     (const purs_any_t *);
 // XXX: caution, these functions mutate the input!
 purs_any_t * purs_any_init_abs       (purs_any_t *, const abs_t);
 purs_any_t * purs_any_init_abs_block (purs_any_t *, const managed_t *);
-purs_any_t * purs_any_init_float     (purs_any_t *, const float);
+purs_any_t * purs_any_init_number    (purs_any_t *, const float);
 purs_any_t * purs_any_init_int       (purs_any_t *, const int);
 purs_any_t * purs_any_init_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_init_string    (purs_any_t *, const managed_utf8str_t *);
@@ -153,7 +153,7 @@ const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
 int purs_any_eq_string (const purs_any_t *, const void *);
 int purs_any_eq_int    (const purs_any_t *, int);
-int purs_any_eq_float  (const purs_any_t *, float);
+int purs_any_eq_number (const purs_any_t *, float);
 
 /**
  * Declare a lazily evaluated top-level value.
@@ -196,8 +196,8 @@ int purs_any_eq_float  (const purs_any_t *, float);
 #define PURS_ANY_INT(x)\
 	PURS_ANY_NEW(int, x)
 
-#define PURS_ANY_FLOAT(x)\
-	PURS_ANY_NEW(float, x)
+#define PURS_ANY_NUMBER(x)\
+	PURS_ANY_NEW(number, x)
 
 #define PURS_ANY_CONS(x)\
 	PURS_ANY_NEW(cons, x)

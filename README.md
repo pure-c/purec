@@ -4,7 +4,7 @@
 
 ### Things to come back to
 
-* [ ] Rename 'purs_any_get_float' et. al. to '_number' for consistency
+* [x] Rename 'purs_any_get_float' et. al. to '_number' for consistency
 * [ ] Emit tabs instead of spaces
 * [ ] Use less macross
 * [ ] Handle `NULL` in more cases:

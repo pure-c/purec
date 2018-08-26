@@ -202,7 +202,7 @@ exprToAst (C.Literal _ (C.NumericLiteral n)) =
   pure $
    AST.Cast (R.any) $
     AST.App
-      (either (const R._PURS_ANY_INT) (const R._PURS_ANY_FLOAT) n)
+      (either (const R._PURS_ANY_INT) (const R._PURS_ANY_NUMBER) n)
       [ AST.NumericLiteral n
       ]
 exprToAst (C.Literal _ (C.StringLiteral s)) =

@@ -63,7 +63,7 @@ inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
 
 inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 	if      (x->tag == INT)	return &x->tag;
-	else if (x->tag == FLOAT)	return &x->tag;
+	else if (x->tag == NUMBER)	return &x->tag;
 	else if (x->tag == ABS)	return &x->tag;
 	else if (x->tag == ABS_BLOCK)	return &x->tag;
 	else if (x->tag == CONS)	return &x->tag;
@@ -77,7 +77,7 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 	static const char * tags[9] =
 		{ "INT",
-		  "FLOAT",
+		  "NUMBER",
 		  "ABS",
 		  "ABS_BLOCK",
 		  "CONS",
@@ -109,16 +109,16 @@ const abs_t purs_any_get_abs_maybe (const purs_any_t * x) {
 const int * purs_any_get_int_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == INT) {
-		return &x->value.num_int;
+		return &x->value.integer;
 	} else {
 		return NULL;
 	}
 }
 
-const float * purs_any_get_float_maybe (const purs_any_t * x) {
+const float * purs_any_get_number_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == FLOAT) {
-		return &x->value.num_float;
+	if (x->tag == NUMBER) {
+		return &x->value.number;
 	} else {
 		return NULL;
 	}
@@ -184,7 +184,7 @@ const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 PURS_ANY_GET_IMPL(purs_cons_t *, cons);
 PURS_ANY_GET_IMPL(abs_t, abs);
 PURS_ANY_GET_IMPL(int *, int);
-PURS_ANY_GET_IMPL(float *, float);
+PURS_ANY_GET_IMPL(float *, number);
 PURS_ANY_GET_IMPL(managed_block_t *, abs_block);
 PURS_ANY_GET_IMPL(managed_utf8str_t *, string);
 PURS_ANY_GET_IMPL(purs_record_t *, record);
@@ -199,8 +199,8 @@ PURS_ANY_GET_IMPL(purs_vec_t *, array);
 
 PURS_ANY_INIT_IMPL(purs_any_init_abs, const abs_t, ABS, fn)
 PURS_ANY_INIT_IMPL(purs_any_init_abs_block, const managed_block_t *, ABS_BLOCK, block)
-PURS_ANY_INIT_IMPL(purs_any_init_float, float, FLOAT, num_float)
-PURS_ANY_INIT_IMPL(purs_any_init_int, int, INT, num_int)
+PURS_ANY_INIT_IMPL(purs_any_init_number, float, NUMBER, number)
+PURS_ANY_INIT_IMPL(purs_any_init_int, int, INT, integer)
 PURS_ANY_INIT_IMPL(purs_any_init_cons, purs_cons_t, CONS, cons)
 PURS_ANY_INIT_IMPL(purs_any_init_string, const managed_utf8str_t *, STRING, string)
 PURS_ANY_INIT_IMPL(purs_any_init_record, const purs_record_t *, RECORD, record)
@@ -243,8 +243,8 @@ int purs_any_eq_int (const purs_any_t * x, int y) {
 	return *a == y;
 }
 
-int purs_any_eq_float (const purs_any_t * x, float y) {
-	const float * a = purs_any_get_float(x);
+int purs_any_eq_number (const purs_any_t * x, float y) {
+	const float * a = purs_any_get_number(x);
 	return *a == y;
 }
 
