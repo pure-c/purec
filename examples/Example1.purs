@@ -58,4 +58,26 @@ instance showFoo :: Show Foo where
            concatStringImpl (show x) ")")))
   show Qux = "(Qux)"
 
-main' = show xs
+litString :: String
+litString = "foobår"
+
+litChar :: Char
+litChar = 'å'
+
+litInt :: Int
+litInt = 10
+
+litNumber :: Number
+litNumber = 100.0
+
+litRecord :: { b :: String, a :: Int }
+litRecord = { b: "hi!", a: 42 }
+
+main' =
+  show
+    [ show litChar
+    , show litString
+    , show litInt
+    , show litNumber
+    , show litRecord
+    ]

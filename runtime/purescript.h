@@ -20,6 +20,9 @@
 #define uthash_malloc(sz) GC_MALLOC(sz)
 #define uthash_free(ptr, sz)
 
+#define purs_malloc(sz) GC_MALLOC(sz)
+#define purs_new(exp) GC_NEW(exp)
+
 // -----------------------------------------------------------------------------
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
@@ -183,7 +186,7 @@ int purs_any_eq_float  (const purs_any_t *, float);
 
 #define PURS_ANY_NEW(n, x)\
 	purs_any_init_##n(\
-		GC_NEW(purs_any_t),\
+		purs_new(purs_any_t),\
 		x\
 	)
 
@@ -218,10 +221,16 @@ int purs_any_eq_float  (const purs_any_t *, float);
  * XXX: this macro only exist for easy code emission from PureScript.
  */
 #define PURS_CONS_VALUES_NEW(n)\
-	GC_MALLOC(sizeof (purs_any_t *) * n)
+	purs_malloc(sizeof (purs_any_t *) * n)
 
 #define PURS_CONS_LIT(TAG, VALUES)\
 	((purs_cons_t) { .tag = TAG, .values = VALUES })
+
+// -----------------------------------------------------------------------------
+// strings (via managed_utf8str_t)
+// -----------------------------------------------------------------------------
+
+const void * purs_string_copy (const void * string);
 
 // -----------------------------------------------------------------------------
 // arrays (via vectors)
@@ -237,6 +246,12 @@ const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 
 #define purs_vec_foreach(v, var, iter)\
 	vec_foreach(v, var, iter)
+
+/**
+ * Insert the value val at index idx shifting the elements after the index to
+ * make room for the new value.
+ */
+const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, const purs_any_t * val);
 
 // -----------------------------------------------------------------------------
 // records (via hash table)
@@ -269,8 +284,8 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
 /**
  * Find an entry by it's key.
  */
-purs_record_t * purs_record_find_by_key(const purs_record_t *,
-					const void * key);
+const purs_record_t * purs_record_find_by_key(const purs_record_t *,
+					      const void * key);
 
 /**
  * Remove an entry by it's key.
@@ -299,7 +314,19 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 		NAME ## $,\
 		PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY))
 
+#define PURS_FFI_FUNC_DEF_2(NAME, A1, A2, BODY)\
+	PURS_FFI_FUNC_DEF(NAME, A1, { return PURS_FFI_LAMBDA(A2, BODY); })
+
+#define PURS_FFI_FUNC_DEF_3(NAME, A1, A2, A3, BODY)\
+	PURS_FFI_FUNC_DEF_2(NAME, A1, A2, { return PURS_FFI_LAMBDA(A3, BODY); })
+
 #define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
 	PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY)
+
+// -----------------------------------------------------------------------------
+// Prim shims
+// -----------------------------------------------------------------------------
+
+#define Prim_undefined$ NULL
 
 #endif // PURESCRIPT_RUNTIME_H

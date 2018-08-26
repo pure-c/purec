@@ -209,14 +209,14 @@ exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
    AST.Cast (R.any) $
     AST.App
-      R._PURS_ANY_STRING
+      R._PURS_ANY_STRING_FROM_LIT
       [ AST.StringLiteral s
       ]
 exprToAst (C.Literal _ (C.CharLiteral c)) =
   pure $
    AST.Cast (R.any) $
     AST.App
-      R._PURS_ANY_STRING
+      R._PURS_ANY_STRING_FROM_LIT
       [ AST.StringLiteral (Str.fromCharArray [ c ])
       ]
 exprToAst (C.Literal _ (C.BooleanLiteral b)) =

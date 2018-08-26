@@ -27,7 +27,7 @@ const Data_Show_Show * Data_Maybe_showMaybe (const Data_Show_Show * dictShow) {
 				const purs_cons_t * value1 = purs_any_get_cons(x);
 				if (value1->tag == Data_Maybe_Just__Tag) {
 					return purs_any_concat(
-						(const purs_any_t *) purs_any_set_string(
+						(const purs_any_t *) purs_any_init_string(
 							GC_NEW(purs_any_t),
 							managed_utf8str_new(afmt("(Just "))
 						),
@@ -36,7 +36,7 @@ const Data_Show_Show * Data_Maybe_showMaybe (const Data_Show_Show * dictShow) {
 								Data_Show_show(dictShow),
 								value1->values[0]
 							),
-							(const purs_any_t *) purs_any_set_string(
+							(const purs_any_t *) purs_any_init_string(
 								GC_NEW(purs_any_t),
 								managed_utf8str_new(afmt(")"))
 							)
@@ -45,7 +45,7 @@ const Data_Show_Show * Data_Maybe_showMaybe (const Data_Show_Show * dictShow) {
 				}
 
 				if (value1->tag == Data_Maybe_Nothing__Tag) {
-					return (const purs_any_t *) purs_any_set_string(
+					return (const purs_any_t *) purs_any_init_string(
 						GC_NEW(purs_any_t),
 						managed_utf8str_new(afmt("(Nothing)"))
 					);

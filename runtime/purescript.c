@@ -7,7 +7,7 @@
 // -----------------------------------------------------------------------------
 
 const managed_t * managed_new (const void * data, const managed_release_func release) {
-	managed_t * managed = GC_NEW(managed_block_t);
+	managed_t * managed = purs_new(managed_block_t);
 	managed->data = data;
 	GC_register_finalizer(
 		managed,
@@ -55,7 +55,7 @@ inline const void * purs_assert_not_null(const void * data, const char * message
 // -----------------------------------------------------------------------------
 
 inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
-	while (x->tag == THUNK) {
+	while (x != NULL && x->tag == THUNK) {
 		x = x->value.fn(NULL);
 	}
 	return x;
@@ -211,7 +211,7 @@ int purs_cons_get_tag (const purs_cons_t * cons) {
 	return cons->tag;
 }
 
-const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
+inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
 	const void * f;
 	const managed_block_t * b;
 
@@ -256,9 +256,20 @@ const purs_any_t * purs_any_concat(const purs_any_t * a, const purs_any_t * b) {
 	const managed_utf8str_t * a_utf8str = purs_any_get_string(a);
 	const managed_utf8str_t * b_utf8str = purs_any_get_string(b);
 	return purs_any_init_string(
-		GC_NEW(purs_any_t),
+		purs_new(purs_any_t),
 		managed_utf8str_new(afmt("%s%s", a_utf8str->data, b_utf8str->data))
 	);
+}
+
+// -----------------------------------------------------------------------------
+// strings (via managed_utf8str_t)
+// -----------------------------------------------------------------------------
+
+const void * purs_string_copy (const void * source) {
+	size_t sz = utf8size(source);
+	void * dest = purs_malloc(sz);
+	memcpy(dest, source, sz);
+	return (const void*) dest;
 }
 
 // -----------------------------------------------------------------------------
@@ -270,7 +281,7 @@ void purs_vec_release (purs_vec_t * vec) {
 }
 
 const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count) {
-	purs_vec_t * v = GC_NEW(purs_vec_t);
+	purs_vec_t * v = purs_new(purs_vec_t);
 	GC_register_finalizer(v,
 			      (GC_finalization_proc) purs_vec_release,
 			      0, 0, 0);
@@ -293,16 +304,32 @@ const purs_vec_t * purs_vec_new_va (int count, ...) {
 }
 
 const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
-	purs_vec_t * copy = (purs_vec_t *) purs_vec_new(NULL, 0);
-	vec_expand_((char**)&copy->data,
-		    (int *)&vec->length,
-		    (int *)&vec->capacity,
-		    sizeof(*copy->data));
-	memcpy(copy, vec, sizeof *copy);
-	memcpy(copy->data,
-	       vec->data,
-	       sizeof (*copy->data) * vec->capacity);
-	return (const purs_vec_t *) copy;
+	if (vec->data == NULL) {
+		return (purs_vec_t *) purs_vec_new(NULL, 0);
+	} else {
+		purs_vec_t * copy = (purs_vec_t *) purs_vec_new(NULL, 0);
+		vec_expand_((char**)&copy->data,
+			    (int *)&vec->length,
+			    (int *)&vec->capacity,
+			    sizeof(*copy->data));
+		memcpy(copy, vec, sizeof *copy);
+		memcpy(copy->data,
+		    vec->data,
+		    sizeof (*copy->data) * vec->capacity);
+		return (const purs_vec_t *) copy;
+	}
+}
+
+const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
+				   int idx,
+				   const purs_any_t * val) {
+	if (vec == NULL) {
+		return purs_vec_new_va(1, val);
+	} else {
+		purs_vec_t * out = (purs_vec_t *) purs_vec_copy(vec);
+		vec_insert(out, idx, val);
+		return (const purs_vec_t *) out;
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -314,7 +341,7 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	purs_record_t * entry_copy;
 	purs_record_t * record = NULL;
 	HASH_ITER(hh, source, current_entry, tmp) {
-		entry_copy = GC_NEW(purs_record_t);
+		entry_copy = purs_new(purs_record_t);
 		memcpy(entry_copy, current_entry, sizeof(purs_record_t));
 		HASH_ADD_KEYPTR(
 			hh,
@@ -340,7 +367,7 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t
 	for (size_t i = 0; i < count; i++) {
 		const void * key = va_arg(args, const void *);
 		const purs_any_t * value = va_arg(args, const purs_any_t *);
-		purs_record_t * entry = GC_NEW(purs_record_t);
+		purs_record_t * entry = purs_new(purs_record_t);
 		entry->key = managed_utf8str_new(key);
 		entry->value = value;
 		HASH_ADD_KEYPTR(
@@ -357,24 +384,18 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t
 	return (const purs_record_t *) copy;
 }
 
-/**
- * Remove a value at a given key
- */
 const purs_record_t * purs_record_remove(const purs_record_t * source,
 					 const void * key) {
 	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
-	purs_record_t * v = purs_record_find_by_key(source, key);
+	purs_record_t * v = (purs_record_t *) purs_record_find_by_key(source, key);
 	if (v != NULL) {
 		HASH_DEL(copy, (purs_record_t *) v);
 	}
 	return (const purs_record_t *) copy;
 }
 
-/**
- * Find a value at a given key
- */
-purs_record_t * purs_record_find_by_key(const purs_record_t * record,
-					const void * key) {
+const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
+					      const void * key) {
 	purs_record_t * result;
 	size_t len = utf8size(key);
 	HASH_FIND(hh, record, key, len, result);
