@@ -235,7 +235,10 @@ exprToAst (C.Literal _ (C.ArrayLiteral xs)) = do
       [ AST.App
         R.purs_vec_new_from_array $
         [ AST.NumericLiteral $ Left $ A.length xs
-        ] <> asts
+        ] <>
+          if A.null asts
+            then [ R._NULL ]
+            else asts
       ]
 exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
   kvpAsts <-
@@ -381,6 +384,44 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
               (AST.Block next)
               Nothing
           ]
+
+      C.ArrayLiteral binders ->
+        let
+          go next' ix xs =
+            case A.uncons xs of
+              Nothing ->
+                pure next'
+              Just { head: x, tail: rest } -> do
+                elementVar <- freshName
+                next''     <- go next' (ix + 1) rest
+                ast        <- binderToAst elementVar next'' x
+                pure $
+                  AST.VariableIntroduction
+                    { name: elementVar
+                    , type: R.any
+                    , qualifiers: []
+                    , initialization:
+                        Just $
+                          AST.Cast R.any $
+                            AST.Indexer
+                              (AST.NumericLiteral (Left ix))
+                              (AST.Accessor
+                                (AST.Raw "data")
+                                (AST.App R.purs_any_get_array [ AST.Var varName ]))
+                    } A.: ast
+        in ado
+          ast <- go next 0 binders
+          in
+            [ AST.IfElse
+                (AST.Binary
+                  AST.EqualTo
+                  (AST.Accessor
+                    (AST.Raw "length")
+                    (AST.App R.purs_any_get_array [ AST.Var varName ]))
+                  (AST.NumericLiteral $ Left (A.length binders)))
+                (AST.Block ast)
+                Nothing
+            ]
       _ ->
         throwError $ NotImplementedError $ "binderToAst: literal: " <> show lit
   binderToAst varName next (C.VarBinder _ ident) = ado

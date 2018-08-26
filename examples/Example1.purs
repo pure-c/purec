@@ -3,6 +3,7 @@ module Example1
   ) where
 
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
+import Data.Show
 import Type.Data.RowList (RLProxy(..))
 
 data Maybe a
@@ -38,20 +39,8 @@ foo =
     let z = 200
      in 100
 
-class Show a where
-  show :: a -> String
-
-foreign import showIntImpl :: Int -> String
-foreign import showStringImpl :: String -> String
-
 -- XXX: will be replaced by Monoid instance for strings
 foreign import concatStringImpl :: String -> String -> String
-
-instance showInt :: Show Int where
-  show = showIntImpl
-
-instance showString :: Show String where
-  show = showStringImpl
 
 zzx :: Int
 zzx = 10
@@ -60,10 +49,6 @@ xs :: Array String
 xs = mapArrayImpl show [ 10 ]
 
 foreign import mapArrayImpl :: ∀ a b. (a -> b) -> Array a -> Array b
-foreign import showArrayImpl :: ∀ a. (a -> String) -> Array a -> String
-
-instance showArray :: Show a => Show (Array a) where
-  show = showArrayImpl show
 
 instance showFoo :: Show Foo where
   show (Bar n x) =

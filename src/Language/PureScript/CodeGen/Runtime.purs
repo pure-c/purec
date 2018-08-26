@@ -5,6 +5,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_eq_float
   , purs_any_get_cons
   , purs_any_get_record
+  , purs_any_get_array
   , _PURS_ANY_CONS
   , _PURS_ANY_INT
   , _PURS_ANY_FLOAT
@@ -24,6 +25,7 @@ module Language.PureScript.CodeGen.Runtime
   , assert'
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
+  , _NULL
   ) where
 
 import Prelude
@@ -53,6 +55,9 @@ purs_any_get_cons = AST.Var "purs_any_get_cons"
 
 purs_any_get_record :: AST
 purs_any_get_record = AST.Var "purs_any_get_record"
+
+purs_any_get_array :: AST
+purs_any_get_array = AST.Var "purs_any_get_array"
 
 purs_cons_get_tag :: AST
 purs_cons_get_tag = AST.Var "purs_cons_get_tag"
@@ -98,6 +103,9 @@ _PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"
 
 _PURS_CONS_LIT :: AST
 _PURS_CONS_LIT = AST.Var "PURS_CONS_LIT"
+
+_NULL :: AST
+_NULL = AST.Raw "NULL"
 
 assert :: AST -> String -> AST
 assert condAst message =
