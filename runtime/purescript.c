@@ -71,11 +71,12 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 	else if (x->tag == STRING)	return &x->tag;
 	else if (x->tag == ARRAY)	return &x->tag;
 	else if (x->tag == THUNK)	return &x->tag;
+	else if (x->tag == FOREIGN)	return &x->tag;
 	else return NULL;
 }
 
 inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
-	static const char * tags[9] =
+	static const char * tags[10] =
 		{ "INT",
 		  "NUMBER",
 		  "ABS",
@@ -84,7 +85,8 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 		  "RECORD",
 		  "STRING",
 		  "ARRAY",
-		  "THUNK" };
+		  "THUNK",
+		  "FOREIGN" };
 	return tags[tag];
 }
 
@@ -160,8 +162,17 @@ const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 	}
 }
 
+void * purs_any_get_foreign_maybe (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
+	if (x->tag == FOREIGN) {
+		return x->value.foreign;
+	} else {
+		return NULL;
+	}
+}
+
 #define PURS_ANY_GET_IMPL(T, X) \
-	const T purs_any_get_##X (const purs_any_t * x) { \
+	T purs_any_get_##X (const purs_any_t * x) { \
 		x = purs_any_unthunk(x); \
 		purs_assert_not_null(x, "(purs_any_get_" #X ") expected: " #X); \
 		char * msg = afmt( \
@@ -173,7 +184,7 @@ const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 				) \
 			) \
 		); \
-		const T r = purs_assert_not_null( \
+		T r = purs_assert_not_null( \
 			purs_any_get_##X##_maybe(x), \
 			msg \
 		); \
@@ -181,14 +192,15 @@ const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 		return r; \
 	}
 
-PURS_ANY_GET_IMPL(purs_cons_t *, cons);
-PURS_ANY_GET_IMPL(abs_t, abs);
-PURS_ANY_GET_IMPL(int *, int);
-PURS_ANY_GET_IMPL(float *, number);
-PURS_ANY_GET_IMPL(managed_block_t *, abs_block);
-PURS_ANY_GET_IMPL(managed_utf8str_t *, string);
-PURS_ANY_GET_IMPL(purs_record_t *, record);
-PURS_ANY_GET_IMPL(purs_vec_t *, array);
+PURS_ANY_GET_IMPL(const purs_cons_t *, cons);
+PURS_ANY_GET_IMPL(const abs_t, abs);
+PURS_ANY_GET_IMPL(const int *, int);
+PURS_ANY_GET_IMPL(const float *, number);
+PURS_ANY_GET_IMPL(const managed_block_t *, abs_block);
+PURS_ANY_GET_IMPL(const managed_utf8str_t *, string);
+PURS_ANY_GET_IMPL(const purs_record_t *, record);
+PURS_ANY_GET_IMPL(const purs_vec_t *, array);
+PURS_ANY_GET_IMPL(void *, foreign);
 
 #define PURS_ANY_INIT_IMPL(NAME, TYPE, TAG, KEY) \
 	inline purs_any_t * NAME (purs_any_t * any, TYPE val) { \
@@ -205,6 +217,7 @@ PURS_ANY_INIT_IMPL(purs_any_init_cons, purs_cons_t, CONS, cons)
 PURS_ANY_INIT_IMPL(purs_any_init_string, const managed_utf8str_t *, STRING, string)
 PURS_ANY_INIT_IMPL(purs_any_init_record, const purs_record_t *, RECORD, record)
 PURS_ANY_INIT_IMPL(purs_any_init_array, const purs_vec_t *, ARRAY, array)
+PURS_ANY_INIT_IMPL(purs_any_init_foreign, void *, FOREIGN, foreign)
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons) {

@@ -3,7 +3,8 @@ module Example1
   ) where
 
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
-import Data.Show
+import Data.Show (class Show, show)
+import Data.Unit (unit)
 import Type.Data.RowList (RLProxy(..))
 
 data Maybe a
@@ -80,4 +81,5 @@ main' =
     , show litInt
     , show litNumber
     , show litRecord
+    , show unit
     ]

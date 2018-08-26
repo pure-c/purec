@@ -94,6 +94,7 @@ enum purs_any_tag {
 	STRING = 6,    // UTF8 string
 	ARRAY = 7,     // array
 	THUNK = 8,     // thunk
+	FOREIGN = 9,   // a wrapped foreign value
 };
 
 const char * purs_any_tag_str (const purs_any_tag_t);
@@ -107,6 +108,7 @@ union purs_any_value {
 	const purs_record_t * record;
 	const purs_vec_t * array;
 	purs_cons_t cons;
+	void * foreign;
 };
 
 struct purs_any {
@@ -125,6 +127,7 @@ const purs_cons_t *       purs_any_get_cons_maybe      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string_maybe    (const purs_any_t *);
 const purs_record_t *     purs_any_get_record_maybe    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array_maybe     (const purs_any_t *);
+void *                    purs_any_get_foreign_maybe   (const purs_any_t *);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
 const int *               purs_any_get_int       (const purs_any_t *);
@@ -134,6 +137,7 @@ const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
 const purs_record_t *     purs_any_get_record    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array     (const purs_any_t *);
+void *                    purs_any_get_foreign   (const purs_any_t *);
 
 // XXX: caution, these functions mutate the input!
 purs_any_t * purs_any_init_abs       (purs_any_t *, const abs_t);
@@ -144,6 +148,7 @@ purs_any_t * purs_any_init_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_init_string    (purs_any_t *, const managed_utf8str_t *);
 purs_any_t * purs_any_init_record    (purs_any_t *, const purs_record_t *);
 purs_any_t * purs_any_init_array     (purs_any_t *, const purs_vec_t *);
+purs_any_t * purs_any_init_foreign   (purs_any_t *, void *);
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons);
@@ -213,6 +218,9 @@ int purs_any_eq_number (const purs_any_t *, float);
 
 #define PURS_ANY_ARRAY(x)\
 	PURS_ANY_NEW(array, x)
+
+#define PURS_ANY_FOREIGN(x)\
+	PURS_ANY_NEW(foreign, x)
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of
@@ -305,20 +313,26 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 // -----------------------------------------------------------------------------
 
 /* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_FUNC_DECL(NAME)\
+#define PURS_FFI_DECL(NAME)\
 	PURS_ANY_THUNK_DECL(NAME ## $)
 
 /* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_FUNC_DEF(NAME, ARG_VARNAME, BODY)\
+#define PURS_FFI_VAL(NAME, BODY)\
 	PURS_ANY_THUNK_DEF(\
 		NAME ## $,\
+		BODY\
+	)
+
+#define PURS_FFI_FUNC_1(NAME, ARG_VARNAME, BODY)\
+	PURS_FFI_VAL(\
+		NAME,\
 		PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY))
 
-#define PURS_FFI_FUNC_DEF_2(NAME, A1, A2, BODY)\
-	PURS_FFI_FUNC_DEF(NAME, A1, { return PURS_FFI_LAMBDA(A2, BODY); })
+#define PURS_FFI_FUNC_2(NAME, A1, A2, BODY)\
+	PURS_FFI_FUNC_1(NAME, A1, { return PURS_FFI_LAMBDA(A2, BODY); })
 
-#define PURS_FFI_FUNC_DEF_3(NAME, A1, A2, A3, BODY)\
-	PURS_FFI_FUNC_DEF_2(NAME, A1, A2, { return PURS_FFI_LAMBDA(A3, BODY); })
+#define PURS_FFI_FUNC_3(NAME, A1, A2, A3, BODY)\
+	PURS_FFI_FUNC_2(NAME, A1, A2, { return PURS_FFI_LAMBDA(A3, BODY); })
 
 #define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
 	PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY)
