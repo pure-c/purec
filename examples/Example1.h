@@ -24,4 +24,9 @@ PURS_FFI_FUNC_2(Example1_mapArrayImpl, f, xs, {
 	return PURS_ANY_ARRAY(out);
 })
 
+PURS_FFI_FUNC_1(Example1_unsafeCoerce, x, {
+	return x;
+})
+
+
 #endif // Example1_FFI_H

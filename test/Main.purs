@@ -63,6 +63,7 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Symbol.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Show.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Unit.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Void.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:
                 ("examples/" <> file) A.:
                 ((("examples/" <> moduleName) <> _) <$> subModules)

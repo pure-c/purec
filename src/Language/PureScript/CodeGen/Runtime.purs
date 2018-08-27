@@ -22,6 +22,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_record_new_from_kvps
   , any
   , any'
+  , any''
   , assert
   , assert'
   , _PURS_ANY_THUNK_DECL
@@ -35,6 +36,9 @@ import Data.Either (Either(..))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
+
+any'' :: _ -> AST.Type
+any'' xs = Type.Pointer (Type.Any xs)
 
 any' :: AST.Type
 any' = Type.Pointer (Type.Any [])

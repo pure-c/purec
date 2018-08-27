@@ -339,6 +339,7 @@ renderType = case _ of
         then ""
         else " "
   renderTypeQualifier Type.Const = "const"
+  renderTypeQualifier Type.BlockStorage = "__block"
 
 renderPrimitiveType :: PrimitiveType -> String
 renderPrimitiveType Type.Int = "int"

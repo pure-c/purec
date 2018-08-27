@@ -102,6 +102,7 @@ instance showValueQual :: Show ValueQualifier where
 
 data TypeQualifier
   = Const
+  | BlockStorage
 
 derive instance genericTypeQualifier :: Rep.Generic TypeQualifier _
 

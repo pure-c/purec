@@ -2,9 +2,10 @@ module Example1
   ( Foo (..)
   ) where
 
-import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Show (class Show, show)
+import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Unit (unit)
+import Data.Void (Void, absurd)
 import Type.Data.RowList (RLProxy(..))
 
 data Maybe a
@@ -74,12 +75,32 @@ litNumber = 100.0
 litRecord :: { b :: String, a :: Int }
 litRecord = { b: "hi!", a: 42 }
 
+foreign import unsafeCoerce :: ∀ a b. a -> b
+
+data A = A | B A | E C
+data C = C | D A
+
+instance showC :: Show C where
+  show C = "(C)"
+  show (D d) = (concatStringImpl "(D " (concatStringImpl (show d) ")"))
+
+
+instance showA :: Show A where
+  show A = "(A)"
+  show (B a) = (concatStringImpl "(B " (concatStringImpl (show a) ")"))
+  show (E c) = (concatStringImpl "(C " (concatStringImpl (show c) ")"))
+
 main' =
-  show
-    [ show litChar
-    , show litString
-    , show litInt
-    , show litNumber
-    , show litRecord
-    , show unit
-    ]
+  let
+    x :: Int
+    x = 0 -- absurd (unsafeCoerce unit)
+   in
+    show
+      [ show litChar
+      , show litString
+      , show litInt
+      , show litNumber
+      , show litRecord
+      , show unit
+      , show (B (B (E (D (B A)))))
+      ]

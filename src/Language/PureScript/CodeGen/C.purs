@@ -149,8 +149,9 @@ bindToAst
 bindToAst isTopLevel (C.NonRec ann ident val) =
   A.singleton <$>
     declToAst isTopLevel (ann /\ ident) val
-bindToAst _ _ =
-  throwError $ NotImplementedError "bindToAst"
+bindToAst isTopLevel (C.Rec vals) =
+  for vals \((ann /\ ident) /\ val) ->
+    declToAst isTopLevel (ann /\ ident) val
 
 declToAst
   :: ∀ m
@@ -171,7 +172,7 @@ declToAst isTopLevel (x /\ ident) val = do
   pure $
     AST.VariableIntroduction
       { name
-      , type: R.any
+      , type: R.any'' [ Type.Const, Type.BlockStorage ]
       , qualifiers: []
       , initialization: Just initAst
       }
@@ -437,6 +438,12 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
 
   binderToAst varName next
     (C.ConstructorBinder
+      (C.Ann { meta: Just C.IsNewtype }) _ _ binders)
+    | Just binder <- A.head binders
+    = binderToAst varName next binder
+
+  binderToAst varName next
+    (C.ConstructorBinder
       (C.Ann
         { meta: Just (C.IsConstructor constructorType fields)
         }) _ (C.Qualified mConstructorModuleName (C.ProperName constructorName)) binders) =
@@ -501,8 +508,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
 
   binderToAst _ _ x =
     throwError $ NotImplementedError $ "binderToAst " <> show x
-
--- TODO add newtypes
 
 exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
   | Just { init: initArgs, last: lastArg } <- A.unsnoc fields

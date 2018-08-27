@@ -87,7 +87,14 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 		  "ARRAY",
 		  "THUNK",
 		  "FOREIGN" };
-	return tags[tag];
+
+	if (tag < 0 || tag > 10) {
+		char * msg = afmt("Invalid tag: %i", tag);
+		purs_assertf(0, msg);
+		free(msg);
+	} else {
+		return tags[tag];
+	}
 }
 
 const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
@@ -171,25 +178,25 @@ void * purs_any_get_foreign_maybe (const purs_any_t * x) {
 	}
 }
 
-#define PURS_ANY_GET_IMPL(T, X) \
-	T purs_any_get_##X (const purs_any_t * x) { \
-		x = purs_any_unthunk(x); \
-		purs_assert_not_null(x, "(purs_any_get_" #X ") expected: " #X); \
-		char * msg = afmt( \
-			"(purs_any_get_" #X ") (got: %s)", \
+#define PURS_ANY_GET_IMPL(T, X)\
+	T purs_any_get_##X (const purs_any_t * x) {\
+		x = purs_any_unthunk(x);\
+		purs_assert_not_null(x, "(purs_any_get_" #X ") expected: " #X);\
+		char * msg = afmt(\
+			"(purs_any_get_" #X ") (got: %s)",\
 			purs_any_tag_str(\
-				* (const int *) purs_assert_not_null(	\
-					purs_any_get_tag_maybe(x), \
-					"(purs_any_get_" #X ") expected purs_any_t" \
-				) \
-			) \
-		); \
-		T r = purs_assert_not_null( \
-			purs_any_get_##X##_maybe(x), \
-			msg \
-		); \
-		free(msg); \
-		return r; \
+				* (const int *) purs_assert_not_null(\
+					purs_any_get_tag_maybe(x),\
+					"(purs_any_get_" #X ") expected purs_any_t"\
+				)\
+			)\
+		);\
+		T r = purs_assert_not_null(\
+			purs_any_get_##X##_maybe(x),\
+			msg\
+		);\
+		free(msg);\
+		return r;\
 	}
 
 PURS_ANY_GET_IMPL(const purs_cons_t *, cons);
