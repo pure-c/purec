@@ -68,6 +68,9 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/HeytingAlgebra.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Eq.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Semiring.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Ring.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Semigroup.purs") A.:
                 ("examples/" <> file) A.:
                 ((("examples/" <> moduleName) <> _) <$> subModules)
             }

@@ -8,6 +8,9 @@ import Data.Unit (unit)
 import Data.Void (Void, absurd)
 import Data.HeytingAlgebra
 import Data.Eq
+import Data.Semiring
+import Data.Semigroup
+import Data.Ring
 import Type.Data.RowList (RLProxy(..))
 
 data Maybe a
@@ -97,7 +100,7 @@ main' =
     x :: Int
     x = 0 -- absurd (unsafeCoerce unit)
    in
-    show
+    show (
       [ show litChar
       , show true
       , show false
@@ -130,4 +133,21 @@ main' =
       , "---"
       , show ([ 100, 200 ] == [ 100, 200 ])
       , show ([ 200, 400 ] == [ 100, 200 ])
-      ]
+      , "---"
+      , "2 + 2 = "     <> show (2 + 2)
+      , "5 * 2 = "     <> show (5 * 2)
+      , "2.0 + 2.0 = " <> show (2.0 + 2.0)
+      , "5.0 * 2.0 = " <> show (5.0 * 2.0)
+      , "3 - 2 = "     <> show (3 - 2)
+      , "5.0 - 2.0 = " <> show (5.0 - 2.0)
+      , "---"
+      , show ([] <> [] :: Array Int)
+      , show ([] <> [ 3.0 ])
+      , show ([ 2.0 ] <> [])
+      , show ([ 2.0 ] <> [ 3.0 ])
+      ] <>
+        let
+          xs = [ 1, 2, 3 ]
+          ys = [ 1, 2 ]
+         in [ show xs, show ys, show ys, show (xs <> ys), show xs, show ys ]
+      )

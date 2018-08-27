@@ -263,15 +263,52 @@ int purs_any_eq_number (const purs_any_t * x, float y) {
 
 /**
  Concatenate two dyanmic values into a new dynamic value
- TODO: define for all types encapsulated by purs_any_t
 */
-const purs_any_t * purs_any_concat(const purs_any_t * a, const purs_any_t * b) {
-	const managed_utf8str_t * a_utf8str = purs_any_get_string(a);
-	const managed_utf8str_t * b_utf8str = purs_any_get_string(b);
-	return purs_any_init_string(
-		purs_new(purs_any_t),
-		managed_utf8str_new(afmt("%s%s", a_utf8str->data, b_utf8str->data))
-	);
+const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
+	x = purs_any_unthunk(x);
+	y = purs_any_unthunk(y);
+
+	if (x->tag != y->tag) {
+		char * msg = afmt("cannot concat %s with %s",
+				  purs_any_tag_str(x->tag),
+				  purs_any_tag_str(y->tag));
+		purs_assertf(0, msg);
+		free(msg);
+	} else {
+		switch(x->tag) {
+		/* XXX this will falsly capture chars */
+		case STRING: {
+			const managed_utf8str_t * x_utf8str = purs_any_get_string(x);
+			const managed_utf8str_t * y_utf8str = purs_any_get_string(y);
+			return PURS_ANY_STRING(afmt("%s%s",
+						    x_utf8str->data,
+						    y_utf8str->data));
+		}
+		case ARRAY: {
+			const purs_vec_t * x_vec = purs_any_get_array(x);
+			const purs_vec_t * y_vec = purs_any_get_array(y);
+			if (x_vec->length == 0) {
+				return y;
+			} else if (y_vec->length == 0) {
+				return x;
+			} else {
+				printf("x before: %d %d (%p)\n", x_vec->length, x_vec->capacity, x_vec->data);
+				printf("y before: %d %d (%p)\n", y_vec->length, y_vec->capacity, y_vec->data);
+				purs_vec_t * out_vec = (purs_vec_t *) purs_vec_copy(x_vec);
+				vec_pusharr(out_vec, y_vec->data, y_vec->length);
+				printf("x after: %d %d (%p)\n", x_vec->length, x_vec->capacity, x_vec->data);
+				printf("y after: %d %d (%p)\n", y_vec->length, y_vec->capacity, y_vec->data);
+				return PURS_ANY_ARRAY((const purs_vec_t *) out_vec);
+			}
+		}
+		default: {
+			char * msg = afmt("cannot concat %s",
+					purs_any_tag_str(x->tag));
+			purs_assertf(0, msg);
+			free(msg);
+		}
+		}
+	}
 }
 
 // -----------------------------------------------------------------------------
@@ -321,9 +358,11 @@ const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
 		return (purs_vec_t *) purs_vec_new(NULL, 0);
 	} else {
 		purs_vec_t * copy = (purs_vec_t *) purs_vec_new(NULL, 0);
+		copy->length = vec->length;
+		copy->capacity = vec->capacity;
 		vec_expand_((char**)&copy->data,
-			    (int *)&vec->length,
-			    (int *)&vec->capacity,
+			    (int *)&copy->length,
+			    (int *)&copy->capacity,
 			    sizeof(*copy->data));
 		memcpy(copy, vec, sizeof *copy);
 		memcpy(copy->data,
@@ -447,9 +486,6 @@ const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 				return purs_any_false;
 			}
 		case STRING:
-			printf(">>>>%d\n",
-			    utf8cmp(purs_any_get_string(x)->data,
-				    purs_any_get_string(y)->data));
 			if (utf8cmp(purs_any_get_string(x)->data,
 				    purs_any_get_string(y)->data) == 0) {
 				return purs_any_true;
