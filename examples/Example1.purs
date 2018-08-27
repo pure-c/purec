@@ -102,10 +102,32 @@ main' =
       , show true
       , show false
       , show (litChar == litChar)
+      , "---"
+      , show (true == true)
+      , show (true == false)
+      , show (false == false)
+      , show (false == true)
+      , "---"
+      , show (true && true)
+      , show (true && false)
+      , show (false && false)
+      , show (false && true)
+      , "---"
+      , show (true || true)
+      , show (true || false)
+      , show (false || false)
+      , show (false || true)
+      , "---"
+      , show (not true)
+      , show (not false)
+      , "---"
       , show litString
       , show litInt
       , show litNumber
       , show litRecord
       , show unit
       , show (B (B (E (D (B A)))))
+      , "---"
+      , show ([ 100, 200 ] == [ 100, 200 ])
+      , show ([ 200, 400 ] == [ 100, 200 ])
       ]

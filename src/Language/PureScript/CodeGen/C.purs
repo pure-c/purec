@@ -222,14 +222,12 @@ exprToAst (C.Literal _ (C.CharLiteral c)) =
       ]
 exprToAst (C.Literal _ (C.BooleanLiteral b)) =
   pure $
-   AST.Cast (R.any) $
-    AST.App
-      R._PURS_ANY_INT
-      [ AST.NumericLiteral $ Left $ if b then 1 else 0
-      ]
-exprToAst (C.Literal _ (C.ArrayLiteral xs)) = do
+    if b
+      then R.purs_any_true
+      else R.purs_any_false
+exprToAst (C.Literal _ (C.ArrayLiteral xs)) = ado
   asts <- traverse exprToAst xs
-  pure $
+  in
    AST.Cast (R.any) $
     AST.App
       R._PURS_ANY_ARRAY $
@@ -241,12 +239,12 @@ exprToAst (C.Literal _ (C.ArrayLiteral xs)) = do
             then [ R._NULL ]
             else asts
       ]
-exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
+exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
   kvpAsts <-
     for kvps \(k /\ v) -> ado
       vAst <- exprToAst v
       in [ AST.StringLiteral k, vAst ]
-  pure $
+  in
    AST.Cast (R.any) $
     if A.null kvps
       then
@@ -259,10 +257,10 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
               [ AST.NumericLiteral $ Left $ A.length kvpAsts
               ] <> A.concat kvpAsts
             ]
-exprToAst (C.Let _ binders val) = do
+exprToAst (C.Let _ binders val) = ado
   bindersAsts <- A.concat <$> traverse (bindToAst false) binders
   valAst      <- exprToAst val
-  pure $
+  in
     AST.App R.purs_any_app
       [
         AST.Lambda

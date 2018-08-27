@@ -28,6 +28,8 @@ module Language.PureScript.CodeGen.Runtime
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
   , _NULL
+  , purs_any_true
+  , purs_any_false
   ) where
 
 import Prelude
@@ -51,6 +53,12 @@ purs_cons_t = "purs_cons_t"
 
 purs_any_eq_float :: AST
 purs_any_eq_float = AST.Var "purs_any_eq_float"
+
+purs_any_false :: AST
+purs_any_false = AST.Var "purs_any_false"
+
+purs_any_true :: AST
+purs_any_true = AST.Var "purs_any_true"
 
 purs_any_eq_int :: AST
 purs_any_eq_int = AST.Var "purs_any_eq_int"
