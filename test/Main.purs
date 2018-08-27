@@ -60,11 +60,14 @@ main = launchAff_ do
             , directory: "examples"
             , files:
                 ("/home/felix/projects/purescript-c-prelude/src/Type/Data/RowList.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Type/Data/Row.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Symbol.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Show.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Unit.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Void.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/HeytingAlgebra.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Eq.purs") A.:
                 ("examples/" <> file) A.:
                 ((("examples/" <> moduleName) <> _) <$> subModules)
             }

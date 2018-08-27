@@ -87,14 +87,7 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 		  "ARRAY",
 		  "THUNK",
 		  "FOREIGN" };
-
-	if (tag < 0 || tag > 10) {
-		char * msg = afmt("Invalid tag: %i", tag);
-		purs_assertf(0, msg);
-		free(msg);
-	} else {
-		return tags[tag];
-	}
+	return tags[tag];
 }
 
 const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
@@ -191,7 +184,7 @@ void * purs_any_get_foreign_maybe (const purs_any_t * x) {
 				)\
 			)\
 		);\
-		T r = purs_assert_not_null(\
+		T r = (T) purs_assert_not_null(\
 			purs_any_get_##X##_maybe(x),\
 			msg\
 		);\
@@ -209,11 +202,11 @@ PURS_ANY_GET_IMPL(const purs_record_t *, record);
 PURS_ANY_GET_IMPL(const purs_vec_t *, array);
 PURS_ANY_GET_IMPL(void *, foreign);
 
-#define PURS_ANY_INIT_IMPL(NAME, TYPE, TAG, KEY) \
-	inline purs_any_t * NAME (purs_any_t * any, TYPE val) { \
-		any->tag = TAG; \
-		any->value.KEY = val; \
-		return any; \
+#define PURS_ANY_INIT_IMPL(NAME, TYPE, TAG, KEY)\
+	inline purs_any_t * NAME (purs_any_t * any, TYPE val) {\
+		any->tag = TAG;\
+		any->value.KEY = val;\
+		return any;\
 	}
 
 PURS_ANY_INIT_IMPL(purs_any_init_abs, const abs_t, ABS, fn)
@@ -356,6 +349,8 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records (via hash tables)
 // -----------------------------------------------------------------------------
 
+PURS_ANY_THUNK_DEF(purs_record_empty, PURS_ANY_RECORD(NULL));
+
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	const purs_record_t * current_entry, * tmp;
 	purs_record_t * entry_copy;
@@ -420,4 +415,51 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 	size_t len = utf8size(key);
 	HASH_FIND(hh, record, key, len, result);
 	return result;
+}
+
+// -----------------------------------------------------------------------------
+// Built-ins
+// -----------------------------------------------------------------------------
+
+PURS_ANY_THUNK_DEF(purs_any_true, PURS_ANY_INT(1));
+PURS_ANY_THUNK_DEF(purs_any_false, PURS_ANY_INT(0));
+
+const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
+	x = purs_any_unthunk(x);
+	y = purs_any_unthunk(y);
+
+	if (x == y) {
+		return purs_any_true;
+	} else if (x == NULL || y == NULL) {
+		return purs_any_false;
+	} else if (x->tag == y->tag) {
+		switch (x->tag) {
+		case INT:
+			if (*purs_any_get_int(x) == *purs_any_get_int(y)) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		case NUMBER:
+			if (*purs_any_get_number(x) == *purs_any_get_number(y)) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		case STRING:
+			printf(">>>>%d\n",
+			    utf8cmp(purs_any_get_string(x)->data,
+				    purs_any_get_string(y)->data));
+			if (utf8cmp(purs_any_get_string(x)->data,
+				    purs_any_get_string(y)->data) == 0) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		default:
+			return purs_any_false;
+		}
+	} else {
+		return purs_any_false;
+	}
 }

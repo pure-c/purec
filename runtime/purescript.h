@@ -271,6 +271,8 @@ typedef struct purs_record {
 	UT_hash_handle hh;
 } purs_record_t;
 
+PURS_ANY_THUNK_DECL(purs_record_empty);
+
 /**
  * Create a shallow copy of the given record.
  * Copies only the uthash structure
@@ -342,5 +344,14 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 // -----------------------------------------------------------------------------
 
 #define Prim_undefined$ NULL
+
+// -----------------------------------------------------------------------------
+// Built-ins
+// -----------------------------------------------------------------------------
+
+PURS_ANY_THUNK_DECL(purs_any_true)
+PURS_ANY_THUNK_DECL(purs_any_false)
+
+const purs_any_t * purs_any_eq(const purs_any_t *, const purs_any_t *);
 
 #endif // PURESCRIPT_RUNTIME_H

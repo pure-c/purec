@@ -248,13 +248,17 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = do
       in [ AST.StringLiteral k, vAst ]
   pure $
    AST.Cast (R.any) $
-    AST.App
-      R._PURS_ANY_RECORD $
-        [ AST.App
-          R.purs_record_new_from_kvps $
-          [ AST.NumericLiteral $ Left $ A.length kvpAsts
-          ] <> A.concat kvpAsts
-        ]
+    if A.null kvps
+      then
+        R.purs_record_empty
+      else
+        AST.App
+          R._PURS_ANY_RECORD $
+            [ AST.App
+              R.purs_record_new_from_kvps $
+              [ AST.NumericLiteral $ Left $ A.length kvpAsts
+              ] <> A.concat kvpAsts
+            ]
 exprToAst (C.Let _ binders val) = do
   bindersAsts <- A.concat <$> traverse (bindToAst false) binders
   valAst      <- exprToAst val

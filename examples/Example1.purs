@@ -6,6 +6,8 @@ import Data.Show (class Show, show)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Unit (unit)
 import Data.Void (Void, absurd)
+import Data.HeytingAlgebra
+import Data.Eq
 import Type.Data.RowList (RLProxy(..))
 
 data Maybe a
@@ -97,6 +99,9 @@ main' =
    in
     show
       [ show litChar
+      , show true
+      , show false
+      , show (litChar == litChar)
       , show litString
       , show litInt
       , show litNumber

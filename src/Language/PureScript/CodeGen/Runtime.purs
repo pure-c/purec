@@ -1,6 +1,5 @@
 module Language.PureScript.CodeGen.Runtime
-  ( -- * purs_any_t
-    purs_any_app
+  ( purs_any_app
   , purs_any_eq_int
   , purs_any_eq_float
   , purs_any_get_cons
@@ -18,6 +17,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_cons_t
   , purs_cons_get_tag
   , purs_vec_new_from_array
+  , purs_record_empty
   , purs_record_find_by_key
   , purs_record_new_from_kvps
   , any
@@ -114,6 +114,9 @@ _PURS_CONS_LIT = AST.Var "PURS_CONS_LIT"
 
 _NULL :: AST
 _NULL = AST.Raw "NULL"
+
+purs_record_empty :: AST
+purs_record_empty = AST.Var "purs_record_empty"
 
 assert :: AST -> String -> AST
 assert condAst message =
