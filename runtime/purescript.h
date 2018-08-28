@@ -245,7 +245,7 @@ const void * purs_string_copy (const void * string);
 // -----------------------------------------------------------------------------
 
 void purs_vec_release (purs_vec_t *);
-const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count);
+const purs_vec_t * purs_vec_new ();
 const purs_vec_t * purs_vec_new_va (int count, ...);
 const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 

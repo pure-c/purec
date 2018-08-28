@@ -292,12 +292,8 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 			} else if (y_vec->length == 0) {
 				return x;
 			} else {
-				printf("x before: %d %d (%p)\n", x_vec->length, x_vec->capacity, x_vec->data);
-				printf("y before: %d %d (%p)\n", y_vec->length, y_vec->capacity, y_vec->data);
 				purs_vec_t * out_vec = (purs_vec_t *) purs_vec_copy(x_vec);
 				vec_pusharr(out_vec, y_vec->data, y_vec->length);
-				printf("x after: %d %d (%p)\n", x_vec->length, x_vec->capacity, x_vec->data);
-				printf("y after: %d %d (%p)\n", y_vec->length, y_vec->capacity, y_vec->data);
 				return PURS_ANY_ARRAY((const purs_vec_t *) out_vec);
 			}
 		}
@@ -330,44 +326,40 @@ void purs_vec_release (purs_vec_t * vec) {
 	vec_deinit(vec);
 }
 
-const purs_vec_t * purs_vec_new (const purs_any_t ** items, int count) {
+const purs_vec_t * purs_vec_new () {
 	purs_vec_t * v = purs_new(purs_vec_t);
 	GC_register_finalizer(v,
 			      (GC_finalization_proc) purs_vec_release,
 			      0, 0, 0);
 	vec_init(v);
-	vec_pusharr(v, items, count);
 	return (const purs_vec_t *) v;
 }
 
 const purs_vec_t * purs_vec_new_va (int count, ...) {
 	int i;
-	const purs_any_t ** xs = malloc(sizeof (purs_any_t *) * count);
 	va_list args;
+	const purs_any_t ** xs = malloc(sizeof (purs_any_t *) * count);
 	va_start(args, count);
 	for (i = 0; i < count; i++) {
 		xs[i] = va_arg(args, const purs_any_t *);
 	}
-	const purs_vec_t * o = purs_vec_new(xs, count);
+	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
+	vec_pusharr(o, xs, count);
 	free(xs);
-	return o;
+	return (const purs_vec_t *) o;
 }
 
 const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
 	if (vec->data == NULL) {
-		return (purs_vec_t *) purs_vec_new(NULL, 0);
+		return (purs_vec_t *) purs_vec_new();
 	} else {
-		purs_vec_t * copy = (purs_vec_t *) purs_vec_new(NULL, 0);
+		purs_vec_t * copy = (purs_vec_t *) purs_vec_new();
 		copy->length = vec->length;
 		copy->capacity = vec->capacity;
-		vec_expand_((char**)&copy->data,
-			    (int *)&copy->length,
-			    (int *)&copy->capacity,
-			    sizeof(*copy->data));
-		memcpy(copy, vec, sizeof *copy);
+		copy->data = malloc(sizeof (purs_any_t*) * vec->capacity);
 		memcpy(copy->data,
-		    vec->data,
-		    sizeof (*copy->data) * vec->capacity);
+		       vec->data,
+		       sizeof (*copy->data) * vec->capacity);
 		return (const purs_vec_t *) copy;
 	}
 }
