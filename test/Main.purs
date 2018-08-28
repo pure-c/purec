@@ -65,6 +65,7 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ord/Unsafe.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ord.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Function.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Functor.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Symbol.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Show.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Unit.purs") A.:

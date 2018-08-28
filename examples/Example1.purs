@@ -6,6 +6,7 @@ import Control.Category
 import Control.Semigroupoid
 import Data.Boolean
 import Data.Function
+import Data.Functor
 import Data.Ordering
 import Data.Ord.Unsafe
 import Data.Ord
@@ -107,7 +108,7 @@ main' =
     x :: Int
     x = 0 -- absurd (unsafeCoerce unit)
    in
-    show (
+    show $ identity <$> (
       [ show litChar
       , show true
       , show false
