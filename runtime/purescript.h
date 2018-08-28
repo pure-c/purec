@@ -55,13 +55,15 @@ const managed_utf8str_t * managed_utf8str_new (const void *);
 
 const void * purs_assert_not_null(const void *, const char * message);
 
-#define purs_log_error(M)\
-	fprintf(stderr, "[ERROR] (%s:%d) %s\n", __FILE__, __LINE__, M)
+#define purs_log_error(FMT, ...)\
+	do {\
+		fprintf(stderr, "[ERROR] (%s:%d) " #FMT "\n", __FILE__, __LINE__, ##__VA_ARGS__);\
+	} while (0)
 
-#define purs_assertf(A, M)\
+#define purs_assert(A, FMT, ...)\
 	do {\
 		if (!(A)) {\
-			purs_log_error(M);\
+			purs_log_error(FMT, ##__VA_ARGS__);\
 			assert(A);\
 		}\
 	} while (0)
@@ -335,6 +337,12 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 
 #define PURS_FFI_FUNC_3(NAME, A1, A2, A3, BODY)\
 	PURS_FFI_FUNC_2(NAME, A1, A2, { return PURS_FFI_LAMBDA(A3, BODY); })
+
+#define PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, BODY)\
+	PURS_FFI_FUNC_3(NAME, A1, A2, A3, { return PURS_FFI_LAMBDA(A4, BODY); })
+
+#define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5, BODY)\
+	PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, { return PURS_FFI_LAMBDA(A5, BODY); })
 
 #define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
 	PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY)

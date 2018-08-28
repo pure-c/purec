@@ -2,6 +2,13 @@ module Example1
   ( Foo (..)
   ) where
 
+import Control.Category
+import Control.Semigroupoid
+import Data.Boolean
+import Data.Function
+import Data.Ordering
+import Data.Ord.Unsafe
+import Data.Ord
 import Data.Show (class Show, show)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Unit (unit)
@@ -104,35 +111,44 @@ main' =
       [ show litChar
       , show true
       , show false
-      , show (litChar == litChar)
+      , show $ litChar == litChar
       , "---"
-      , show (true == true)
-      , show (true == false)
-      , show (false == false)
-      , show (false == true)
+      , show $ "3 < 10 = "        <> show (3 < 10)
+      , show $ "3.0 < 10.0 = "    <> show (3.0 < 10.0)
+      , show $ "'a' < 'b' = "     <> show ('a' < 'b')
+      , show $ "\"a\" < \"b\" = " <> show ("a" < "b")
+      , show $ "true < false = "  <> show (true < false)
+      , show $ "false < true = "  <> show (false < true)
       , "---"
-      , show (true && true)
-      , show (true && false)
-      , show (false && false)
-      , show (false && true)
+      , show $ "[ 1, 2 ] < [ 3, 4 ] = "  <> show ([ 1, 2 ] < [ 3, 4 ])
       , "---"
-      , show (true || true)
-      , show (true || false)
-      , show (false || false)
-      , show (false || true)
+      , show $ true == true
+      , show $ true == false
+      , show $ false == false
+      , show $ false == true
       , "---"
-      , show (not true)
-      , show (not false)
+      , show $ true && true
+      , show $ true && false
+      , show $ false && false
+      , show $ false && true
+      , "---"
+      , show $ true || true
+      , show $ true || false
+      , show $ false || false
+      , show $ false || true
+      , "---"
+      , show $ not true
+      , show $ not false
       , "---"
       , show litString
       , show litInt
       , show litNumber
       , show litRecord
       , show unit
-      , show (B (B (E (D (B A)))))
+      , show $ B $ B $ E $ D $ B A
       , "---"
-      , show ([ 100, 200 ] == [ 100, 200 ])
-      , show ([ 200, 400 ] == [ 100, 200 ])
+      , show $ [ 100, 200 ] == [ 100, 200 ]
+      , show $ [ 200, 400 ] == [ 100, 200 ]
       , "---"
       , "2 + 2 = "     <> show (2 + 2)
       , "5 * 2 = "     <> show (5 * 2)
@@ -141,10 +157,10 @@ main' =
       , "3 - 2 = "     <> show (3 - 2)
       , "5.0 - 2.0 = " <> show (5.0 - 2.0)
       , "---"
-      , show ([] <> [] :: Array Int)
-      , show ([] <> [ 3.0 ])
-      , show ([ 2.0 ] <> [])
-      , show ([ 2.0 ] <> [ 3.0 ])
+      , show $ [] <> [] :: Array Int
+      , show $ [] <> [ 3.0 ]
+      , show $ [ 2.0 ] <> []
+      , show $ [ 2.0 ] <> [ 3.0 ]
       ] <>
         let
           xs = [ 1, 2, 3 ]

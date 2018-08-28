@@ -61,16 +61,23 @@ main = launchAff_ do
             , files:
                 ("/home/felix/projects/purescript-c-prelude/src/Type/Data/RowList.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Type/Data/Row.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Ordering.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Ord/Unsafe.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Ord.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Function.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Symbol.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Show.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Unit.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Void.purs") A.:
-                ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:
-                ("/home/felix/projects/purescript-c-prelude/src/Data/HeytingAlgebra.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Eq.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Boolean.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/HeytingAlgebra.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Semiring.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ring.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Semigroup.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Control/Semigroupoid.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Control/Category.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:
                 ("examples/" <> file) A.:
                 ((("examples/" <> moduleName) <> _) <$> subModules)
             }

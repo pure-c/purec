@@ -128,8 +128,9 @@ purs_record_empty = AST.Var "purs_record_empty"
 
 assert :: AST -> String -> AST
 assert condAst message =
-  AST.App (AST.Var "purs_assertf")
+  AST.App (AST.Var "purs_assert")
     [ condAst
+    , AST.StringLiteral "%s"
     , AST.StringLiteral message
     ]
 

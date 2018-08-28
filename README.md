@@ -4,6 +4,7 @@
 
 ### Things to come back to
 
+* [ ] Do not expose `afmt`, instead create and export some `purs_afmt`
 * [x] Rename 'purs_any_get_float' et. al. to '_number' for consistency
 * [ ] Emit tabs instead of spaces
 * [ ] Use less macross

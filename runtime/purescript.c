@@ -44,9 +44,7 @@ const managed_utf8str_t * managed_utf8str_new (const void * data) {
 // -----------------------------------------------------------------------------
 
 inline const void * purs_assert_not_null(const void * data, const char * message) {
-	char * message_ = afmt(message);
-	purs_assertf(data != NULL, message_);
-	free (message_);
+	purs_assert(data != NULL, "%s", message);
 	return data;
 }
 
@@ -240,9 +238,7 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t *
 		return ((abs_t) f)(arg);
 	}
 
-	char * msg = afmt("expected function (got: %s)", purs_any_tag_str(x->tag));
-	purs_assertf(0, msg);
-	free(msg);
+	purs_assert(0, "expected function (got: %s)", purs_any_tag_str(x->tag));
 }
 
 int purs_any_eq_string (const purs_any_t * x, const void * str) {
@@ -269,11 +265,11 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 	y = purs_any_unthunk(y);
 
 	if (x->tag != y->tag) {
-		char * msg = afmt("cannot concat %s with %s",
-				  purs_any_tag_str(x->tag),
-				  purs_any_tag_str(y->tag));
-		purs_assertf(0, msg);
-		free(msg);
+		purs_assert(
+			0,
+			"cannot concat %s with %s",
+			purs_any_tag_str(x->tag),
+			purs_any_tag_str(y->tag));
 	} else {
 		switch(x->tag) {
 		/* XXX this will falsly capture chars */
@@ -297,12 +293,8 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 				return PURS_ANY_ARRAY((const purs_vec_t *) out_vec);
 			}
 		}
-		default: {
-			char * msg = afmt("cannot concat %s",
-					purs_any_tag_str(x->tag));
-			purs_assertf(0, msg);
-			free(msg);
-		}
+		default:
+			purs_assert(0, "cannot concat %s", purs_any_tag_str(x->tag));
 		}
 	}
 }
