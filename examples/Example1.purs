@@ -177,9 +177,12 @@ main' =
       , "20 / 5 = " <> show (20 / 5)
       , "2 % 5 = " <> show (2 `mod` 5)
       , "--- bounded: ---"
-      , show (top :: Char)
-      , show (top :: Int)
-      -- , show (top :: Number)
+      , "bottom Char: "   <> show (bottom :: Char)
+      , "bottom Int: "    <> show (bottom :: Int)
+      , "bottom Number: " <> show (bottom :: Number)
+      , "top Char: "   <> show (top :: Char)
+      , "top Int: "    <> show (top :: Int)
+      , "top Number: " <> show (top :: Number)
       , "--- concat: ---"
       , show $ [] <> [] :: Array Int
       , show $ [] <> [ 3.0 ]

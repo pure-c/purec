@@ -96,9 +96,10 @@ enum purs_any_tag {
 	PURS_ANY_TAG_CONS = 4,      // data constructor
 	PURS_ANY_TAG_RECORD = 5,    // a record (hash table)
 	PURS_ANY_TAG_STRING = 6,    // UTF8 string
-	PURS_ANY_TAG_ARRAY = 7,     // array
-	PURS_ANY_TAG_THUNK = 8,     // thunk
-	PURS_ANY_TAG_FOREIGN = 9,   // a wrapped foreign value
+	PURS_ANY_TAG_CHAR = 7,    // UTF8 string
+	PURS_ANY_TAG_ARRAY = 8,     // array
+	PURS_ANY_TAG_THUNK = 9,     // thunk
+	PURS_ANY_TAG_FOREIGN = 10,   // a wrapped foreign value
 };
 
 const char * purs_any_tag_str (const purs_any_tag_t);
@@ -107,6 +108,7 @@ union purs_any_value {
 	purs_any_int_t integer;
 	double number;
 	abs_t fn;
+	utf8_int32_t _char;
 	const managed_utf8str_t * string;
 	const managed_block_t * block;
 	const purs_record_t * record;
@@ -129,6 +131,7 @@ const double *            purs_any_get_number_maybe    (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block_maybe (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons_maybe      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string_maybe    (const purs_any_t *);
+const utf8_int32_t *      purs_any_get_char_maybe      (const purs_any_t *);
 const purs_record_t *     purs_any_get_record_maybe    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array_maybe     (const purs_any_t *);
 void *                    purs_any_get_foreign_maybe   (const purs_any_t *);
@@ -139,6 +142,7 @@ const double *            purs_any_get_number    (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
+const utf8_int32_t *      purs_any_get_char      (const purs_any_t *);
 const purs_record_t *     purs_any_get_record    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array     (const purs_any_t *);
 void *                    purs_any_get_foreign   (const purs_any_t *);
@@ -148,6 +152,7 @@ purs_any_t * purs_any_init_abs       (purs_any_t *, const abs_t);
 purs_any_t * purs_any_init_abs_block (purs_any_t *, const managed_t *);
 purs_any_t * purs_any_init_number    (purs_any_t *, const double);
 purs_any_t * purs_any_init_int       (purs_any_t *, const purs_any_int_t);
+purs_any_t * purs_any_init_char      (purs_any_t *, const utf8_int32_t);
 purs_any_t * purs_any_init_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_init_string    (purs_any_t *, const managed_utf8str_t *);
 purs_any_t * purs_any_init_record    (purs_any_t *, const purs_record_t *);
@@ -161,6 +166,7 @@ const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
 int purs_any_eq_string (const purs_any_t *, const void *);
+int purs_any_eq_char   (const purs_any_t *, utf8_int32_t);
 int purs_any_eq_int    (const purs_any_t *, purs_any_int_t);
 int purs_any_eq_number (const purs_any_t *, double);
 
@@ -210,6 +216,9 @@ int purs_any_eq_number (const purs_any_t *, double);
 #define PURS_ANY_STRING_NEW(x)\
 	PURS_ANY_NEW(string, managed_utf8str_new(x))
 
+#define PURS_ANY_CHAR_NEW(x)\
+	PURS_ANY_NEW(char, x)
+
 #define PURS_ANY_RECORD_NEW(x)\
 	PURS_ANY_NEW(record, x)
 
@@ -228,6 +237,9 @@ int purs_any_eq_number (const purs_any_t *, double);
 
 #define PURS_ANY_NUMBER(x)\
 	{ .tag = PURS_ANY_TAG_NUMBER, .value = { .number = x } }
+
+#define PURS_ANY_CHAR(x)\
+	{ .tag = PURS_ANY_TAG_CHAR, .value = { ._char = x } }
 
 #define PURS_ANY_FOREIGN(x)\
 	{ .tag = PURS_ANY_TAG_FOREIGN, .value = { .foreign = x } }

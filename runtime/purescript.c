@@ -67,6 +67,7 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 	else if (x->tag == PURS_ANY_TAG_CONS)      return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_RECORD)    return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_STRING)    return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_CHAR)      return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_ARRAY)     return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_THUNK)     return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_FOREIGN)   return &x->tag;
@@ -74,7 +75,7 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 }
 
 inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
-	static const char * tags[10] =
+	static const char * tags[11] =
 		{ "INT",
 		  "NUMBER",
 		  "ABS",
@@ -82,6 +83,7 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 		  "CONS",
 		  "RECORD",
 		  "STRING",
+		  "CHAR",
 		  "ARRAY",
 		  "THUNK",
 		  "FOREIGN" };
@@ -142,6 +144,15 @@ const managed_utf8str_t * purs_any_get_string_maybe (const purs_any_t * x) {
 	}
 }
 
+const utf8_int32_t * purs_any_get_char_maybe (const purs_any_t * x) {
+	x = purs_any_unthunk(x);
+	if (x->tag == PURS_ANY_TAG_CHAR) {
+		return &x->value._char;
+	} else {
+		return NULL;
+	}
+}
+
 const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_RECORD) {
@@ -196,6 +207,7 @@ PURS_ANY_GET_IMPL(const purs_any_int_t *, int);
 PURS_ANY_GET_IMPL(const double *, number);
 PURS_ANY_GET_IMPL(const managed_block_t *, abs_block);
 PURS_ANY_GET_IMPL(const managed_utf8str_t *, string);
+PURS_ANY_GET_IMPL(const utf8_int32_t *, char);
 PURS_ANY_GET_IMPL(const purs_record_t *, record);
 PURS_ANY_GET_IMPL(const purs_vec_t *, array);
 PURS_ANY_GET_IMPL(void *, foreign);
@@ -213,6 +225,7 @@ PURS_ANY_INIT_IMPL(purs_any_init_number, double, PURS_ANY_TAG_NUMBER, number)
 PURS_ANY_INIT_IMPL(purs_any_init_int, purs_any_int_t, PURS_ANY_TAG_INT, integer)
 PURS_ANY_INIT_IMPL(purs_any_init_cons, purs_cons_t, PURS_ANY_TAG_CONS, cons)
 PURS_ANY_INIT_IMPL(purs_any_init_string, const managed_utf8str_t *, PURS_ANY_TAG_STRING, string)
+PURS_ANY_INIT_IMPL(purs_any_init_char, utf8_int32_t, PURS_ANY_TAG_CHAR, _char)
 PURS_ANY_INIT_IMPL(purs_any_init_record, const purs_record_t *, PURS_ANY_TAG_RECORD, record)
 PURS_ANY_INIT_IMPL(purs_any_init_array, const purs_vec_t *, PURS_ANY_TAG_ARRAY, array)
 PURS_ANY_INIT_IMPL(purs_any_init_foreign, void *, PURS_ANY_TAG_FOREIGN, foreign)
@@ -239,6 +252,11 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t *
 	}
 
 	purs_assert(0, "expected function (got: %s)", purs_any_tag_str(x->tag));
+}
+
+int purs_any_eq_char (const purs_any_t * x, utf8_int32_t y) {
+	const utf8_int32_t * a = purs_any_get_char(x);
+	return *a == y;
 }
 
 int purs_any_eq_string (const purs_any_t * x, const void * str) {
@@ -271,7 +289,6 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 			purs_any_tag_str(y->tag));
 	} else {
 		switch(x->tag) {
-		/* XXX this will falsly capture chars */
 		case PURS_ANY_TAG_STRING: {
 			const managed_utf8str_t * x_utf8str = purs_any_get_string(x);
 			const managed_utf8str_t * y_utf8str = purs_any_get_string(y);
@@ -449,6 +466,11 @@ const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 	x = purs_any_unthunk(x);
 	y = purs_any_unthunk(y);
 
+	purs_assert(x->tag == y->tag,
+		    "Cannot eq %s with %s",
+		    purs_any_tag_str(x->tag),
+		    purs_any_tag_str(y->tag));
+
 	if (x == y) {
 		return purs_any_true;
 	} else if (x == NULL || y == NULL) {
@@ -470,6 +492,12 @@ const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 		case PURS_ANY_TAG_STRING:
 			if (utf8cmp(purs_any_get_string(x)->data,
 				    purs_any_get_string(y)->data) == 0) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		case PURS_ANY_TAG_CHAR:
+			if (*purs_any_get_char(x) == *purs_any_get_char(y)) {
 				return purs_any_true;
 			} else {
 				return purs_any_false;
