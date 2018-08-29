@@ -257,6 +257,15 @@ const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 #define purs_vec_foreach(v, var, iter)\
 	vec_foreach(v, var, iter)
 
+#define purs_vec_reserve(v, n)\
+	vec_reserve(v, n)
+
+#define purs_vec_push_mut(v, x)\
+	vec_push(v, x)
+
+#define purs_vec_pusharr_mut(v, arr, count)\
+	vec_pusharr(v, arr, count)
+
 /**
  * Insert the value val at index idx shifting the elements after the index to
  * make room for the new value.
@@ -327,6 +336,9 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 		BODY\
 	)
 
+#define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
+	PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY)
+
 #define PURS_FFI_FUNC_1(NAME, ARG_VARNAME, BODY)\
 	PURS_FFI_VAL(\
 		NAME,\
@@ -343,9 +355,6 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 
 #define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5, BODY)\
 	PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, { return PURS_FFI_LAMBDA(A5, BODY); })
-
-#define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
-	PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY)
 
 // -----------------------------------------------------------------------------
 // Prim shims

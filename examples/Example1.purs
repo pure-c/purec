@@ -2,6 +2,9 @@ module Example1
   ( Foo (..)
   ) where
 
+import Control.Apply
+import Control.Applicative
+import Control.Bind
 import Control.Category
 import Control.Semigroupoid
 import Data.Boolean
@@ -157,11 +160,20 @@ main' =
       , "5.0 * 2.0 = " <> show (5.0 * 2.0)
       , "3 - 2 = "     <> show (3 - 2)
       , "5.0 - 2.0 = " <> show (5.0 - 2.0)
-      , "---"
+      , "--- apply: ---"
+      , show $ [(_ * 2)] <*> [ 2 ]
+      , "--- concat: ---"
       , show $ [] <> [] :: Array Int
       , show $ [] <> [ 3.0 ]
       , show $ [ 2.0 ] <> []
       , show $ [ 2.0 ] <> [ 3.0 ]
+      , "--- bind: ---"
+      , show $
+          ((do
+            _ <- pure 10
+            pure 20
+            ) :: Array Int)
+      , "---"
       ] <>
         let
           xs = [ 1, 2, 3 ]

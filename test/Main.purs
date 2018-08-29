@@ -76,6 +76,9 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Semiring.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ring.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Semigroup.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Control/Apply.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Control/Applicative.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Control/Bind.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Semigroupoid.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Category.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:
