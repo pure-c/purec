@@ -94,14 +94,14 @@ toBody = A.catMaybes <<< map go
     go' = case _ of
       AST.Cast _ ast@(AST.App f _)
         | f `A.elem`
-            [ R._PURS_ANY_CONS
-            , R._PURS_ANY_CONS
-            , R._PURS_ANY_INT
-            , R._PURS_ANY_NUMBER
-            , R._PURS_ANY_STRING
-            , R._PURS_ANY_STRING_FROM_LIT
-            , R._PURS_ANY_RECORD
-            , R._PURS_ANY_ARRAY
+            [ R._PURS_ANY_CONS_NEW
+            , R._PURS_ANY_CONS_NEW
+            , R._PURS_ANY_INT_NEW
+            , R._PURS_ANY_NUMBER_NEW
+            , R._PURS_ANY_STRING_NEW
+            , R._PURS_ANY_STRING_NEW_FROM_LIT
+            , R._PURS_ANY_RECORD_NEW
+            , R._PURS_ANY_ARRAY_NEW
             ]
         -> go' ast
       _ ->

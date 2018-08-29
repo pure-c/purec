@@ -2,7 +2,7 @@
 
 PURS_ANY_THUNK_DEF(
 	Data_Maybe_Nothing,
-	PURS_ANY_CONS(
+	PURS_ANY_CONS_NEW(
 		((purs_cons_t) {
 			.tag = Data_Maybe_Nothing__Tag
 		})
@@ -12,7 +12,7 @@ PURS_ANY_THUNK_DEF(
 const purs_any_t * Data_Maybe_Just (const purs_any_t * value0) {
 	const purs_any_t ** values = PURS_CONS_VALUES_NEW(1);
 	values[0] = value0;
-	return PURS_ANY_CONS(
+	return PURS_ANY_CONS_NEW(
 		((purs_cons_t) {
 			.tag = Data_Maybe_Just__Tag,
 			.values = values
@@ -23,7 +23,7 @@ const purs_any_t * Data_Maybe_Just (const purs_any_t * value0) {
 const Data_Show_Show * Data_Maybe_showMaybe (const Data_Show_Show * dictShow) {
 	Data_Show_Show * value0 = GC_NEW(Data_Show_Show);
 	value0->show =
-		PURS_ANY_BLOCK((const purs_any_t * x) {
+		PURS_ANY_BLOCK_NEW((const purs_any_t * x) {
 				const purs_cons_t * value1 = purs_any_get_cons(x);
 				if (value1->tag == Data_Maybe_Just__Tag) {
 					return purs_any_concat(

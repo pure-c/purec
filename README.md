@@ -4,7 +4,7 @@
 
 ### Things to come back to
 
-* [ ] Break apart `PURS_ANY_THUNK_DEF`
+* [ ] Prefix purs_any_t tag names
 * [ ] Allow specifying modifiers (i.e. `static` for `PURS_ANY_THUNK_DEF`)
 * [ ] Do not expose `afmt`, instead create and export some `purs_afmt`
 * [x] Rename 'purs_any_get_float' et. al. to '_number' for consistency

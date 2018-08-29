@@ -166,15 +166,15 @@ int purs_any_eq_number (const purs_any_t *, float);
  * Declare a lazily evaluated top-level value.
  */
 #define PURS_ANY_THUNK_DECL(NAME)\
-	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t *);\
-	const purs_any_t NAME##____thunk____;\
+	static const purs_any_t * NAME##____thunk_fn____ (const purs_any_t *);\
+	static const purs_any_t NAME##____thunk____;\
 	const purs_any_t * NAME;
 
 /**
  * Create a lazily evaluated top-level value.
  */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
-	const purs_any_t * NAME##____thunk_fn____ (const purs_any_t * ____unused____) {\
+	static const purs_any_t * NAME##____thunk_fn____ (const purs_any_t * ____unused____) {\
 		static const purs_any_t * NAME##____thunk_val____ = NULL;\
 		if (NAME##____thunk_val____ == NULL) {\
 			NAME##____thunk_val____ = INIT;\
@@ -182,7 +182,7 @@ int purs_any_eq_number (const purs_any_t *, float);
 		return NAME##____thunk_val____;\
 	}\
 	\
-	const purs_any_t NAME##____thunk____ = {\
+	static const purs_any_t NAME##____thunk____ = {\
 		.tag = THUNK,\
 		.value = {\
 			.fn = NAME##____thunk_fn____\
@@ -197,32 +197,46 @@ int purs_any_eq_number (const purs_any_t *, float);
 		x\
 	)
 
-#define PURS_ANY_BLOCK(x)\
+#define PURS_ANY_BLOCK_NEW(x)\
 	PURS_ANY_NEW(abs_block, managed_block_new(Block_copy(^ x)))
 
-#define PURS_ANY_INT(x)\
+#define PURS_ANY_INT_NEW(x)\
 	PURS_ANY_NEW(int, x)
 
-#define PURS_ANY_NUMBER(x)\
+#define PURS_ANY_NUMBER_NEW(x)\
 	PURS_ANY_NEW(number, x)
 
-#define PURS_ANY_CONS(x)\
+#define PURS_ANY_CONS_NEW(x)\
 	PURS_ANY_NEW(cons, x)
 
-#define PURS_ANY_STRING_FROM_LIT(x)\
+/* TODO: remove this macro */
+#define PURS_ANY_STRING_NEW_FROM_LIT(x)\
 	PURS_ANY_NEW(string, managed_utf8str_new(afmt("%s", x)))
 
-#define PURS_ANY_STRING(x)\
+#define PURS_ANY_STRING_NEW(x)\
 	PURS_ANY_NEW(string, managed_utf8str_new(x))
 
-#define PURS_ANY_RECORD(x)\
+#define PURS_ANY_RECORD_NEW(x)\
 	PURS_ANY_NEW(record, x)
 
-#define PURS_ANY_ARRAY(x)\
+#define PURS_ANY_ARRAY_NEW(x)\
 	PURS_ANY_NEW(array, x)
 
-#define PURS_ANY_FOREIGN(x)\
+#define PURS_ANY_FOREIGN_NEW(x)\
 	PURS_ANY_NEW(foreign, x)
+
+/*
+ * purs_any_t initializers
+ */
+
+#define PURS_ANY_INT(x)\
+	{ .tag = INT, .value = { .foreign = x } }
+
+#define PURS_ANY_NUMBER(x)\
+	{ .tag = NUMBER, .value = { .foreign = x } }
+
+#define PURS_ANY_FOREIGN(x)\
+	{ .tag = FOREIGN, .value = { .foreign = x } }
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of
@@ -326,23 +340,16 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 // -----------------------------------------------------------------------------
 
 /* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_DECL(NAME)\
-	PURS_ANY_THUNK_DECL(NAME ## $)
-
-/* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_VAL(NAME, BODY)\
-	PURS_ANY_THUNK_DEF(\
-		NAME ## $,\
-		BODY\
-	)
+#define PURS_FFI_EXPORT(NAME)\
+	const purs_any_t * NAME ## $
 
 #define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
-	PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY)
+	PURS_ANY_BLOCK_NEW((const purs_any_t * ARG_VARNAME) BODY)
 
 #define PURS_FFI_FUNC_1(NAME, ARG_VARNAME, BODY)\
-	PURS_FFI_VAL(\
-		NAME,\
-		PURS_ANY_BLOCK((const purs_any_t * ARG_VARNAME) BODY))
+	PURS_ANY_THUNK_DEF(\
+		NAME ## $,\
+		PURS_ANY_BLOCK_NEW((const purs_any_t * ARG_VARNAME) BODY))
 
 #define PURS_FFI_FUNC_2(NAME, A1, A2, BODY)\
 	PURS_FFI_FUNC_1(NAME, A1, { return PURS_FFI_LAMBDA(A2, BODY); })

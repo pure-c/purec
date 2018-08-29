@@ -203,21 +203,21 @@ exprToAst (C.Literal _ (C.NumericLiteral n)) =
   pure $
    AST.Cast (R.any) $
     AST.App
-      (either (const R._PURS_ANY_INT) (const R._PURS_ANY_NUMBER) n)
+      (either (const R._PURS_ANY_INT_NEW) (const R._PURS_ANY_NUMBER_NEW) n)
       [ AST.NumericLiteral n
       ]
 exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
    AST.Cast (R.any) $
     AST.App
-      R._PURS_ANY_STRING_FROM_LIT
+      R._PURS_ANY_STRING_NEW_FROM_LIT
       [ AST.StringLiteral s
       ]
 exprToAst (C.Literal _ (C.CharLiteral c)) =
   pure $
    AST.Cast (R.any) $
     AST.App
-      R._PURS_ANY_STRING_FROM_LIT
+      R._PURS_ANY_STRING_NEW_FROM_LIT
       [ AST.StringLiteral (Str.fromCharArray [ c ])
       ]
 exprToAst (C.Literal _ (C.BooleanLiteral b)) =
@@ -230,7 +230,7 @@ exprToAst (C.Literal _ (C.ArrayLiteral xs)) = ado
   in
    AST.Cast (R.any) $
     AST.App
-      R._PURS_ANY_ARRAY $
+      R._PURS_ANY_ARRAY_NEW $
       [ AST.App
         R.purs_vec_new_from_array $
         [ AST.NumericLiteral $ Left $ A.length xs
@@ -251,7 +251,7 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
         R.purs_record_empty
       else
         AST.App
-          R._PURS_ANY_RECORD $
+          R._PURS_ANY_RECORD_NEW $
             [ AST.App
               R.purs_record_new_from_kvps $
               [ AST.NumericLiteral $ Left $ A.length kvpAsts
@@ -547,7 +547,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
             ] <> assignments <> [
               AST.Return $
                AST.Cast R.any $
-                AST.App R._PURS_ANY_CONS
+                AST.App R._PURS_ANY_CONS_NEW
                   [ AST.App R._PURS_CONS_LIT
                       [ let
                           tag =
@@ -581,7 +581,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
       qualifiedVarName moduleName constructorName
   pure $
     AST.App
-      R._PURS_ANY_CONS
+      R._PURS_ANY_CONS_NEW
       [ AST.Cast (AST.RawType R.purs_cons_t []) $
           AST.StructLiteral $
             Object.empty

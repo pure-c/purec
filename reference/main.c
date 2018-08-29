@@ -7,7 +7,7 @@
 const Data_Show_Show * Data_Maybe_showInt () {
 	Data_Show_Show * value0 = GC_NEW(Data_Show_Show);
 	value0->show =
-		PURS_ANY_BLOCK((const purs_any_t * i) {
+		PURS_ANY_BLOCK_NEW((const purs_any_t * i) {
 			const int * value0 = purs_any_get_int(i);
 			if (value0 != NULL) {
 				return PURS_ANY_STRING(afmt("%i", *value0));

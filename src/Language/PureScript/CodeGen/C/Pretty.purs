@@ -122,7 +122,8 @@ prettyPrintAst (AST.Lambda
   , returnType
   , body
   }) = do
-  emit "PURS_ANY_BLOCK("
+  -- TODO: Remove AST.Lambda and perform transformation in C.purs
+  emit "PURS_ANY_BLOCK_NEW("
   emit "("
   for_ (A.init arguments) $ traverse \arg -> do
     emit $ renderArg arg

@@ -276,9 +276,8 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 		case STRING: {
 			const managed_utf8str_t * x_utf8str = purs_any_get_string(x);
 			const managed_utf8str_t * y_utf8str = purs_any_get_string(y);
-			return PURS_ANY_STRING(afmt("%s%s",
-						    x_utf8str->data,
-						    y_utf8str->data));
+			return PURS_ANY_STRING_NEW(
+				afmt("%s%s", x_utf8str->data, y_utf8str->data));
 		}
 		case ARRAY: {
 			const purs_vec_t * x_vec = purs_any_get_array(x);
@@ -290,7 +289,7 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 			} else {
 				purs_vec_t * out_vec = (purs_vec_t *) purs_vec_copy(x_vec);
 				vec_pusharr(out_vec, y_vec->data, y_vec->length);
-				return PURS_ANY_ARRAY((const purs_vec_t *) out_vec);
+				return PURS_ANY_ARRAY_NEW((const purs_vec_t *) out_vec);
 			}
 		}
 		default:
@@ -372,7 +371,7 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records (via hash tables)
 // -----------------------------------------------------------------------------
 
-PURS_ANY_THUNK_DEF(purs_record_empty, PURS_ANY_RECORD(NULL));
+PURS_ANY_THUNK_DEF(purs_record_empty, PURS_ANY_RECORD_NEW(NULL));
 
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	const purs_record_t * current_entry, * tmp;
@@ -444,8 +443,8 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 // Built-ins
 // -----------------------------------------------------------------------------
 
-PURS_ANY_THUNK_DEF(purs_any_true, PURS_ANY_INT(1));
-PURS_ANY_THUNK_DEF(purs_any_false, PURS_ANY_INT(0));
+PURS_ANY_THUNK_DEF(purs_any_true, PURS_ANY_INT_NEW(1));
+PURS_ANY_THUNK_DEF(purs_any_false, PURS_ANY_INT_NEW(0));
 
 const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 	x = purs_any_unthunk(x);

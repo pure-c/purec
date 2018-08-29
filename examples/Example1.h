@@ -4,7 +4,7 @@
 #include "runtime/purescript.h"
 
 #define purs_any_string_concat(u, v)\
-	PURS_ANY_STRING(\
+	PURS_ANY_STRING_NEW(\
 		afmt("%s%s",\
 		     purs_any_get_string(u)->data,\
 		     purs_any_get_string(v)->data))
@@ -21,7 +21,7 @@ PURS_FFI_FUNC_2(Example1_mapArrayImpl, f, xs, {
 	purs_vec_foreach(out, tmp, i) {
 		out->data[i] = purs_any_app(f, tmp);
 	}
-	return PURS_ANY_ARRAY(out);
+	return PURS_ANY_ARRAY_NEW(out);
 })
 
 PURS_FFI_FUNC_1(Example1_unsafeCoerce, x, {
