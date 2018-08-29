@@ -192,7 +192,7 @@ int purs_any_eq_number (const purs_any_t *, float);
 	const purs_any_t * NAME = & NAME##____thunk____;\
 
 #define PURS_ANY_NEW(n, x)\
-	purs_any_init_##n(\
+	(const purs_any_t *) purs_any_init_##n(\
 		purs_new(purs_any_t),\
 		x\
 	)

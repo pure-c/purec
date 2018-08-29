@@ -61,9 +61,12 @@ main = launchAff_ do
             , files:
                 ("/home/felix/projects/purescript-c-prelude/src/Type/Data/RowList.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Type/Data/Row.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/BooleanAlgebra.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ordering.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ord/Unsafe.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ord.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/CommutativeRing.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/EuclideanRing.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Function.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Functor.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Symbol.purs") A.:
@@ -79,6 +82,7 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Apply.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Applicative.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Bind.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Control/Monad.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Semigroupoid.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Category.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:

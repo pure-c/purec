@@ -6,8 +6,10 @@ import Control.Apply
 import Control.Applicative
 import Control.Bind
 import Control.Category
+import Control.Monad
 import Control.Semigroupoid
 import Data.Boolean
+import Data.EuclideanRing
 import Data.Function
 import Data.Functor
 import Data.Ordering
@@ -117,12 +119,12 @@ main' =
       , show false
       , show $ litChar == litChar
       , "---"
-      , show $ "3 < 10 = "        <> show (3 < 10)
-      , show $ "3.0 < 10.0 = "    <> show (3.0 < 10.0)
-      , show $ "'a' < 'b' = "     <> show ('a' < 'b')
-      , show $ "\"a\" < \"b\" = " <> show ("a" < "b")
-      , show $ "true < false = "  <> show (true < false)
-      , show $ "false < true = "  <> show (false < true)
+      , "3 < 10 = "        <> show (3 < 10)
+      , "3.0 < 10.0 = "    <> show (3.0 < 10.0)
+      , "'a' < 'b' = "     <> show ('a' < 'b')
+      , "\"a\" < \"b\" = " <> show ("a" < "b")
+      , "true < false = "  <> show (true < false)
+      , "false < true = "  <> show (false < true)
       , "---"
       , show $ "[ 1, 2 ] < [ 3, 4 ] = "  <> show ([ 1, 2 ] < [ 3, 4 ])
       , "---"
@@ -162,6 +164,11 @@ main' =
       , "5.0 - 2.0 = " <> show (5.0 - 2.0)
       , "--- apply: ---"
       , show $ [(_ * 2)] <*> [ 2 ]
+      , "--- euclidean ring: ---"
+      , "0.0 / 0.0 = " <> show (0.0 / 0.0)
+      , "2.0 / 2.0 = " <> show (2.0 / 2.0)
+      , "20 / 5 = " <> show (20 / 5)
+      , "2 % 5 = " <> show (2 `mod` 5)
       , "--- concat: ---"
       , show $ [] <> [] :: Array Int
       , show $ [] <> [ 3.0 ]

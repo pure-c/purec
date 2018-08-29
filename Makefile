@@ -11,6 +11,7 @@ reference:
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \
+		-lm \
 		$(VENDOR_C_FILES) \
 		$(CCAN_C_FILES) \
 		-I . \
@@ -27,6 +28,7 @@ example1:
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \
+		-lm \
 		$(VENDOR_C_FILES) \
 		$(CCAN_C_FILES) \
 		-I . \
