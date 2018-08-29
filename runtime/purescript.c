@@ -53,23 +53,23 @@ inline const void * purs_assert_not_null(const void * data, const char * message
 // -----------------------------------------------------------------------------
 
 inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
-	while (x != NULL && x->tag == THUNK) {
+	while (x != NULL && x->tag == PURS_ANY_TAG_THUNK) {
 		x = x->value.fn(NULL);
 	}
 	return x;
 }
 
 inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
-	if      (x->tag == INT)	return &x->tag;
-	else if (x->tag == NUMBER)	return &x->tag;
-	else if (x->tag == ABS)	return &x->tag;
-	else if (x->tag == ABS_BLOCK)	return &x->tag;
-	else if (x->tag == CONS)	return &x->tag;
-	else if (x->tag == RECORD)	return &x->tag;
-	else if (x->tag == STRING)	return &x->tag;
-	else if (x->tag == ARRAY)	return &x->tag;
-	else if (x->tag == THUNK)	return &x->tag;
-	else if (x->tag == FOREIGN)	return &x->tag;
+	if      (x->tag == PURS_ANY_TAG_INT)       return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_NUMBER)    return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_ABS)       return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_ABS_BLOCK) return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_CONS)      return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_RECORD)    return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_STRING)    return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_ARRAY)     return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_THUNK)     return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_FOREIGN)   return &x->tag;
 	else return NULL;
 }
 
@@ -90,7 +90,7 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 
 const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == CONS) {
+	if (x->tag == PURS_ANY_TAG_CONS) {
 		return & x->value.cons;
 	} else {
 		return NULL;
@@ -99,25 +99,25 @@ const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
 
 const abs_t purs_any_get_abs_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == ABS) {
+	if (x->tag == PURS_ANY_TAG_ABS) {
 		return (abs_t)(x->value.fn);
 	} else {
 		return NULL;
 	}
 }
 
-const int * purs_any_get_int_maybe (const purs_any_t * x) {
+const purs_any_int_t * purs_any_get_int_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == INT) {
+	if (x->tag == PURS_ANY_TAG_INT) {
 		return &x->value.integer;
 	} else {
 		return NULL;
 	}
 }
 
-const float * purs_any_get_number_maybe (const purs_any_t * x) {
+const double * purs_any_get_number_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == NUMBER) {
+	if (x->tag == PURS_ANY_TAG_NUMBER) {
 		return &x->value.number;
 	} else {
 		return NULL;
@@ -126,7 +126,7 @@ const float * purs_any_get_number_maybe (const purs_any_t * x) {
 
 const managed_block_t * purs_any_get_abs_block_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == ABS_BLOCK) {
+	if (x->tag == PURS_ANY_TAG_ABS_BLOCK) {
 		return (managed_block_t *) x->value.block;
 	} else {
 		return NULL;
@@ -135,7 +135,7 @@ const managed_block_t * purs_any_get_abs_block_maybe (const purs_any_t * x) {
 
 const managed_utf8str_t * purs_any_get_string_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == STRING) {
+	if (x->tag == PURS_ANY_TAG_STRING) {
 		return (const managed_block_t *) x->value.string;
 	} else {
 		return NULL;
@@ -144,7 +144,7 @@ const managed_utf8str_t * purs_any_get_string_maybe (const purs_any_t * x) {
 
 const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == RECORD) {
+	if (x->tag == PURS_ANY_TAG_RECORD) {
 		return (const purs_record_t *) x->value.record;
 	} else {
 		return NULL;
@@ -153,7 +153,7 @@ const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
 
 const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == ARRAY) {
+	if (x->tag == PURS_ANY_TAG_ARRAY) {
 		return (const purs_vec_t *) x->value.array;
 	} else {
 		return NULL;
@@ -162,7 +162,7 @@ const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 
 void * purs_any_get_foreign_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
-	if (x->tag == FOREIGN) {
+	if (x->tag == PURS_ANY_TAG_FOREIGN) {
 		return x->value.foreign;
 	} else {
 		return NULL;
@@ -172,7 +172,7 @@ void * purs_any_get_foreign_maybe (const purs_any_t * x) {
 #define PURS_ANY_GET_IMPL(T, X)\
 	T purs_any_get_##X (const purs_any_t * x) {\
 		x = purs_any_unthunk(x);\
-		purs_assert_not_null(x, "(purs_any_get_" #X ") expected: " #X);\
+		purs_assert(x != NULL, "(purs_any_get_" X ") expected: " X ", got: NULL");\
 		char * msg = afmt(\
 			"(purs_any_get_" #X ") (got: %s)",\
 			purs_any_tag_str(\
@@ -192,8 +192,8 @@ void * purs_any_get_foreign_maybe (const purs_any_t * x) {
 
 PURS_ANY_GET_IMPL(const purs_cons_t *, cons);
 PURS_ANY_GET_IMPL(const abs_t, abs);
-PURS_ANY_GET_IMPL(const int *, int);
-PURS_ANY_GET_IMPL(const float *, number);
+PURS_ANY_GET_IMPL(const purs_any_int_t *, int);
+PURS_ANY_GET_IMPL(const double *, number);
 PURS_ANY_GET_IMPL(const managed_block_t *, abs_block);
 PURS_ANY_GET_IMPL(const managed_utf8str_t *, string);
 PURS_ANY_GET_IMPL(const purs_record_t *, record);
@@ -207,15 +207,15 @@ PURS_ANY_GET_IMPL(void *, foreign);
 		return any;\
 	}
 
-PURS_ANY_INIT_IMPL(purs_any_init_abs, const abs_t, ABS, fn)
-PURS_ANY_INIT_IMPL(purs_any_init_abs_block, const managed_block_t *, ABS_BLOCK, block)
-PURS_ANY_INIT_IMPL(purs_any_init_number, float, NUMBER, number)
-PURS_ANY_INIT_IMPL(purs_any_init_int, int, INT, integer)
-PURS_ANY_INIT_IMPL(purs_any_init_cons, purs_cons_t, CONS, cons)
-PURS_ANY_INIT_IMPL(purs_any_init_string, const managed_utf8str_t *, STRING, string)
-PURS_ANY_INIT_IMPL(purs_any_init_record, const purs_record_t *, RECORD, record)
-PURS_ANY_INIT_IMPL(purs_any_init_array, const purs_vec_t *, ARRAY, array)
-PURS_ANY_INIT_IMPL(purs_any_init_foreign, void *, FOREIGN, foreign)
+PURS_ANY_INIT_IMPL(purs_any_init_abs, const abs_t, PURS_ANY_TAG_ABS, fn)
+PURS_ANY_INIT_IMPL(purs_any_init_abs_block, const managed_block_t *, PURS_ANY_TAG_ABS_BLOCK, block)
+PURS_ANY_INIT_IMPL(purs_any_init_number, double, PURS_ANY_TAG_NUMBER, number)
+PURS_ANY_INIT_IMPL(purs_any_init_int, purs_any_int_t, PURS_ANY_TAG_INT, integer)
+PURS_ANY_INIT_IMPL(purs_any_init_cons, purs_cons_t, PURS_ANY_TAG_CONS, cons)
+PURS_ANY_INIT_IMPL(purs_any_init_string, const managed_utf8str_t *, PURS_ANY_TAG_STRING, string)
+PURS_ANY_INIT_IMPL(purs_any_init_record, const purs_record_t *, PURS_ANY_TAG_RECORD, record)
+PURS_ANY_INIT_IMPL(purs_any_init_array, const purs_vec_t *, PURS_ANY_TAG_ARRAY, array)
+PURS_ANY_INIT_IMPL(purs_any_init_foreign, void *, PURS_ANY_TAG_FOREIGN, foreign)
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons) {
@@ -244,16 +244,15 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t *
 int purs_any_eq_string (const purs_any_t * x, const void * str) {
 	const managed_utf8str_t * a = purs_any_get_string(x);
 	return utf8cmp(a->data, str) == 0;
-
 }
 
-int purs_any_eq_int (const purs_any_t * x, int y) {
+int purs_any_eq_int (const purs_any_t * x, purs_any_int_t y) {
 	const int * a = purs_any_get_int(x);
 	return *a == y;
 }
 
-int purs_any_eq_number (const purs_any_t * x, float y) {
-	const float * a = purs_any_get_number(x);
+int purs_any_eq_number (const purs_any_t * x, double y) {
+	const double * a = purs_any_get_number(x);
 	return *a == y;
 }
 
@@ -273,13 +272,13 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 	} else {
 		switch(x->tag) {
 		/* XXX this will falsly capture chars */
-		case STRING: {
+		case PURS_ANY_TAG_STRING: {
 			const managed_utf8str_t * x_utf8str = purs_any_get_string(x);
 			const managed_utf8str_t * y_utf8str = purs_any_get_string(y);
 			return PURS_ANY_STRING_NEW(
 				afmt("%s%s", x_utf8str->data, y_utf8str->data));
 		}
-		case ARRAY: {
+		case PURS_ANY_TAG_ARRAY: {
 			const purs_vec_t * x_vec = purs_any_get_array(x);
 			const purs_vec_t * y_vec = purs_any_get_array(y);
 			if (x_vec->length == 0) {
@@ -456,19 +455,19 @@ const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 		return purs_any_false;
 	} else if (x->tag == y->tag) {
 		switch (x->tag) {
-		case INT:
+		case PURS_ANY_TAG_INT:
 			if (*purs_any_get_int(x) == *purs_any_get_int(y)) {
 				return purs_any_true;
 			} else {
 				return purs_any_false;
 			}
-		case NUMBER:
+		case PURS_ANY_TAG_NUMBER:
 			if (*purs_any_get_number(x) == *purs_any_get_number(y)) {
 				return purs_any_true;
 			} else {
 				return purs_any_false;
 			}
-		case STRING:
+		case PURS_ANY_TAG_STRING:
 			if (utf8cmp(purs_any_get_string(x)->data,
 				    purs_any_get_string(y)->data) == 0) {
 				return purs_any_true;

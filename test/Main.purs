@@ -71,7 +71,19 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Functor.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Symbol.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Show.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Field.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/DivisionRing.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Unit.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Monoid.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Bounded.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Prelude.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Monoid/Disj.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Monoid/Conj.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Monoid/Additive.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Monoid/Dual.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Monoid/Endo.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Monoid/Multiplicative.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/NaturalTransformation.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Void.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Eq.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Boolean.purs") A.:
@@ -79,6 +91,8 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Semiring.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Ring.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/Semigroup.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Semigroup/Last.purs") A.:
+                ("/home/felix/projects/purescript-c-prelude/src/Data/Semigroup/First.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Apply.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Applicative.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Bind.purs") A.:

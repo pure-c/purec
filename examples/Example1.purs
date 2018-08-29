@@ -2,6 +2,7 @@ module Example1
   ( Foo (..)
   ) where
 
+import Prelude
 import Control.Apply
 import Control.Applicative
 import Control.Bind
@@ -10,11 +11,17 @@ import Control.Monad
 import Control.Semigroupoid
 import Data.Boolean
 import Data.EuclideanRing
+import Data.Bounded
 import Data.Function
 import Data.Functor
 import Data.Ordering
+import Data.NaturalTransformation
 import Data.Ord.Unsafe
 import Data.Ord
+import Data.Field
+import Data.Monoid
+import Data.DivisionRing
+import Data.CommutativeRing
 import Data.Show (class Show, show)
 import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
 import Data.Unit (unit)
@@ -169,6 +176,10 @@ main' =
       , "2.0 / 2.0 = " <> show (2.0 / 2.0)
       , "20 / 5 = " <> show (20 / 5)
       , "2 % 5 = " <> show (2 `mod` 5)
+      , "--- bounded: ---"
+      , show (top :: Char)
+      , show (top :: Int)
+      -- , show (top :: Number)
       , "--- concat: ---"
       , show $ [] <> [] :: Array Int
       , show $ [] <> [ 3.0 ]

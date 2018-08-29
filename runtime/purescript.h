@@ -72,6 +72,8 @@ const void * purs_assert_not_null(const void *, const char * message);
 // any: dynamically typed values
 // -----------------------------------------------------------------------------
 
+#define purs_any_int_t int32_t
+
 typedef struct purs_any purs_any_t;
 typedef vec_t(const purs_any_t*) purs_vec_t;
 typedef struct purs_record purs_record_t;
@@ -87,23 +89,23 @@ struct purs_cons {
 };
 
 enum purs_any_tag {
-	INT = 0,       // integer
-	NUMBER = 1,    // number
-	ABS = 2,       // abstraction
-	ABS_BLOCK = 3, // lambda abstraction
-	CONS = 4,      // data constructor
-	RECORD = 5,    // a record (hash table)
-	STRING = 6,    // UTF8 string
-	ARRAY = 7,     // array
-	THUNK = 8,     // thunk
-	FOREIGN = 9,   // a wrapped foreign value
+	PURS_ANY_TAG_INT = 0,       // integer
+	PURS_ANY_TAG_NUMBER = 1,    // number
+	PURS_ANY_TAG_ABS = 2,       // abstraction
+	PURS_ANY_TAG_ABS_BLOCK = 3, // lambda abstraction
+	PURS_ANY_TAG_CONS = 4,      // data constructor
+	PURS_ANY_TAG_RECORD = 5,    // a record (hash table)
+	PURS_ANY_TAG_STRING = 6,    // UTF8 string
+	PURS_ANY_TAG_ARRAY = 7,     // array
+	PURS_ANY_TAG_THUNK = 8,     // thunk
+	PURS_ANY_TAG_FOREIGN = 9,   // a wrapped foreign value
 };
 
 const char * purs_any_tag_str (const purs_any_tag_t);
 
 union purs_any_value {
-	int   integer;
-	float number;
+	purs_any_int_t integer;
+	double number;
 	abs_t fn;
 	const managed_utf8str_t * string;
 	const managed_block_t * block;
@@ -122,8 +124,8 @@ const purs_any_t *     purs_any_unthunk       (const purs_any_t *);
 const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t *);
 
 const abs_t               purs_any_get_abs_maybe       (const purs_any_t *);
-const int *               purs_any_get_int_maybe       (const purs_any_t *);
-const float *             purs_any_get_number_maybe    (const purs_any_t *);
+const purs_any_int_t *    purs_any_get_int_maybe       (const purs_any_t *);
+const double *            purs_any_get_number_maybe    (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block_maybe (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons_maybe      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string_maybe    (const purs_any_t *);
@@ -132,8 +134,8 @@ const purs_vec_t *        purs_any_get_array_maybe     (const purs_any_t *);
 void *                    purs_any_get_foreign_maybe   (const purs_any_t *);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
-const int *               purs_any_get_int       (const purs_any_t *);
-const float *             purs_any_get_number    (const purs_any_t *);
+const purs_any_int_t *    purs_any_get_int       (const purs_any_t *);
+const double *            purs_any_get_number    (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
@@ -144,8 +146,8 @@ void *                    purs_any_get_foreign   (const purs_any_t *);
 // XXX: caution, these functions mutate the input!
 purs_any_t * purs_any_init_abs       (purs_any_t *, const abs_t);
 purs_any_t * purs_any_init_abs_block (purs_any_t *, const managed_t *);
-purs_any_t * purs_any_init_number    (purs_any_t *, const float);
-purs_any_t * purs_any_init_int       (purs_any_t *, const int);
+purs_any_t * purs_any_init_number    (purs_any_t *, const double);
+purs_any_t * purs_any_init_int       (purs_any_t *, const purs_any_int_t);
 purs_any_t * purs_any_init_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_init_string    (purs_any_t *, const managed_utf8str_t *);
 purs_any_t * purs_any_init_record    (purs_any_t *, const purs_record_t *);
@@ -159,37 +161,29 @@ const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
 int purs_any_eq_string (const purs_any_t *, const void *);
-int purs_any_eq_int    (const purs_any_t *, int);
-int purs_any_eq_number (const purs_any_t *, float);
-
-/**
- * Declare a lazily evaluated top-level value.
- */
-#define PURS_ANY_THUNK_DECL(NAME)\
-	static const purs_any_t * NAME##____thunk_fn____ (const purs_any_t *);\
-	static const purs_any_t NAME##____thunk____;\
-	const purs_any_t * NAME;
+int purs_any_eq_int    (const purs_any_t *, purs_any_int_t);
+int purs_any_eq_number (const purs_any_t *, double);
 
 /**
  * Create a lazily evaluated top-level value.
  */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
-	static const purs_any_t * NAME##____thunk_fn____ (const purs_any_t * ____unused____) {\
-		static const purs_any_t * NAME##____thunk_val____ = NULL;\
-		if (NAME##____thunk_val____ == NULL) {\
-			NAME##____thunk_val____ = INIT;\
+	static const purs_any_t * NAME ## ____thunk_fn____ (const purs_any_t * ____unused____) {\
+		static const purs_any_t * NAME ## ____thunk_val____ = NULL;\
+		if (NAME ## ____thunk_val____ == NULL) {\
+			NAME ## ____thunk_val____ = INIT;\
 		}\
-		return NAME##____thunk_val____;\
+		return NAME ## ____thunk_val____;\
 	}\
 	\
-	static const purs_any_t NAME##____thunk____ = {\
-		.tag = THUNK,\
+	static const purs_any_t NAME ## ____thunk____ = {\
+		.tag = PURS_ANY_TAG_THUNK,\
 		.value = {\
-			.fn = NAME##____thunk_fn____\
+			.fn = NAME ## ____thunk_fn____\
 		}\
 	};\
 	\
-	const purs_any_t * NAME = & NAME##____thunk____;\
+	const purs_any_t * NAME = & NAME ## ____thunk____;\
 
 #define PURS_ANY_NEW(n, x)\
 	(const purs_any_t *) purs_any_init_##n(\
@@ -230,13 +224,13 @@ int purs_any_eq_number (const purs_any_t *, float);
  */
 
 #define PURS_ANY_INT(x)\
-	{ .tag = INT, .value = { .foreign = x } }
+	{ .tag = PURS_ANY_TAG_INT, .value = { .integer = x } }
 
 #define PURS_ANY_NUMBER(x)\
-	{ .tag = NUMBER, .value = { .foreign = x } }
+	{ .tag = PURS_ANY_TAG_NUMBER, .value = { .number = x } }
 
 #define PURS_ANY_FOREIGN(x)\
-	{ .tag = FOREIGN, .value = { .foreign = x } }
+	{ .tag = PURS_ANY_TAG_FOREIGN, .value = { .foreign = x } }
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of
@@ -296,7 +290,7 @@ typedef struct purs_record {
 	UT_hash_handle hh;
 } purs_record_t;
 
-PURS_ANY_THUNK_DECL(purs_record_empty);
+const purs_any_t * purs_record_empty;
 
 /**
  * Create a shallow copy of the given record.
@@ -346,6 +340,17 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 #define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
 	PURS_ANY_BLOCK_NEW((const purs_any_t * ARG_VARNAME) BODY)
 
+#define PURS_FFI_VALUE(NAME, INIT)\
+	static const purs_any_t _ ## NAME ## $ = INIT;\
+	const purs_any_t * NAME ## $ = & _ ## NAME ## $
+
+/* note: The '$' is currently appended to all names (see code generation) */
+#define PURS_FFI_VALUE_THUNKED(NAME, INIT)\
+	PURS_ANY_THUNK_DEF(\
+		NAME ## $,\
+		INIT)
+
+/* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_FUNC_1(NAME, ARG_VARNAME, BODY)\
 	PURS_ANY_THUNK_DEF(\
 		NAME ## $,\
@@ -373,8 +378,8 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 // Built-ins
 // -----------------------------------------------------------------------------
 
-PURS_ANY_THUNK_DECL(purs_any_true)
-PURS_ANY_THUNK_DECL(purs_any_false)
+const purs_any_t * purs_any_true;
+const purs_any_t * purs_any_false;
 
 const purs_any_t * purs_any_eq(const purs_any_t *, const purs_any_t *);
 
