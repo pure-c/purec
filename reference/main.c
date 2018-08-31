@@ -47,16 +47,15 @@ in hello
 */
 
 PURS_FFI_FUNC_1(hello, x, {
-
 	const purs_any_t * s1 = PURS_ANY_STRING_NEW(afmt("hello"));
 
-	const __block purs_any_t * go = PURS_FFI_LAMBDA(y, {
-		return purs_any_app(PURS_FFI_LAMBDA(z, {
+	const __block purs_any_t * go = PURS_LAMBDA(y, {
+		return purs_any_app(PURS_LAMBDA(z, {
 			GC_gcollect();
 
 			const purs_any_t * s2 = PURS_ANY_STRING_NEW(afmt("world"));
 
-			const __block purs_any_t * go2 = PURS_FFI_LAMBDA(i, {
+			const __block purs_any_t * go2 = PURS_LAMBDA(i, {
 				printf("s1:%s s2:%s (i:%i, x:%s, y:%s)\n",
 				    purs_any_get_string(s1)->data,
 				    purs_any_get_string(s2)->data,
@@ -75,6 +74,7 @@ PURS_FFI_FUNC_1(hello, x, {
 				    purs_any_get_string(y)->data);
 
 				const purs_any_t * next = PURS_ANY_INT_NEW(*purs_any_get_int(i) + 1);
+
 				if (*purs_any_get_int(i) > 100) {
 					return s1;
 				} else {
@@ -82,20 +82,11 @@ PURS_FFI_FUNC_1(hello, x, {
 				}
 			});
 
-			/* register any allocations in scope */
 			managed_block_t * go2_block = purs_any_get_abs_block(go2);
-			vec_push(go2_block->ptrs, (void *) y);
-			vec_push(go2_block->ptrs, (void *) s2);
-			vec_push(go2_block->ptrs, (void *) go); /* point to parent scope */
 
 			return go2;
 		}), NULL);
 	});
-
-	/* register any allocations in scope */
-	managed_block_t * go_block = purs_any_get_abs_block(go);
-	vec_push(go_block->ptrs, (void *) x);
-	vec_push(go_block->ptrs, (void *) s1);
 
 	return go;
 })

@@ -6,18 +6,37 @@
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
 
-const managed_t * managed_new (const void * data, const managed_release_func release) {
+const managed_t * managed_new (const void * data, void * ctx,  const managed_release_func release) {
 	managed_t * managed = purs_new(managed_block_t);
-	ptr_vec_t * ptrs = purs_new(ptr_vec_t);
-	vec_init(ptrs);
 	managed->data = data;
-	managed->ptrs = ptrs;
-	GC_register_finalizer(
-		(void *) managed,
-		(GC_finalization_proc) release,
-		0, 0, 0);
+	managed->ctx = ctx;
+	if (release != NULL) {
+		GC_register_finalizer(
+			(void *) managed,
+			(GC_finalization_proc) release,
+			0, 0, 0);
+	}
 	return managed;
 }
+
+// -----------------------------------------------------------------------------
+// scopes
+// -----------------------------------------------------------------------------
+
+purs_scope_t * purs_scope_new() {
+	purs_scope_t * x = purs_new(purs_scope_t);
+	vec_init(x);
+	return x;
+}
+
+void * _purs_scope_capture(purs_scope_t * scope, void * ptr) {
+	if (scope != NULL) {
+		vec_push(scope, ptr);
+	}
+	return ptr;
+}
+
+purs_scope_t * __scope__ = NULL;
 
 // -----------------------------------------------------------------------------
 // managed blocks
@@ -27,8 +46,8 @@ void managed_block_release (managed_t * managed) {
 	Block_release(managed->data);
 }
 
-const managed_block_t * managed_block_new (const void * block) {
-	return managed_new(block, managed_block_release);
+const managed_block_t * managed_block_new (purs_scope_t * scope, const void * block) {
+	return managed_new(block, scope, managed_block_release);
 }
 
 // -----------------------------------------------------------------------------
@@ -39,7 +58,7 @@ void managed_utf8str_release (managed_t * managed) {
 }
 
 const managed_utf8str_t * managed_utf8str_new (const void * data) {
-	return managed_new(data, managed_utf8str_release);
+	return managed_new(data, NULL, managed_utf8str_release);
 }
 
 // -----------------------------------------------------------------------------
@@ -271,7 +290,8 @@ int purs_cons_get_tag (const purs_cons_t * cons) {
 	return cons->tag;
 }
 
-inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
+inline const purs_any_t * purs_any_app (const purs_any_t * x,
+					const purs_any_t * arg) {
 	x = purs_any_unthunk(x);
 
 	const void * f;
@@ -284,7 +304,6 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t *
 
 	f = purs_any_get_abs_maybe(x);
 	if (f != NULL) {
-		/* note: do not need to capture ctx */
 		return ((abs_t) f)(arg);
 	}
 

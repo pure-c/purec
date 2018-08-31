@@ -26,19 +26,32 @@ typedef struct managed managed_t;
 typedef vec_t(void*) ptr_vec_t;
 struct managed {
 	const void * data;
-	ptr_vec_t * ptrs;
+	void * ctx;
 };
 
-
 typedef void (*managed_release_func)(managed_t * managed);
-const managed_t * managed_new(const void * data, managed_release_func release);
+const managed_t * managed_new(const void * data, void * ctx, managed_release_func release);
+
+// -----------------------------------------------------------------------------
+// scopes
+// -----------------------------------------------------------------------------
+
+typedef vec_t(void*) purs_scope_t;
+
+purs_scope_t * purs_scope_new ();
+
+purs_scope_t * __scope__;
+
+void * _purs_scope_capture(purs_scope_t *, void *);
+#define purs_scope_capture(PTR)\
+	(const purs_any_t *) _purs_scope_capture(__scope__, (void *) PTR)
 
 // -----------------------------------------------------------------------------
 // managed blocks
 // -----------------------------------------------------------------------------
 
 typedef managed_t managed_block_t;
-const managed_block_t * managed_block_new (const void * block);
+const managed_block_t * managed_block_new (purs_scope_t *, const void * block);
 
 // -----------------------------------------------------------------------------
 // managed utf8 strings
@@ -207,30 +220,33 @@ int purs_any_eq_number (const purs_any_t *, double);
 		x\
 	)
 
+#define PURS_ANY_NEW_CAPTURED(n, x)\
+	purs_scope_capture(PURS_ANY_NEW(n, x))
+
 #define PURS_ANY_INT_NEW(x)\
-	PURS_ANY_NEW(int, x)
+	PURS_ANY_NEW_CAPTURED(int, x)
 
 #define PURS_ANY_NUMBER_NEW(x)\
-	PURS_ANY_NEW(number, x)
+	PURS_ANY_NEW_CAPTURED(number, x)
 
 #define PURS_ANY_CONS_NEW(x)\
-	PURS_ANY_NEW(cons, x)
+	PURS_ANY_NEW_CAPTURED(cons, x)
 
 /* TODO: remove this macro */
 #define PURS_ANY_STRING_NEW_FROM_LIT(x)\
-	PURS_ANY_NEW(string, managed_utf8str_new(afmt("%s", x)))
+	PURS_ANY_NEW_CAPTURED(string, managed_utf8str_new(afmt("%s", x)))
 
 #define PURS_ANY_STRING_NEW(x)\
-	PURS_ANY_NEW(string, managed_utf8str_new(x))
+	PURS_ANY_NEW_CAPTURED(string, managed_utf8str_new(x))
 
 #define PURS_ANY_CHAR_NEW(x)\
-	PURS_ANY_NEW(char, x)
+	PURS_ANY_NEW_CAPTURED(char, x)
 
 #define PURS_ANY_RECORD_NEW(x)\
-	PURS_ANY_NEW(record, x)
+	PURS_ANY_NEW_CAPTURED(record, x)
 
 #define PURS_ANY_ARRAY_NEW(x)\
-	PURS_ANY_NEW(array, x)
+	PURS_ANY_NEW_CAPTURED(array, x)
 
 #define _PURS_FOREIGN(TAG, DATA)\
 	{\
@@ -238,7 +254,7 @@ int purs_any_eq_number (const purs_any_t *, double);
 		.data = (DATA)\
 	}\
 
-#define PURS_ANY_FOREIGN_NEW(TAG, DATA)\
+#define PURS_ANY_FOREIGN_NEW_CAPTURED(TAG, DATA)\
 	PURS_ANY_NEW(foreign, (purs_foreign_t) _PURS_FOREIGN(TAG, DATA))
 
 /*
@@ -366,20 +382,51 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 // FFI Helpers
 // -----------------------------------------------------------------------------
 
+#define managed_block_capture(MANAGED_BLOCK, PTR)\
+	vec_push(managed->ptrs, ptr)
+
+
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_EXPORT(NAME)\
 	const purs_any_t * NAME ## $
 
-#define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
+#define PURS_LAMBDA(ARG_VARNAME, BODY)\
 	PURS_ANY_NEW(\
 		abs_block,\
 		managed_block_new(\
+			__scope__,\
 			Block_copy(^\
-				(const purs_any_t * ARG_VARNAME)\
-				BODY\
+				(const purs_any_t * ARG_VARNAME) \
+				{\
+					purs_scope_t * __parent_scope__ = __scope__;\
+					purs_scope_t * __scope__ = purs_scope_new();\
+					purs_scope_capture(__parent_scope__);\
+					purs_scope_capture(ARG_VARNAME);\
+					BODY\
+				}\
 			)\
 		)\
 	)
+
+#define PURS_LAMBDA_2(NAME, A1, A2, BODY)\
+	PURS_LAMBDA(NAME, A1, {\
+		return PURS_LAMBDA(A2, BODY);\
+	})
+
+#define PURS_LAMBDA_3(NAME, A1, A2, A3, BODY)\
+	PURS_LAMBDA_2(NAME, A1, A2, {\
+		return PURS_LAMBDA(A3, BODY);\
+	})
+
+#define PURS_LAMBDA_4(NAME, A1, A2, A3, A4, BODY)\
+	PURS_LAMBDA_3(NAME, A1, A2, A3, {\
+		return PURS_LAMBDA(A4, BODY);\
+	})
+
+#define PURS_LAMBDA_5(NAME, A1, A2, A3, A4, A5, BODY)\
+	PURS_LAMBDA_4(NAME, A1, A2, A3, A4, {\
+		return PURS_LAMBDA(A5, BODY);\
+	})
 
 #define PURS_FFI_VALUE(NAME, INIT)\
 	static const purs_any_t _ ## NAME ## $ = INIT;\
@@ -390,28 +437,30 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 	PURS_ANY_THUNK_DEF(NAME ## $, INIT)
 
 /* note: The '$' is currently appended to all names (see code generation) */
-#define PURS_FFI_FUNC_1(NAME, ARG_VARNAME, BODY)\
-	PURS_FFI_VALUE_THUNKED(NAME, PURS_FFI_LAMBDA(ARG_VARNAME, BODY))
+#define PURS_FFI_FUNC_1(NAME, A1, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA(A1, BODY))
 
 #define PURS_FFI_FUNC_2(NAME, A1, A2, BODY)\
-	PURS_FFI_FUNC_1(NAME, A1, {\
-		return PURS_FFI_LAMBDA(A2, BODY);\
-	})
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_2(A1, A2, BODY))
 
 #define PURS_FFI_FUNC_3(NAME, A1, A2, A3, BODY)\
-	PURS_FFI_FUNC_2(NAME, A1, A2, {\
-		return PURS_FFI_LAMBDA(A3, BODY);\
-	})
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_3(A1, A2, A3, BODY))
 
 #define PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, BODY)\
-	PURS_FFI_FUNC_3(NAME, A1, A2, A3, {\
-		return PURS_FFI_LAMBDA(A4, BODY);\
-	})
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_4(A1, A2, A3, A4, BODY))
 
 #define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5, BODY)\
-	PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, {\
-		return PURS_FFI_LAMBDA(A5, BODY);\
-	})
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_4(A1, A2, A3, A4, A5, BODY))
 
 // -----------------------------------------------------------------------------
 // Prim shims
