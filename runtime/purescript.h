@@ -1,6 +1,11 @@
 #ifndef PURESCRIPT_RUNTIME_H
 #define PURESCRIPT_RUNTIME_H
 
+#define PURS_DEBUG_FINALIZATION
+
+#define purs_malloc(sz) GC_MALLOC(sz)
+#define purs_new(exp) GC_NEW(exp)
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -12,24 +17,16 @@
 #include "vendor/vec.h"
 #include "ccan/asprintf/asprintf.h"
 
-/* undefine the defaults */
-#undef uthash_malloc
-#undef uthash_free
-
-/* re-define, specifying alternate functions */
-#define uthash_malloc(sz) GC_MALLOC(sz)
-#define uthash_free(ptr, sz)
-
-#define purs_malloc(sz) GC_MALLOC(sz)
-#define purs_new(exp) GC_NEW(exp)
-
 // -----------------------------------------------------------------------------
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
 
 typedef struct managed managed_t;
+
+typedef vec_t(void*) ptr_vec_t;
 struct managed {
 	const void * data;
+	ptr_vec_t * ptrs;
 };
 
 
@@ -80,8 +77,15 @@ typedef struct purs_record purs_record_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef enum purs_any_tag purs_any_tag_t;
-typedef const void * (^abs_block_t)(const void *);
+typedef const purs_any_t * (^abs_block_t)(const purs_any_t *);
 typedef const purs_any_t * (*abs_t) (const purs_any_t*);
+
+/* typedef purs_record_t purs_ctx_t; */
+/* typedef const purs_any_t * (*purs_func_t) (const purs_ctx_t * ctx, const purs_any_t*); */
+/* typedef struct purs_captured_func { */
+/* 	const purs_ctx_t * ctx; */
+/* 	purs_func_t fun; */
+/* } purs_captured_func_t; */
 
 struct purs_cons {
 	int tag;
@@ -89,20 +93,26 @@ struct purs_cons {
 };
 
 enum purs_any_tag {
-	PURS_ANY_TAG_INT = 0,       // integer
-	PURS_ANY_TAG_NUMBER = 1,    // number
-	PURS_ANY_TAG_ABS = 2,       // abstraction
-	PURS_ANY_TAG_ABS_BLOCK = 3, // lambda abstraction
-	PURS_ANY_TAG_CONS = 4,      // data constructor
-	PURS_ANY_TAG_RECORD = 5,    // a record (hash table)
-	PURS_ANY_TAG_STRING = 6,    // UTF8 string
-	PURS_ANY_TAG_CHAR = 7,    // UTF8 string
-	PURS_ANY_TAG_ARRAY = 8,     // array
-	PURS_ANY_TAG_THUNK = 9,     // thunk
-	PURS_ANY_TAG_FOREIGN = 10,   // a wrapped foreign value
+	PURS_ANY_TAG_BOGUS = 0,     // integer
+	PURS_ANY_TAG_INT = 1,       // integer
+	PURS_ANY_TAG_NUMBER = 2,    // number
+	PURS_ANY_TAG_ABS = 3,       // abstraction
+	PURS_ANY_TAG_ABS_BLOCK = 4, // lambda abstraction
+	PURS_ANY_TAG_CONS = 5,      // data constructor
+	PURS_ANY_TAG_RECORD = 6,    // a record (hash table)
+	PURS_ANY_TAG_STRING = 7,    // UTF8 string
+	PURS_ANY_TAG_CHAR = 8,      // UTF8 string
+	PURS_ANY_TAG_ARRAY = 9,     // array
+	PURS_ANY_TAG_THUNK = 10,    // thunk
+	PURS_ANY_TAG_FOREIGN = 11,  // a wrapped foreign value
 };
 
 const char * purs_any_tag_str (const purs_any_tag_t);
+
+typedef struct purs_foreign {
+	void * tag;
+	void * data;
+} purs_foreign_t;
 
 union purs_any_value {
 	purs_any_int_t integer;
@@ -114,7 +124,7 @@ union purs_any_value {
 	const purs_record_t * record;
 	const purs_vec_t * array;
 	purs_cons_t cons;
-	void * foreign;
+	purs_foreign_t foreign;
 };
 
 struct purs_any {
@@ -134,7 +144,7 @@ const managed_utf8str_t * purs_any_get_string_maybe    (const purs_any_t *);
 const utf8_int32_t *      purs_any_get_char_maybe      (const purs_any_t *);
 const purs_record_t *     purs_any_get_record_maybe    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array_maybe     (const purs_any_t *);
-void *                    purs_any_get_foreign_maybe   (const purs_any_t *);
+const purs_foreign_t *    purs_any_get_foreign_maybe   (const purs_any_t *);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
 const purs_any_int_t *    purs_any_get_int       (const purs_any_t *);
@@ -145,7 +155,7 @@ const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
 const utf8_int32_t *      purs_any_get_char      (const purs_any_t *);
 const purs_record_t *     purs_any_get_record    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array     (const purs_any_t *);
-void *                    purs_any_get_foreign   (const purs_any_t *);
+const purs_foreign_t *    purs_any_get_foreign   (const purs_any_t *);
 
 // XXX: caution, these functions mutate the input!
 purs_any_t * purs_any_init_abs       (purs_any_t *, const abs_t);
@@ -157,7 +167,7 @@ purs_any_t * purs_any_init_cons      (purs_any_t *, const purs_cons_t);
 purs_any_t * purs_any_init_string    (purs_any_t *, const managed_utf8str_t *);
 purs_any_t * purs_any_init_record    (purs_any_t *, const purs_record_t *);
 purs_any_t * purs_any_init_array     (purs_any_t *, const purs_vec_t *);
-purs_any_t * purs_any_init_foreign   (purs_any_t *, void *);
+purs_any_t * purs_any_init_foreign   (purs_any_t *, const purs_foreign_t);
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons);
@@ -197,9 +207,6 @@ int purs_any_eq_number (const purs_any_t *, double);
 		x\
 	)
 
-#define PURS_ANY_BLOCK_NEW(x)\
-	PURS_ANY_NEW(abs_block, managed_block_new(Block_copy(^ x)))
-
 #define PURS_ANY_INT_NEW(x)\
 	PURS_ANY_NEW(int, x)
 
@@ -225,8 +232,14 @@ int purs_any_eq_number (const purs_any_t *, double);
 #define PURS_ANY_ARRAY_NEW(x)\
 	PURS_ANY_NEW(array, x)
 
-#define PURS_ANY_FOREIGN_NEW(x)\
-	PURS_ANY_NEW(foreign, x)
+#define _PURS_FOREIGN(TAG, DATA)\
+	{\
+		.tag = (TAG),\
+		.data = (DATA)\
+	}\
+
+#define PURS_ANY_FOREIGN_NEW(TAG, DATA)\
+	PURS_ANY_NEW(foreign, (purs_foreign_t) _PURS_FOREIGN(TAG, DATA))
 
 /*
  * purs_any_t initializers
@@ -241,8 +254,16 @@ int purs_any_eq_number (const purs_any_t *, double);
 #define PURS_ANY_CHAR(x)\
 	{ .tag = PURS_ANY_TAG_CHAR, .value = { ._char = x } }
 
-#define PURS_ANY_FOREIGN(x)\
-	{ .tag = PURS_ANY_TAG_FOREIGN, .value = { .foreign = x } }
+#define PURS_ANY_FOREIGN(TAG, DATA)\
+	{\
+		.tag = PURS_ANY_TAG_FOREIGN,\
+		.value = {\
+			.foreign = {\
+				.tag = (TAG),\
+				.data = (DATA)\
+			}\
+		}\
+	}
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of
@@ -350,7 +371,15 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 	const purs_any_t * NAME ## $
 
 #define PURS_FFI_LAMBDA(ARG_VARNAME, BODY)\
-	PURS_ANY_BLOCK_NEW((const purs_any_t * ARG_VARNAME) BODY)
+	PURS_ANY_NEW(\
+		abs_block,\
+		managed_block_new(\
+			Block_copy(^\
+				(const purs_any_t * ARG_VARNAME)\
+				BODY\
+			)\
+		)\
+	)
 
 #define PURS_FFI_VALUE(NAME, INIT)\
 	static const purs_any_t _ ## NAME ## $ = INIT;\
@@ -358,27 +387,31 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_VALUE_THUNKED(NAME, INIT)\
-	PURS_ANY_THUNK_DEF(\
-		NAME ## $,\
-		INIT)
+	PURS_ANY_THUNK_DEF(NAME ## $, INIT)
 
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_FUNC_1(NAME, ARG_VARNAME, BODY)\
-	PURS_ANY_THUNK_DEF(\
-		NAME ## $,\
-		PURS_ANY_BLOCK_NEW((const purs_any_t * ARG_VARNAME) BODY))
+	PURS_FFI_VALUE_THUNKED(NAME, PURS_FFI_LAMBDA(ARG_VARNAME, BODY))
 
 #define PURS_FFI_FUNC_2(NAME, A1, A2, BODY)\
-	PURS_FFI_FUNC_1(NAME, A1, { return PURS_FFI_LAMBDA(A2, BODY); })
+	PURS_FFI_FUNC_1(NAME, A1, {\
+		return PURS_FFI_LAMBDA(A2, BODY);\
+	})
 
 #define PURS_FFI_FUNC_3(NAME, A1, A2, A3, BODY)\
-	PURS_FFI_FUNC_2(NAME, A1, A2, { return PURS_FFI_LAMBDA(A3, BODY); })
+	PURS_FFI_FUNC_2(NAME, A1, A2, {\
+		return PURS_FFI_LAMBDA(A3, BODY);\
+	})
 
 #define PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, BODY)\
-	PURS_FFI_FUNC_3(NAME, A1, A2, A3, { return PURS_FFI_LAMBDA(A4, BODY); })
+	PURS_FFI_FUNC_3(NAME, A1, A2, A3, {\
+		return PURS_FFI_LAMBDA(A4, BODY);\
+	})
 
 #define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5, BODY)\
-	PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, { return PURS_FFI_LAMBDA(A5, BODY); })
+	PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, {\
+		return PURS_FFI_LAMBDA(A5, BODY);\
+	})
 
 // -----------------------------------------------------------------------------
 // Prim shims

@@ -8,9 +8,12 @@
 
 const managed_t * managed_new (const void * data, const managed_release_func release) {
 	managed_t * managed = purs_new(managed_block_t);
+	ptr_vec_t * ptrs = purs_new(ptr_vec_t);
+	vec_init(ptrs);
 	managed->data = data;
+	managed->ptrs = ptrs;
 	GC_register_finalizer(
-		managed,
+		(void *) managed,
 		(GC_finalization_proc) release,
 		0, 0, 0);
 	return managed;
@@ -60,7 +63,9 @@ inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
 }
 
 inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
-	if      (x->tag == PURS_ANY_TAG_INT)       return &x->tag;
+	if      (x == NULL)                        return NULL;
+	else if (x->tag == PURS_ANY_TAG_BOGUS)     return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_INT)       return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_NUMBER)    return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_ABS)       return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_ABS_BLOCK) return &x->tag;
@@ -75,8 +80,9 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 }
 
 inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
-	static const char * tags[11] =
-		{ "INT",
+	static const char * tags[12] =
+		{ "BOGUS",
+		  "INT",
 		  "NUMBER",
 		  "ABS",
 		  "ABS_BLOCK",
@@ -171,10 +177,10 @@ const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 	}
 }
 
-void * purs_any_get_foreign_maybe (const purs_any_t * x) {
+const purs_foreign_t * purs_any_get_foreign_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_FOREIGN) {
-		return x->value.foreign;
+		return &x->value.foreign;
 	} else {
 		return NULL;
 	}
@@ -210,14 +216,44 @@ PURS_ANY_GET_IMPL(const managed_utf8str_t *, string);
 PURS_ANY_GET_IMPL(const utf8_int32_t *, char);
 PURS_ANY_GET_IMPL(const purs_record_t *, record);
 PURS_ANY_GET_IMPL(const purs_vec_t *, array);
-PURS_ANY_GET_IMPL(void *, foreign);
+PURS_ANY_GET_IMPL(const purs_foreign_t *, foreign);
 
+#ifdef PURS_DEBUG_FINALIZATION
+static void purs_print_finalized(void * ptr) {
+	const purs_any_t * x = (const purs_any_t *) ptr;
+	printf("finalizing: %p (tag=%s) (value=", x, purs_any_tag_str(*purs_any_get_tag_maybe(x)));
+	switch (x->tag) {
+	case PURS_ANY_TAG_INT:
+		printf("%i", x->value.integer);
+		break;
+	case PURS_ANY_TAG_NUMBER:
+		printf("%f", x->value.number);
+		break;
+	case PURS_ANY_TAG_STRING:
+		printf("%s", x->value.string->data);
+		break;
+	default:
+		printf("N/A");
+	}
+	printf(") \n");
+}
+#define PURS_ANY_INIT_IMPL(NAME, TYPE, TAG, KEY)\
+	inline purs_any_t * NAME (purs_any_t * any, TYPE val) {\
+		GC_register_finalizer(any,\
+				(GC_finalization_proc) purs_print_finalized,\
+				0, 0, 0);\
+		any->tag = TAG;\
+		any->value.KEY = val;\
+		return any;\
+	}
+#else
 #define PURS_ANY_INIT_IMPL(NAME, TYPE, TAG, KEY)\
 	inline purs_any_t * NAME (purs_any_t * any, TYPE val) {\
 		any->tag = TAG;\
 		any->value.KEY = val;\
 		return any;\
 	}
+#endif // PURS_DEBUG_FINALIZATION
 
 PURS_ANY_INIT_IMPL(purs_any_init_abs, const abs_t, PURS_ANY_TAG_ABS, fn)
 PURS_ANY_INIT_IMPL(purs_any_init_abs_block, const managed_block_t *, PURS_ANY_TAG_ABS_BLOCK, block)
@@ -228,7 +264,7 @@ PURS_ANY_INIT_IMPL(purs_any_init_string, const managed_utf8str_t *, PURS_ANY_TAG
 PURS_ANY_INIT_IMPL(purs_any_init_char, utf8_int32_t, PURS_ANY_TAG_CHAR, _char)
 PURS_ANY_INIT_IMPL(purs_any_init_record, const purs_record_t *, PURS_ANY_TAG_RECORD, record)
 PURS_ANY_INIT_IMPL(purs_any_init_array, const purs_vec_t *, PURS_ANY_TAG_ARRAY, array)
-PURS_ANY_INIT_IMPL(purs_any_init_foreign, void *, PURS_ANY_TAG_FOREIGN, foreign)
+PURS_ANY_INIT_IMPL(purs_any_init_foreign, const purs_foreign_t, PURS_ANY_TAG_FOREIGN, foreign)
 
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons) {
@@ -236,10 +272,10 @@ int purs_cons_get_tag (const purs_cons_t * cons) {
 }
 
 inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t * arg) {
+	x = purs_any_unthunk(x);
+
 	const void * f;
 	const managed_block_t * b;
-
-	x = purs_any_unthunk(x);
 
 	b = purs_any_get_abs_block_maybe(x);
 	if (b != NULL) {
@@ -248,6 +284,7 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x, const purs_any_t *
 
 	f = purs_any_get_abs_maybe(x);
 	if (f != NULL) {
+		/* note: do not need to capture ctx */
 		return ((abs_t) f)(arg);
 	}
 
