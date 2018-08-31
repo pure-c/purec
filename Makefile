@@ -12,6 +12,11 @@ reference:
 		-lBlocksRuntime \
 		-lgc \
 		-lm \
+		-D 'uthash_malloc=GC_MALLOC'\
+		-D 'uthash_free(ptr, sz)=NULL'\
+		-D 'vec_realloc=GC_realloc'\
+		-D 'vec_free(x)=NULL'\
+		-D 'vec_malloc=GC_MALLOC'\
 		$(VENDOR_C_FILES) \
 		$(CCAN_C_FILES) \
 		-I . \
@@ -29,6 +34,11 @@ example1:
 		-lBlocksRuntime \
 		-lgc \
 		-lm \
+		-D 'uthash_malloc=GC_MALLOC'\
+		-D 'uthash_free(ptr, sz)=NULL'\
+		-D 'vec_realloc=GC_realloc'\
+		-D 'vec_free(x)=NULL'\
+		-D 'vec_malloc=GC_MALLOC'\
 		$(VENDOR_C_FILES) \
 		$(CCAN_C_FILES) \
 		-I . \
