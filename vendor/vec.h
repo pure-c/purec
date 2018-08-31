@@ -13,10 +13,20 @@
 
 #define VEC_VERSION "0.2.1"
 
+#ifndef vec_malloc
+#define vec_malloc malloc
+#endif
+
+#ifndef vec_realloc
+#define vec_realloc realloc
+#endif
+
+#ifndef vec_free
+#define vec_free free
+#endif
 
 #define vec_unpack_(v)\
   (char**)&(v)->data, &(v)->length, &(v)->capacity, sizeof(*(v)->data)
-
 
 #define vec_t(T)\
   struct { T *data; int length, capacity; }
@@ -27,7 +37,7 @@
 
 
 #define vec_deinit(v)\
-  ( free((v)->data),\
+  ( vec_free((v)->data),\
     vec_init(v) )
 
 
