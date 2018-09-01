@@ -103,8 +103,8 @@ inline const void * purs_assert_not_null(const void * data, const char * message
 // -----------------------------------------------------------------------------
 
 inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
-	purs_any_t * tmp;
-	purs_any_t * out = (purs_any_t *) x;
+	const purs_any_t * tmp;
+	const purs_any_t * out = (purs_any_t *) x;
 	while (out != NULL && out->tag == PURS_ANY_TAG_THUNK) {
 		tmp = x->value.fn(NULL);
 		out = tmp;
@@ -450,13 +450,13 @@ const purs_vec_t * purs_vec_new_va (int count, ...) {
 }
 
 const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
-	if (vec->data == NULL) {
+	if (vec == NULL || vec->data == NULL) {
 		return (purs_vec_t *) purs_vec_new();
 	} else {
 		purs_vec_t * copy = (purs_vec_t *) purs_vec_new();
 		copy->length = vec->length;
 		copy->capacity = vec->capacity;
-		copy->data = malloc(sizeof (purs_any_t*) * vec->capacity);
+		copy->data = vec_malloc(sizeof (purs_any_t*) * vec->capacity);
 		memcpy(copy->data,
 		       vec->data,
 		       sizeof (*copy->data) * vec->capacity);
@@ -514,7 +514,7 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t
 		const void * key = va_arg(args, const void *);
 		const purs_any_t * value = va_arg(args, const purs_any_t *);
 		purs_record_t * entry = purs_new(purs_record_t);
-		entry->key = managed_utf8str_new(key);
+		entry->key = managed_utf8str_new(afmt("%s", key));
 		entry->value = value;
 		HASH_ADD_KEYPTR(
 			hh,

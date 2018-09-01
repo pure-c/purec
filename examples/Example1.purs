@@ -187,6 +187,6 @@ main = go 1
   go n = do
     doGc
     consoleLog $ "hello world (" <> show n <> ")"
-    -- consoleLog showThemAll
+    consoleLog showThemAll
     doGc
     go (n + 1)

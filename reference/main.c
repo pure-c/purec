@@ -106,6 +106,10 @@ int main () {
 
 	const purs_any_t * r = get_r();
 
+	const purs_vec_t * xs = purs_vec_new(0, NULL);
+	xs = purs_vec_insert(xs, 0, PURS_ANY_INT_NEW(1));
+	xs = purs_vec_insert(xs, 0, PURS_ANY_INT_NEW(2));
+
 	while (1) {
 
 	    const purs_any_t * g = purs_any_app(r, PURS_ANY_INT_NEW(1));

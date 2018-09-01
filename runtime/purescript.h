@@ -11,8 +11,8 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include <Block.h>
 #include <gc.h>
+#include <Block.h>
 #include <uthash.h>
 #include "vendor/utf8.h"
 #include "vendor/vec.h"
