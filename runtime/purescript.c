@@ -110,7 +110,8 @@ inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
 	const purs_any_t * tmp;
 	const purs_any_t * out = (purs_any_t *) x;
 	while (out != NULL && out->tag == PURS_ANY_TAG_THUNK) {
-		tmp = x->value.fn(NULL);
+		tmp = out->value.fn(NULL);
+		purs_assert(tmp != out, "infinite unthunk loop");
 		out = tmp;
 	}
 	return (const purs_any_t *) out;
