@@ -46,6 +46,10 @@ purs_scope_t * purs_scope_new() {
 	return x;
 }
 
+static purs_scope_t * purs_scope_copy(const purs_scope_t * scope) {
+	return (purs_scope_t *) purs_vec_copy (scope);
+}
+
 void * _purs_scope_capture(purs_scope_t * scope, void * ptr) {
 	if (scope != NULL && ptr != NULL) {
 		#ifdef PURS_DEBUG_SCOPES
@@ -70,7 +74,7 @@ const managed_block_t * managed_block_new (char * label,
 					   purs_scope_t * scope,
 					   const void * block) {
 	return managed_new(block,
-			   scope,
+			   purs_scope_copy(scope),
 			   label,
 			   managed_block_release);
 }

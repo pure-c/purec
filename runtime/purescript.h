@@ -423,8 +423,6 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 		)\
 	)
 
-/* printf("__parent_scope__: %p\n", __parent_scope__); \ */
-
 #define PURS_LAMBDA_1(A1, BODY)\
 	PURS_LAMBDA(A1, BODY)
 
