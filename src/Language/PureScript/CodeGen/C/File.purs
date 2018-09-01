@@ -128,14 +128,11 @@ nativeMain =
     , body: Just $
         AST.Block
           [ AST.App (AST.Var "GC_INIT") []
-          -- , AST.App (AST.Var (safeName "main")) []
-          , AST.Raw(
-               """
-                printf(
-                  "%s\n",
-                  (char*) purs_any_get_string(Example1_main$$)->data
-                );
-              """)
+          , AST.App
+              R.purs_any_app
+              [ AST.Var (safeName "Example1_main")
+              , R._NULL
+              ]
           , AST.Return (AST.NumericLiteral (Left 0))
           ]
     }

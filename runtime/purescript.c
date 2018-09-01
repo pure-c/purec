@@ -6,16 +6,33 @@
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
 
-const managed_t * managed_new (const void * data, void * ctx,  const managed_release_func release) {
+void managed_release_label (managed_t * managed) {
+	free(managed->label);
+}
+
+const managed_t * managed_new (const void * data,
+			       void * ctx,
+			       char * label,
+			       const managed_release_func release) {
 	managed_t * managed = purs_new(managed_block_t);
 	managed->data = data;
 	managed->ctx = ctx;
+	managed->label = label;
+
+	if (label != NULL) {
+		GC_register_finalizer(
+			(void *) managed,
+			(GC_finalization_proc) managed_release_label,
+			0, 0, 0);
+	}
+
 	if (release != NULL) {
 		GC_register_finalizer(
 			(void *) managed,
 			(GC_finalization_proc) release,
 			0, 0, 0);
 	}
+
 	return managed;
 }
 
@@ -30,7 +47,10 @@ purs_scope_t * purs_scope_new() {
 }
 
 void * _purs_scope_capture(purs_scope_t * scope, void * ptr) {
-	if (scope != NULL) {
+	if (scope != NULL && ptr != NULL) {
+		#ifdef PURS_DEBUG_SCOPES
+		printf("__scope__(%p): registered: %p\n", scope, ptr);
+		#endif // PURS_DEBUG_SCOPES
 		vec_push(scope, ptr);
 	}
 	return ptr;
@@ -46,8 +66,13 @@ void managed_block_release (managed_t * managed) {
 	Block_release(managed->data);
 }
 
-const managed_block_t * managed_block_new (purs_scope_t * scope, const void * block) {
-	return managed_new(block, scope, managed_block_release);
+const managed_block_t * managed_block_new (char * label,
+					   purs_scope_t * scope,
+					   const void * block) {
+	return managed_new(block,
+			   scope,
+			   label,
+			   managed_block_release);
 }
 
 // -----------------------------------------------------------------------------
@@ -58,7 +83,10 @@ void managed_utf8str_release (managed_t * managed) {
 }
 
 const managed_utf8str_t * managed_utf8str_new (const void * data) {
-	return managed_new(data, NULL, managed_utf8str_release);
+	return managed_new(data,
+			   NULL,
+			   NULL,
+			   managed_utf8str_release);
 }
 
 // -----------------------------------------------------------------------------
@@ -75,10 +103,13 @@ inline const void * purs_assert_not_null(const void * data, const char * message
 // -----------------------------------------------------------------------------
 
 inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
-	while (x != NULL && x->tag == PURS_ANY_TAG_THUNK) {
-		x = x->value.fn(NULL);
+	purs_any_t * tmp;
+	purs_any_t * out = (purs_any_t *) x;
+	while (out != NULL && out->tag == PURS_ANY_TAG_THUNK) {
+		tmp = x->value.fn(NULL);
+		out = tmp;
 	}
-	return x;
+	return (const purs_any_t *) out;
 }
 
 inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
@@ -247,6 +278,12 @@ static void purs_print_finalized(void * ptr) {
 		break;
 	case PURS_ANY_TAG_NUMBER:
 		printf("%f", x->value.number);
+		break;
+	case PURS_ANY_TAG_ABS_BLOCK:
+		printf("(label=%s, scope=%p, block=%p)",
+		       x->value.block->label,
+		       x->value.block->ctx,
+		       x->value.block->data);
 		break;
 	case PURS_ANY_TAG_STRING:
 		printf("%s", x->value.string->data);

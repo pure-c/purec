@@ -24,9 +24,18 @@ PURS_FFI_FUNC_2(Example1_mapArrayImpl, f, xs, {
 	return PURS_ANY_ARRAY_NEW(out);
 })
 
+PURS_FFI_FUNC_1(Example1_doGc, _, {
+    GC_gcollect();
+})
+
 PURS_FFI_FUNC_1(Example1_unsafeCoerce, x, {
 	return x;
 })
 
+PURS_FFI_FUNC_2(Example1_consoleLog, _s, _, {
+	const void * s = purs_any_get_string(_s)->data;
+	printf("%s\n", s);
+	return NULL;
+})
 
 #endif // Example1_FFI_H

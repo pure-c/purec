@@ -2,36 +2,9 @@ module Example1
   ( Foo (..)
   ) where
 
+
 import Prelude
-import Control.Apply
-import Control.Applicative
-import Control.Bind
-import Control.Category
-import Control.Monad
-import Control.Semigroupoid
-import Data.Boolean
-import Data.EuclideanRing
-import Data.Bounded
-import Data.Function
-import Data.Functor
-import Data.Ordering
-import Data.NaturalTransformation
-import Data.Ord.Unsafe
-import Data.Ord
-import Data.Field
-import Data.Monoid
-import Data.DivisionRing
-import Data.CommutativeRing
-import Data.Show (class Show, show)
-import Data.Symbol (class IsSymbol, SProxy(..), reflectSymbol)
-import Data.Unit (unit)
-import Data.Void (Void, absurd)
-import Data.HeytingAlgebra
-import Data.Eq
-import Data.Semiring
-import Data.Semigroup
-import Data.Ring
-import Type.Data.RowList (RLProxy(..))
+import Effect
 
 data Maybe a
   = Nothing
@@ -115,7 +88,8 @@ instance showA :: Show A where
   show (B a) = (concatStringImpl "(B " (concatStringImpl (show a) ")"))
   show (E c) = (concatStringImpl "(C " (concatStringImpl (show c) ")"))
 
-main' =
+showThemAll :: String
+showThemAll =
   let
     x :: Int
     x = 0 -- absurd (unsafeCoerce unit)
@@ -201,3 +175,18 @@ main' =
           ys = [ 1, 2 ]
          in [ show xs, show ys, show ys, show (xs <> ys), show xs, show ys ]
       )
+
+foreign import consoleLog :: String -> Effect Unit
+foreign import doGc :: Effect Unit
+
+main :: Effect Unit
+main = go 1
+  where
+  go 1000 = do
+    consoleLog "done!"
+  go n = do
+    doGc
+    consoleLog $ "hello world (" <> show n <> ")"
+    -- consoleLog showThemAll
+    doGc
+    go (n + 1)

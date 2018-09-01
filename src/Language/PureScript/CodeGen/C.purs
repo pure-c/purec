@@ -19,7 +19,6 @@ import CoreFn.Names as C
 import Data.Array (mapWithIndex)
 import Data.Array as A
 import Data.Char as Int
-import Data.Char as Str
 import Data.Either (Either(..), either)
 import Data.Map (Map)
 import Data.Map as Map
@@ -220,7 +219,7 @@ exprToAst (C.Literal _ (C.CharLiteral c)) =
    AST.Cast (R.any) $
     AST.App
       R._PURS_ANY_CHAR_NEW
-      [ AST.NumericLiteral $ Left $ Str.toCharCode c
+      [ AST.NumericLiteral $ Left $ Int.toCharCode c
       ]
 exprToAst (C.Literal _ (C.BooleanLiteral b)) =
   pure $

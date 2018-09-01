@@ -17,7 +17,7 @@ import Data.Either (Either(..))
 import Data.Foldable (all)
 import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Identity (Identity(..))
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (unwrap)
 import Data.String as Str
 import Data.String.CodeUnits as CodeUnits
@@ -123,19 +123,16 @@ prettyPrintAst (AST.Lambda
   , body
   }) = do
   -- TODO: Remove AST.Lambda and perform transformation in C.purs
-  emit "PURS_ANY_BLOCK_NEW("
-  emit "("
-  for_ (A.init arguments) $ traverse \arg -> do
-    emit $ renderArg arg
-    emit ","
-  for_ (A.last arguments) \arg ->
-    emit $ renderArg arg
-  emit ") "
+  -- XXXX: This really is an ugly hack (we don't use the type info, lambdas
+  --       in the runtime MUST only take one value, etc.)
+  emit "PURS_LAMBDA_1("
+  emit $ fromMaybe "____unused____" (_.name <$> A.head arguments)
+  emit ", "
   prettyPrintAst body
   emit ")"
   where
-  renderArg { name, type: typ } =
-    renderType typ <> " " <> name
+  renderArg { name } =
+    name
 prettyPrintAst (AST.Function
   { name
   , arguments

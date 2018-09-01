@@ -59,6 +59,7 @@ main = launchAff_ do
             { name: moduleName
             , directory: "examples"
             , files:
+                -- * purescript-prelude
                 ("/home/felix/projects/purescript-c-prelude/src/Type/Data/RowList.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Type/Data/Row.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Data/BooleanAlgebra.purs") A.:
@@ -100,6 +101,10 @@ main = launchAff_ do
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Semigroupoid.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Control/Category.purs") A.:
                 ("/home/felix/projects/purescript-c-prelude/src/Record/Unsafe.purs") A.:
+
+                -- * purescript-effect
+                ("/home/felix/projects/purescript-c-effect/src/Effect.purs") A.:
+
                 ("examples/" <> file) A.:
                 ((("examples/" <> moduleName) <> _) <$> subModules)
             }

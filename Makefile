@@ -8,6 +8,7 @@ EXAMPLE1_OUTPUT_C_FILES = $(shell find .tmp/sources/Example1 -type f -name '*.c'
 reference:
 	clang \
 		-o a.out \
+		-g \
 		-fblocks \
 		-lBlocksRuntime \
 		-lgc \
@@ -24,7 +25,10 @@ reference:
 		\
 		-I reference/output \
 		$(REFERENCE_OUTPUT_C_FILES) \
-		reference/main.c
+		reference/main.c \
+		-Wall \
+		-Wno-unused-variable \
+		-Wno-unused-value
 
 example1:
 	clang \
@@ -45,5 +49,7 @@ example1:
 		runtime/purescript.c \
 		\
 		-I .tmp/sources/Example1 \
+		$(EXAMPLE1_OUTPUT_C_FILES) \
 		-Wall \
-		$(EXAMPLE1_OUTPUT_C_FILES)
+		-Wno-unused-variable \
+		-Wno-unused-value
