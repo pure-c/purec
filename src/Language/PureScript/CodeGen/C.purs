@@ -138,7 +138,6 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
         , moduleBody
         ]
 
--- TODO: Implement
 bindToAst
   :: ∀ m
    . MonadError CompileError m
@@ -426,8 +425,38 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                 (AST.Block ast)
                 Nothing
             ]
-      _ ->
-        throwError $ NotImplementedError $ "binderToAst: literal: " <> show lit
+
+      C.ObjectLiteral binders ->
+        let
+          go next' xs =
+            case A.uncons xs of
+              Nothing ->
+                pure next'
+              Just { head: (prop /\ binder), tail: rest } -> do
+                propVar  <- freshName
+                next''   <- go next' rest
+                ast      <- binderToAst propVar next'' binder
+                pure $
+                  AST.VariableIntroduction
+                    { name: propVar
+                    , type: R.any
+                    , qualifiers: []
+                    , initialization:
+                        Just $
+                          AST.Accessor
+                            (AST.Raw "value")
+                            (AST.App
+                              R.purs_record_find_by_key
+                              [
+                                AST.App
+                                  R.purs_any_get_record
+                                  [ AST.Var varName ]
+                              , AST.StringLiteral prop
+                              ])
+                    } A.: ast
+        in
+          go next binders
+
   binderToAst varName next (C.VarBinder _ ident) = ado
     name <- identToVarName ident
     in
@@ -508,9 +537,20 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                 Nothing
             ]
 
+  binderToAst _ _ (C.ConstructorBinder _ _ _ _) =
+    throwError $ InternalError $
+      "binderToAst: Invalid ConstructorBinder"
 
-  binderToAst _ _ x =
-    throwError $ NotImplementedError $ "binderToAst " <> show x
+  binderToAst varName next (C.NamedBinder _ ident binder) = ado
+    name <- identToVarName ident
+    ast <- binderToAst varName next binder
+    in
+      AST.VariableIntroduction
+        { name
+        , type: Type.Pointer R.any'
+        , qualifiers: []
+        , initialization: Just $ AST.Var varName
+        } A.: next
 
 exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
   | Just { init: initArgs, last: lastArg } <- A.unsnoc fields
@@ -614,16 +654,17 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
 exprToAst (C.Accessor _ k exp) = ado
   -- XXX: what if valueAst is not a record?
   valueAst <- exprToAst exp
-  in AST.Accessor
-    (AST.Raw "value")
-    (AST.App
-      R.purs_record_find_by_key
-      [
-        AST.App
-          R.purs_any_get_record
-          [ valueAst ]
-      , AST.StringLiteral k
-      ])
+  in
+    AST.Accessor
+      (AST.Raw "value")
+      (AST.App
+        R.purs_record_find_by_key
+        [
+          AST.App
+            R.purs_any_get_record
+            [ valueAst ]
+        , AST.StringLiteral k
+        ])
 
 exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
 
