@@ -179,10 +179,44 @@ showThemAll =
 foreign import consoleLog :: String -> Effect Unit
 foreign import doGc :: Effect Unit
 
-main :: Effect Unit
-main = go 1
+main_2 :: Effect Unit
+main_2 = consoleLog
+  let
+    x = { a: 100, b: 200 }
+    y = x { a = 200 }
+  in
+    case y of
+      foo@{ a: 200 } ->
+        show { foo }
+      _ ->
+        show x
+
+main_3 :: Effect Unit
+main_3 = go 1 (mkF unit)
   where
-  go 1000 = do
+  go 100 _ = do
+    consoleLog "done!"
+  go n f = do
+    doGc
+    consoleLog $ f n
+    doGc
+    go (n + 1) f
+
+  mkF _ =
+    let
+      g x =
+        a <> b <> x
+      f x =
+        g (a <> (show $ x * y))
+      y = 2
+      a = "hallo: "
+      b = "welt: "
+    in f
+
+main_1 :: Effect Unit
+main_1 = go 1
+  where
+  go 100 = do
     consoleLog "done!"
   go n = do
     doGc
@@ -190,3 +224,9 @@ main = go 1
     consoleLog showThemAll
     doGc
     go (n + 1)
+
+main :: Effect Unit
+main = do
+  main_1
+  main_2
+  main_3
