@@ -1,6 +1,5 @@
-module Test.Compile
-  ( runClang
-  , runProc
+module Test.Utils
+  ( runProc
   ) where
 
 import Prelude
@@ -18,34 +17,6 @@ import Node.Encoding (Encoding(..))
 import Node.Path (FilePath)
 import Node.ReadLine as RL
 import Node.Stream as Stream
-
--- | Compile a test suite's sources using clang
-runClang
-  :: Array FilePath
-  -> Aff Unit
-runClang inputs =
-  runProc "clang" $
-    A.concat
-      [ [ "-fblocks"
-        , "-fcolor-diagnostics"
-        , "-I", "."
-        , "-lBlocksRuntime"          -- XXX statically link into some runtime.so?
-        , "-lgc"                     -- XXX statically link into some runtime.so?
-        , "-lm"                      -- XXX statically link into some runtime.so?
-        , "-D uthash_malloc=GC_MALLOC"
-        , "-D uthash_free(ptr, sz)=NULL"
-        , "-D vec_realloc=GC_realloc"
-        , "-D vec_free(x)=NULL"
-        , "-D vec_malloc=GC_MALLOC"
-        , "-Wall"
-        , "-Wno-unused-variable"
-        , "-Wno-unused-value"
-        , "runtime/purescript.c"     -- XXX should be in some runtime.so
-        , "vendor/vec.c"             -- XXX should be in some runtime.so
-        , "ccan/asprintf/asprintf.c" -- XXX should be in some runtime.so
-        ]
-      , inputs
-      ]
 
 -- | Run a process for it's side-effect
 runProc

@@ -36,7 +36,7 @@ import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
 import Node.Path as FilePath
 import Partial.Unsafe (unsafePartial)
-import Test.Compile (runClang, runProc)
+import Test.Utils (runProc)
 
 data PipelineError
   = CompileError C.CompileError
@@ -123,22 +123,15 @@ main = launchAff_ do
         , "-g", "corefn"
         ] <> test.files
 
+      -- compile each module's corefn json rep to c
       Console.log "Compiling all purescript to C..."
-      srcs <- do
-        -- compile each module's corefn json rep to c
-        FS.readdir pursOutputDir >>= traverse \moduleName ->
-          let
-            corefnJsonFile =
-              pursOutputDir <> "/" <> moduleName <> "/corefn.json"
-          in do
-            Console.log $ "Compiling to C: " <> moduleName <> "..."
-            emitC (moduleName == test.name) cOutputDir corefnJsonFile
-
-      Console.log "Compiling C sources..."
-      runClang $ [ "-I", cOutputDir, "-o", "a.out" ] <> A.concat srcs
-
-      Console.log "Running module..."
-      runProc "./a.out" []
+      FS.readdir pursOutputDir >>= traverse \moduleName ->
+        let
+          corefnJsonFile =
+            pursOutputDir <> "/" <> moduleName <> "/corefn.json"
+        in do
+          Console.log $ "Compiling to C: " <> moduleName <> "..."
+          emitC (moduleName == test.name) cOutputDir corefnJsonFile
 
   where
   emitC isMain outputDir jsonFile = do
