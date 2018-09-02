@@ -204,8 +204,10 @@ main_3 = go 1 (mkF unit)
 
   mkF _ =
     let
+      r _ = { foo: "bar" }
+      k = r unit
       g x =
-        a <> b <> x
+        a <> b <> x <> show k
       f x =
         g (a <> (show $ x * y))
       y = 2

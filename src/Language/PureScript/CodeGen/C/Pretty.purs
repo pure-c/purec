@@ -101,7 +101,9 @@ prettyPrintAst (AST.VariableIntroduction { name, type: typ, qualifiers, initiali
     lf
     withNextIndent do
       indent
+      emit "purs_scope_capture(" -- XXX Move this into C.purs
       prettyPrintAst ast
+      emit ")"
   emit ";"
 prettyPrintAst (AST.NumericLiteral (Left n)) =
   emit $ show n

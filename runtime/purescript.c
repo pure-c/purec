@@ -99,17 +99,19 @@ const purs_any_t * _purs_scope_capture(purs_scope_t * scope, const purs_any_t * 
 			HASH_ITER(hh, scope->objects, s, tmp) {
 				if (tmp == NULL) continue;
 				obj = tmp->key;
-				if (obj->tag == PURS_ANY_TAG_ABS_BLOCK) {
+				if (obj->tag == PURS_ANY_TAG_ABS_BLOCK && o != obj) {
 					const managed_block_t * block = purs_any_get_abs_block(obj);
 					purs_scope_t * block_scope = (purs_scope_t *) block->ctx;
-					HASH_ADD_KEYPTR(
-						hh,
-						block_scope->objects,
-						entry->key,
-						sizeof(const purs_any_t *),
-						entry
-					);
-					GC_general_register_disappearing_link((void **) &block_scope->objects, obj);
+					if (block_scope != NULL) {
+						HASH_ADD_KEYPTR(
+							hh,
+							block_scope->objects,
+							entry->key,
+							sizeof(const purs_any_t *),
+							entry
+						);
+						GC_general_register_disappearing_link((void **) &block_scope->objects, obj);
+					}
 				}
 			}
 		}

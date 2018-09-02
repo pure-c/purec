@@ -225,33 +225,30 @@ int purs_any_eq_number (const purs_any_t *, double);
 		x\
 	)
 
-#define PURS_ANY_NEW_CAPTURED(n, x)\
-	purs_scope_capture(PURS_ANY_NEW(n, x))
-
 #define PURS_ANY_INT_NEW(x)\
-	PURS_ANY_NEW_CAPTURED(int, x)
+	PURS_ANY_NEW(int, x)
 
 #define PURS_ANY_NUMBER_NEW(x)\
-	PURS_ANY_NEW_CAPTURED(number, x)
+	PURS_ANY_NEW(number, x)
 
 #define PURS_ANY_CONS_NEW(x)\
-	PURS_ANY_NEW_CAPTURED(cons, x)
+	PURS_ANY_NEW(cons, x)
 
 /* TODO: remove this macro */
 #define PURS_ANY_STRING_NEW_FROM_LIT(x)\
-	PURS_ANY_NEW_CAPTURED(string, managed_utf8str_new(afmt("%s", x)))
+	PURS_ANY_NEW(string, managed_utf8str_new(afmt("%s", x)))
 
 #define PURS_ANY_STRING_NEW(x)\
-	PURS_ANY_NEW_CAPTURED(string, managed_utf8str_new(x))
+	PURS_ANY_NEW(string, managed_utf8str_new(x))
 
 #define PURS_ANY_CHAR_NEW(x)\
-	PURS_ANY_NEW_CAPTURED(char, x)
+	PURS_ANY_NEW(char, x)
 
 #define PURS_ANY_RECORD_NEW(x)\
-	PURS_ANY_NEW_CAPTURED(record, x)
+	PURS_ANY_NEW(record, x)
 
 #define PURS_ANY_ARRAY_NEW(x)\
-	PURS_ANY_NEW_CAPTURED(array, x)
+	PURS_ANY_NEW(array, x)
 
 #define _PURS_FOREIGN(TAG, DATA)\
 	{\
@@ -260,7 +257,7 @@ int purs_any_eq_number (const purs_any_t *, double);
 	}\
 
 #define PURS_ANY_FOREIGN_NEW(TAG, DATA)\
-	PURS_ANY_NEW_CAPTURED(foreign, ((purs_foreign_t) _PURS_FOREIGN(TAG, DATA)))
+	PURS_ANY_NEW(foreign, ((purs_foreign_t) _PURS_FOREIGN(TAG, DATA)))
 
 /*
  * purs_any_t initializers
@@ -396,7 +393,7 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 	const purs_any_t * NAME ## $
 
 #define PURS_LAMBDA_DEBUG(DEBUG_NAME, ARG_VARNAME, BODY)\
-	PURS_ANY_NEW_CAPTURED(\
+	PURS_ANY_NEW(\
 		abs_block,\
 		managed_block_new(\
 			afmt("%s", DEBUG_NAME),\
@@ -414,7 +411,7 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 	)
 
 #define PURS_LAMBDA(ARG_VARNAME, BODY)\
-	PURS_ANY_NEW_CAPTURED(\
+	PURS_ANY_NEW(\
 		abs_block,\
 		managed_block_new(\
 			NULL,\
