@@ -177,7 +177,7 @@ showThemAll =
       )
 
 foreign import consoleLog :: String -> Effect Unit
-foreign import doGc :: Effect Unit
+foreign import runGC :: Effect Unit
 
 main_2 :: Effect Unit
 main_2 = consoleLog
@@ -197,9 +197,9 @@ main_3 = go 1 (mkF unit)
   go 100 _ = do
     consoleLog "done!"
   go n f = do
-    doGc
+    runGC
     consoleLog $ f n
-    doGc
+    runGC
     go (n + 1) f
 
   mkF _ =
@@ -219,14 +219,16 @@ main_1 = go 1
   go 100 = do
     consoleLog "done!"
   go n = do
-    doGc
+    runGC
     consoleLog $ "hello world (" <> show n <> ")"
     consoleLog showThemAll
-    doGc
+    runGC
     go (n + 1)
+
+foreign import usleep :: Int -> Effect Unit
 
 main :: Effect Unit
 main = do
-  main_1
-  main_2
-  main_3
+  main_1 *> runGC *> usleep 100
+  main_2 *> runGC *> usleep 100
+  main_3 *> runGC *> usleep 100

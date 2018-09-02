@@ -24,8 +24,12 @@ PURS_FFI_FUNC_2(Example1_mapArrayImpl, f, xs, {
 	return PURS_ANY_ARRAY_NEW(out);
 })
 
-PURS_FFI_FUNC_1(Example1_doGc, _, {
-    GC_gcollect();
+PURS_FFI_FUNC_1(Example1_runGC, _, {
+	GC_gcollect();
+})
+
+PURS_FFI_FUNC_2(Example1_usleep, x, _, {
+	usleep(*purs_any_get_int(x));
 })
 
 PURS_FFI_FUNC_1(Example1_unsafeCoerce, x, {

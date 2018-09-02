@@ -18,6 +18,16 @@
 #include "vendor/vec.h"
 #include "ccan/asprintf/asprintf.h"
 
+typedef struct purs_any purs_any_t;
+typedef vec_t(const purs_any_t*) purs_vec_t;
+typedef struct purs_record purs_record_t;
+typedef struct purs_cons purs_cons_t;
+typedef union purs_any_value purs_any_value_t;
+typedef enum purs_any_tag purs_any_tag_t;
+typedef const purs_any_t * (^abs_block_t)(const purs_any_t *);
+typedef const purs_any_t * (*abs_t) (const purs_any_t*);
+
+
 // -----------------------------------------------------------------------------
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
@@ -38,15 +48,24 @@ const managed_t * managed_new(const void * data, void * ctx, char * label, manag
 // scopes
 // -----------------------------------------------------------------------------
 
-typedef vec_t(void*) purs_scope_t;
+typedef struct purs_scope_entries {
+	const purs_any_t * key;
+	UT_hash_handle hh;
+} purs_scope_entries_t;
 
-purs_scope_t * purs_scope_new ();
+typedef struct purs_scope purs_scope_t;
+typedef struct purs_scope {
+	const purs_scope_t * parent;
+	purs_scope_entries_t * objects;
+} purs_scope_t;
+
+purs_scope_t * purs_scope_new (const purs_scope_t * parent);
 
 purs_scope_t * __scope__;
 
-void * _purs_scope_capture(purs_scope_t *, void *);
+const purs_any_t * _purs_scope_capture(purs_scope_t *, const purs_any_t *);
 #define purs_scope_capture(PTR)\
-	(const purs_any_t *) _purs_scope_capture(__scope__, (void *) PTR)
+	(const purs_any_t *) _purs_scope_capture(__scope__, PTR)
 
 // -----------------------------------------------------------------------------
 // managed blocks
@@ -85,15 +104,6 @@ const void * purs_assert_not_null(const void *, const char * message);
 // -----------------------------------------------------------------------------
 
 #define purs_any_int_t int32_t
-
-typedef struct purs_any purs_any_t;
-typedef vec_t(const purs_any_t*) purs_vec_t;
-typedef struct purs_record purs_record_t;
-typedef struct purs_cons purs_cons_t;
-typedef union purs_any_value purs_any_value_t;
-typedef enum purs_any_tag purs_any_tag_t;
-typedef const purs_any_t * (^abs_block_t)(const purs_any_t *);
-typedef const purs_any_t * (*abs_t) (const purs_any_t*);
 
 struct purs_cons {
 	int tag;
@@ -395,10 +405,9 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 				(const purs_any_t * ARG_VARNAME) \
 				{\
 					purs_scope_t * __parent_scope__ = __scope__;\
-					purs_scope_t * __scope__ = purs_scope_new();\
-					purs_scope_capture(__parent_scope__);\
+					purs_scope_t * __scope__ = purs_scope_new(__parent_scope__); \
 					purs_scope_capture(ARG_VARNAME);\
-					BODY\
+					BODY;\
 				}\
 			)\
 		)\
@@ -414,8 +423,7 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 				(const purs_any_t * ARG_VARNAME) \
 				{\
 					purs_scope_t * __parent_scope__ = __scope__;\
-					purs_scope_t * __scope__ = purs_scope_new();\
-					purs_scope_capture(__parent_scope__);\
+					purs_scope_t * __scope__ = purs_scope_new(__parent_scope__);\
 					purs_scope_capture(ARG_VARNAME);\
 					BODY\
 				}\

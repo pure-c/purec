@@ -15,6 +15,7 @@ const managed_t * managed_new (const void * data,
 			       char * label,
 			       const managed_release_func release) {
 	managed_t * managed = purs_new(managed_block_t);
+
 	managed->data = data;
 	managed->ctx = ctx;
 	managed->label = label;
@@ -40,24 +41,81 @@ const managed_t * managed_new (const void * data,
 // scopes
 // -----------------------------------------------------------------------------
 
-purs_scope_t * purs_scope_new() {
-	purs_scope_t * x = purs_new(purs_scope_t);
-	vec_init(x);
-	return x;
+purs_scope_t * purs_scope_new(const purs_scope_t * parent) {
+	purs_scope_t * scope = GC_MALLOC(sizeof (purs_scope_t));
+	scope->objects = NULL;
+	scope->parent = parent;
+	return scope;
+}
+
+static const purs_scope_entries_t * _purs_scope_entries_copy_shallow(const purs_scope_entries_t * source) {
+	const purs_scope_entries_t * current_entry, * tmp;
+	purs_scope_entries_t * entry_copy;
+	purs_scope_entries_t * record = NULL;
+	HASH_ITER(hh, source, current_entry, tmp) {
+		entry_copy = purs_new(purs_scope_entries_t);
+		memcpy(entry_copy, current_entry, sizeof(purs_scope_entries_t));
+		HASH_ADD_KEYPTR(
+			hh,
+			record,
+			entry_copy->key,
+			sizeof(const purs_any_t *),
+			entry_copy
+		);
+	}
+	return (const purs_scope_entries_t *) record;
 }
 
 static purs_scope_t * purs_scope_copy(const purs_scope_t * scope) {
-	return (purs_scope_t *) purs_vec_copy (scope);
+	if (scope == NULL) {
+		return NULL;
+	} else {
+		purs_scope_t * copy = purs_new(purs_scope_t);
+		copy->objects = (purs_scope_entries_t *) _purs_scope_entries_copy_shallow(scope->objects);
+		copy->parent = scope->parent;
+		if (scope->parent) {
+			GC_register_disappearing_link((void **) &copy->parent);
+		}
+		return copy;
+	}
 }
 
-void * _purs_scope_capture(purs_scope_t * scope, void * ptr) {
-	if (scope != NULL && ptr != NULL) {
-		#ifdef PURS_DEBUG_SCOPES
-		printf("__scope__(%p): registered: %p\n", scope, ptr);
-		#endif // PURS_DEBUG_SCOPES
-		vec_push(scope, ptr);
+const purs_any_t * _purs_scope_capture(purs_scope_t * scope, const purs_any_t * o) {
+	if (scope != NULL && o != NULL) {
+		purs_scope_entries_t * entry = purs_new(purs_scope_entries_t);
+		entry->key = o;
+
+		HASH_ADD_KEYPTR(
+			hh,
+			scope->objects,
+			entry->key,
+			sizeof(const purs_any_t *),
+			entry
+		);
+
+		{ /* update references in scope's blocks */
+			purs_scope_entries_t *s, *tmp;
+			const purs_any_t * obj;
+			HASH_ITER(hh, scope->objects, s, tmp) {
+				if (tmp == NULL) continue;
+				obj = tmp->key;
+				if (obj->tag == PURS_ANY_TAG_ABS_BLOCK) {
+					const managed_block_t * block = purs_any_get_abs_block(obj);
+					purs_scope_t * block_scope = (purs_scope_t *) block->ctx;
+					HASH_ADD_KEYPTR(
+						hh,
+						block_scope->objects,
+						entry->key,
+						sizeof(const purs_any_t *),
+						entry
+					);
+					GC_general_register_disappearing_link((void **) &block_scope->objects, obj);
+				}
+			}
+		}
 	}
-	return ptr;
+
+	return o;
 }
 
 purs_scope_t * __scope__ = NULL;
@@ -67,6 +125,12 @@ purs_scope_t * __scope__ = NULL;
 // -----------------------------------------------------------------------------
 
 void managed_block_release (managed_t * managed) {
+	purs_scope_t * scope = (purs_scope_t*) managed->ctx;
+	if (scope != NULL) {
+		managed->ctx = NULL;
+		scope->parent = NULL;
+		scope->objects = NULL;
+	}
 	Block_release(managed->data);
 }
 
@@ -433,9 +497,6 @@ void purs_vec_release (purs_vec_t * vec) {
 
 const purs_vec_t * purs_vec_new () {
 	purs_vec_t * v = purs_new(purs_vec_t);
-	GC_register_finalizer(v,
-			      (GC_finalization_proc) purs_vec_release,
-			      0, 0, 0);
 	vec_init(v);
 	return (const purs_vec_t *) v;
 }

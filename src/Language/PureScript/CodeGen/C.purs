@@ -547,7 +547,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
     in
       AST.VariableIntroduction
         { name
-        , type: Type.Pointer R.any'
+        , type: R.any
         , qualifiers: []
         , initialization: Just $ AST.Var varName
         } A.: next
@@ -568,7 +568,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
             (AST.Indexer
               (AST.NumericLiteral (Left i))
               (AST.Var valuesName))
-            (AST.Cast R.any' $ AST.Var name)
+            (AST.Cast R.any $ AST.Var name)
     pure $
      AST.Lambda
       { arguments: [ { name: argName, type: R.any } ]
