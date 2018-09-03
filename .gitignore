@@ -1,6 +1,8 @@
 *.out
 *.tar.bz2
 *.gch
+*.o
+*.tmp
 bower_components/
 output/
 .output/
