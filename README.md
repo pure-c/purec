@@ -1,23 +1,80 @@
-# C backend for Purescript
+# Pure-C
 
-## Status
+An alternative backend for the PureScript programming language that targets C
+using Clang.
 
-### Things to come back to
+## Getting Started
 
-* [x] Prefix purs_any_t tag names
-* [ ] Allow specifying modifiers (i.e. `static` for `PURS_ANY_THUNK_DEF`)
-* [ ] Do not expose `afmt`, instead create and export some `purs_afmt`
-* [x] Rename 'purs_any_get_float' et. al. to '_number' for consistency
-* [ ] Emit tabs instead of spaces
-* [ ] Use less macross
-* [ ] Handle `NULL` in more cases:
-  * [ ] in AST for C.Accessor
-* [ ] Deal with memory allocation problems (i.e. out of memory).
-* [ ] Only emit exported declarations to header, and forward declare internal
-  functions at top of implementation file.
-* [ ] Use `static` modifier for functions that are not exported
-* [x] Bake `True` and `False` into the runtime to avoid mallocing them in guards
-  over and over.
-* [ ] Do not use managed blocks (in `purs_any_t`) for lambdas that are generated
-  and applied immediately with no arguments (ex. let bindings). We can avoid the
-  malloc and GC registration for that block entirely.
+These instructions will get you a copy of the project up and running on your
+local machine for development and testing purposes.
+
+### Prerequisites
+
+* Install node.js, including `npm`
+* Install global command line utilities for working with PureScript in general
+
+```
+npm i -g \
+	bower \
+	purescript \
+	pulp
+```
+
+* Install project dependencies
+
+```
+bower install
+```
+
+##### Ubuntu 16.04
+
+```
+apt-get install \
+	libblocksruntime-dev \
+	uthash-dev \
+	uthash-dev \
+	libgc-dev
+```
+
+## Running the tests
+
+**NOTE** The test suite is still being built out [#12](https://github.com/pure-c/pure-c/issues/12).
+For now this has to suffice:
+
+
+```
+pulp test && make example1
+```
+
+## Built With
+
+* [Dropwizard](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
+* [Maven](https://maven.apache.org/) - Dependency Management
+* [ROME](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+
+## Contributing
+
+Please read [CONTRIBUTING.md](#) for details on our code of
+conduct, and the process for submitting pull requests to us.
+
+## Versioning
+
+This project is alpha quality and will likely remain alpha quality for a while.
+That means for now there's one version, and that's `origin/HEAD`.
+
+## Authors
+
+* **Felix Schlitter** - *Initial work* - [felixschl](https://github.com/felixschl)
+
+See also the list of [contributors](https://github.com/pure-c/pure-c/contributors) who participated in this project.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
+## Acknowledgments
+
+* [uthash](https://github.com/troydhanson/uthash) - A hash table for C structures
+* [vec](https://github.com/rxi/vec) - A type-safe dynamic array implementation for C
+* [ccan](https://github.com/rustyrussell/ccan) - The C Code Archive Network
+* [purescript-native](https://github.com/andyarvanitis/purescript-native) - An experimental C++11/native compiler backend for PureScript
