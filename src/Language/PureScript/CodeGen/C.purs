@@ -4,19 +4,18 @@ module Language.PureScript.CodeGen.C
 import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
-import Control.Monad.Reader (class MonadAsk, ReaderT(..), ask, runReaderT)
+import Control.Monad.Reader (class MonadAsk, ask, runReaderT)
 import Control.Monad.State (State, execState)
 import Control.Monad.State as State
 import Control.MonadPlus (guard)
-import CoreFn.Ann as C
-import CoreFn.Binders as C
-import CoreFn.Expr as C
-import CoreFn.Ident as C
-import CoreFn.Literal as C
-import CoreFn.Meta as C
-import CoreFn.Module as C
-import CoreFn.Names as C
-import Data.Array (mapWithIndex)
+import CoreFn.Ann (Ann(..)) as C
+import CoreFn.Binders (Binder(..)) as C
+import CoreFn.Expr (Bind(..), CaseAlternative(..), Expr(..)) as C
+import CoreFn.Ident (Ident(..)) as C
+import CoreFn.Literal (Literal(..)) as C
+import CoreFn.Meta (ConstructorType(..), Meta(..)) as C
+import CoreFn.Module (Module(..)) as C
+import CoreFn.Names (ModuleName(..), ProperName(..), Qualified(..)) as C
 import Data.Array as A
 import Data.Char as Int
 import Data.Either (Either(..), either)
@@ -24,12 +23,9 @@ import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
-import Data.String.CodeUnits as Str
-import Data.Traversable (foldr, for, for_, traverse)
+import Data.Traversable (for, for_, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple.Nested ((/\), type (/\))
-import Debug.Trace (spy, traceM)
-import Effect.Ref (Ref)
 import Foreign.Object as Object
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
@@ -40,7 +36,6 @@ import Language.PureScript.CodeGen.C.Pretty as P
 import Language.PureScript.CodeGen.Common (runModuleName)
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
-import Language.PureScript.CodeGen.Runtime as Runtime
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 
 type IsMain =
@@ -127,7 +122,13 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
               ]
           , [ P.empty ]
           , if isMain
-              then [ F.nativeMain, P.empty ]
+              then
+                [ F.nativeMain $
+                    AST.Var $
+                      safeName $
+                        qualifiedVarName moduleName "main"
+                , P.empty
+                ]
               else []
           ]
 
