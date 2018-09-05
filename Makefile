@@ -20,6 +20,7 @@ LDFLAGS = -lBlocksRuntime -lgc -lm
 		-Wno-unused-variable \
 		-Wno-unused-value \
 		-c \
+		-O3 \
 		-o $@ \
 		-I . \
 		$(CLANG_FLAGS) \
