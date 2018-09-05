@@ -18,7 +18,7 @@ import Data.Newtype (wrap)
 import Data.String (Pattern(..))
 import Data.String as Str
 import Data.Traversable (for, for_, sequence, traverse, traverse_)
-import Debug.Trace (spy, traceM)
+import Debug.Trace (spy, trace, traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Aff.Class (liftAff)
@@ -51,15 +51,16 @@ main :: Effect Unit
 main =
   let
     testsDirectory =
-      -- "examples"
-      "/home/felix/projects/purescript/tests/purs/passing"
+      "tests/purs/passing"
   in launchAff_ do
-    tests <- discoverPureScriptTests testsDirectory
+    tests <-
+      -- A.take 1 <<<
+      -- A.dropWhile (\test -> test.name /= "2172") <$>
+      --   discoverPureScriptTests testsDirectory
     liftEffect $
       Spec.run' (Spec.defaultConfig { timeout = Just 20000 }) [Spec.consoleReporter] do
         describe "PureScript's 'passing' tests" do
           for_ tests \test ->
-           when (test.name == "1110") $ -- XXX remove
             it test.name $
               let
                 pursOutputDir =
@@ -95,7 +96,8 @@ main =
                 -- build the project using Makefile (will produce an executable
                 -- called 'a.out'
                 runProc "make"
-                  [ "-C", cOutputDir
+                  [ "-j", "4"
+                  , "-C", cOutputDir
                   ]
 
                 -- run the built executable
@@ -270,7 +272,7 @@ discoverPureScriptTests testsDirectory = do
                     ]
                 testModules =
                   (testsDirectory <> "/" <> file) A.:
-                  (((testsDirectory <> "/" <> moduleName) <> _) <$> subModules)
+                  (((testsDirectory <> "/" <> moduleName <> "/") <> _) <$> subModules)
               in
               purescriptPrelude <>
               purescriptEffect <>
