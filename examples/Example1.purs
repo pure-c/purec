@@ -39,24 +39,8 @@ foo =
     let z = 200
      in 100
 
--- XXX: will be replaced by Monoid instance for strings
-foreign import concatStringImpl :: String -> String -> String
-
 zzx :: Int
 zzx = 10
-
-xs :: Array String
-xs = mapArrayImpl show [ 10 ]
-
-foreign import mapArrayImpl :: ∀ a b. (a -> b) -> Array a -> Array b
-
-instance showFoo :: Show Foo where
-  show (Bar n x) =
-    concatStringImpl "(Bar " (
-      concatStringImpl (show n) (
-        concatStringImpl " " (
-           concatStringImpl (show x) ")")))
-  show Qux = "(Qux)"
 
 litString :: String
 litString = "foobår"
