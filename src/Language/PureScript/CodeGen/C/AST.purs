@@ -192,12 +192,6 @@ data AST
       }
   -- | Value type cast
   | Cast Type AST
-  -- | Call to getter from templated dict type
-  | DictGet AST AST
-  -- | Call to getter from templated data type
-  | DataGet AST AST
-  -- | Call to getter from record type
-  | RecordGet String AST
   -- | Function application
   | App AST (Array AST)
   -- | Variable

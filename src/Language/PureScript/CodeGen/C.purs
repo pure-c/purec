@@ -642,7 +642,6 @@ exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   arg <- exprToAst expr
   pure $ AST.App R.purs_any_app [f, arg]
 exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
-  -- TODO: implement and apply `innerLambdas` to `bodyAst`
   bodyAst <- exprToAst expr
   argName <- identToVarName indent
   pure $
@@ -656,7 +655,7 @@ exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
       , returnType: R.any
       , body:
           AST.Block
-            [ AST.Return bodyAst -- TODO: optIndexers/classes etc.
+            [ AST.Return bodyAst
             ]
       }
 exprToAst (C.Accessor _ k exp) = ado
@@ -673,8 +672,9 @@ exprToAst (C.Accessor _ k exp) = ado
             [ valueAst ]
         , AST.StringLiteral k
         ])
-
-exprToAst e = throwError $ NotImplementedError $ "exprToAst " <> show e
+exprToAst (C.ObjectUpdate _ o ps) =
+  -- TODO: Implement this
+  throwError $ NotImplementedError $ "exprToAst: C.ObjectUpdate"
 
 qualifiedVarName :: C.ModuleName -> String -> String
 qualifiedVarName (C.ModuleName pieces) varName =
