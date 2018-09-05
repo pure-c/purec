@@ -6,7 +6,8 @@
 // managed data: garbage collected data
 // -----------------------------------------------------------------------------
 
-void managed_release_label (managed_t * managed) {
+void managed_release_label (managed_t *);
+inline void managed_release_label (managed_t * managed) {
 	free(managed->label);
 }
 
@@ -41,7 +42,7 @@ const managed_t * managed_new (const void * data,
 // scopes
 // -----------------------------------------------------------------------------
 
-purs_scope_t * purs_scope_new(const purs_scope_t * parent) {
+inline purs_scope_t * purs_scope_new(const purs_scope_t * parent) {
 	purs_scope_t * scope = GC_MALLOC(sizeof (purs_scope_t));
 	scope->objects = NULL;
 	scope->parent = parent;
@@ -126,7 +127,8 @@ purs_scope_t * __scope__ = NULL;
 // managed blocks
 // -----------------------------------------------------------------------------
 
-void managed_block_release (managed_t * managed) {
+void managed_block_release (managed_t *);
+inline void managed_block_release (managed_t * managed) {
 	purs_scope_t * scope = (purs_scope_t*) managed->ctx;
 	if (scope != NULL) {
 		managed->ctx = NULL;
@@ -217,7 +219,7 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 	return tags[tag];
 }
 
-const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
+inline const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_CONS) {
 		return & x->value.cons;
@@ -226,7 +228,7 @@ const purs_cons_t * purs_any_get_cons_maybe (const purs_any_t * x) {
 	}
 }
 
-const abs_t purs_any_get_abs_maybe (const purs_any_t * x) {
+inline const abs_t purs_any_get_abs_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_ABS) {
 		return (abs_t)(x->value.fn);
@@ -235,7 +237,7 @@ const abs_t purs_any_get_abs_maybe (const purs_any_t * x) {
 	}
 }
 
-const purs_any_int_t * purs_any_get_int_maybe (const purs_any_t * x) {
+inline const purs_any_int_t * purs_any_get_int_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_INT) {
 		return &x->value.integer;
@@ -244,7 +246,7 @@ const purs_any_int_t * purs_any_get_int_maybe (const purs_any_t * x) {
 	}
 }
 
-const double * purs_any_get_number_maybe (const purs_any_t * x) {
+inline const double * purs_any_get_number_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_NUMBER) {
 		return &x->value.number;
@@ -253,7 +255,7 @@ const double * purs_any_get_number_maybe (const purs_any_t * x) {
 	}
 }
 
-const managed_block_t * purs_any_get_abs_block_maybe (const purs_any_t * x) {
+inline const managed_block_t * purs_any_get_abs_block_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_ABS_BLOCK) {
 		return (managed_block_t *) x->value.block;
@@ -262,7 +264,7 @@ const managed_block_t * purs_any_get_abs_block_maybe (const purs_any_t * x) {
 	}
 }
 
-const managed_utf8str_t * purs_any_get_string_maybe (const purs_any_t * x) {
+inline const managed_utf8str_t * purs_any_get_string_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_STRING) {
 		return (const managed_block_t *) x->value.string;
@@ -271,7 +273,7 @@ const managed_utf8str_t * purs_any_get_string_maybe (const purs_any_t * x) {
 	}
 }
 
-const utf8_int32_t * purs_any_get_char_maybe (const purs_any_t * x) {
+inline const utf8_int32_t * purs_any_get_char_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_CHAR) {
 		return &x->value._char;
@@ -280,7 +282,7 @@ const utf8_int32_t * purs_any_get_char_maybe (const purs_any_t * x) {
 	}
 }
 
-const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
+inline const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_RECORD) {
 		return (const purs_record_t *) x->value.record;
@@ -289,7 +291,7 @@ const purs_record_t * purs_any_get_record_maybe (const purs_any_t * x) {
 	}
 }
 
-const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
+inline const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_ARRAY) {
 		return (const purs_vec_t *) x->value.array;
@@ -298,7 +300,7 @@ const purs_vec_t * purs_any_get_array_maybe (const purs_any_t * x) {
 	}
 }
 
-const purs_foreign_t * purs_any_get_foreign_maybe (const purs_any_t * x) {
+inline const purs_foreign_t * purs_any_get_foreign_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_FOREIGN) {
 		return &x->value.foreign;
@@ -308,7 +310,7 @@ const purs_foreign_t * purs_any_get_foreign_maybe (const purs_any_t * x) {
 }
 
 #define PURS_ANY_GET_IMPL(T, X)\
-	T purs_any_get_##X (const purs_any_t * x) {\
+	inline T purs_any_get_##X (const purs_any_t * x) {\
 		x = purs_any_unthunk(x);\
 		purs_assert(x != NULL, "(purs_any_get_" X ") expected: " X ", got: NULL");\
 		char * msg = afmt(\
@@ -394,7 +396,7 @@ PURS_ANY_INIT_IMPL(purs_any_init_array, const purs_vec_t *, PURS_ANY_TAG_ARRAY, 
 PURS_ANY_INIT_IMPL(purs_any_init_foreign, const purs_foreign_t, PURS_ANY_TAG_FOREIGN, foreign)
 
 // XXX: for convenient emitting only (might be removed)
-int purs_cons_get_tag (const purs_cons_t * cons) {
+inline int purs_cons_get_tag (const purs_cons_t * cons) {
 	return cons->tag;
 }
 
@@ -418,22 +420,22 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x,
 	purs_assert(0, "expected function (got: %s)", purs_any_tag_str(x->tag));
 }
 
-int purs_any_eq_char (const purs_any_t * x, utf8_int32_t y) {
+inline int purs_any_eq_char (const purs_any_t * x, utf8_int32_t y) {
 	const utf8_int32_t * a = purs_any_get_char(x);
 	return *a == y;
 }
 
-int purs_any_eq_string (const purs_any_t * x, const void * str) {
+inline int purs_any_eq_string (const purs_any_t * x, const void * str) {
 	const managed_utf8str_t * a = purs_any_get_string(x);
 	return utf8cmp(a->data, str) == 0;
 }
 
-int purs_any_eq_int (const purs_any_t * x, purs_any_int_t y) {
+inline int purs_any_eq_int (const purs_any_t * x, purs_any_int_t y) {
 	const int * a = purs_any_get_int(x);
 	return *a == y;
 }
 
-int purs_any_eq_number (const purs_any_t * x, double y) {
+inline int purs_any_eq_number (const purs_any_t * x, double y) {
 	const double * a = purs_any_get_number(x);
 	return *a == y;
 }
@@ -493,11 +495,11 @@ const void * purs_string_copy (const void * source) {
 // arrays (via vectors)
 // -----------------------------------------------------------------------------
 
-void purs_vec_release (purs_vec_t * vec) {
+inline void purs_vec_release (purs_vec_t * vec) {
 	vec_deinit(vec);
 }
 
-const purs_vec_t * purs_vec_new () {
+inline const purs_vec_t * purs_vec_new () {
 	purs_vec_t * v = purs_new(purs_vec_t);
 	vec_init(v);
 	return (const purs_vec_t *) v;
