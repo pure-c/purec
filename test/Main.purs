@@ -51,12 +51,12 @@ main :: Effect Unit
 main =
   let
     testsDirectory =
-      "tests/purs/passing"
+      "upstream/tests/purs/passing"
   in launchAff_ do
     tests <-
-      -- A.take 1 <<<
-      -- A.dropWhile (\test -> test.name /= "2172") <$>
-      --   discoverPureScriptTests testsDirectory
+      A.take 1 <<<
+      A.dropWhile (\test -> test.name /= "2288") <$>
+        discoverPureScriptTests testsDirectory
     liftEffect $
       Spec.run' (Spec.defaultConfig { timeout = Just 20000 }) [Spec.consoleReporter] do
         describe "PureScript's 'passing' tests" do
