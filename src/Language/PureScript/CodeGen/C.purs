@@ -475,7 +475,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         , initialization: Just $ AST.Var varName
         } A.: next
 
-
   binderToAst varName next
     (C.ConstructorBinder
       (C.Ann { meta: Just C.IsNewtype }) _ _ binders)
@@ -558,7 +557,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         , type: R.any
         , qualifiers: []
         , initialization: Just $ AST.Var varName
-        } A.: next
+        } A.: ast
 
 exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
   | Just { init: initArgs, last: lastArg } <- A.unsnoc fields
