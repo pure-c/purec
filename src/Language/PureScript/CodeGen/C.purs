@@ -17,15 +17,19 @@ import CoreFn.Meta (ConstructorType(..), Meta(..)) as C
 import CoreFn.Module (Module(..)) as C
 import CoreFn.Names (ModuleName(..), ProperName(..), Qualified(..)) as C
 import Data.Array as A
+import Data.Bifunctor (bimap)
 import Data.Char as Int
 import Data.Either (Either(..), either)
+import Data.Function (on)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, for_, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
+import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
+import Debug.Trace (traceM)
 import Foreign.Object as Object
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
@@ -94,9 +98,12 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
             _.moduleName <<< unwrap <$>
               moduleImports
   in runReaderT <@> { module: mod } $ do
-    decls <-
-      A.concat <$> do
+    decls <- do
+      decls <- A.concat <$> do
         traverse (bindToAst true) moduleDecls
+      pure $
+        hoistVarDecls $
+          decls
 
     let
       moduleHeader =
@@ -732,3 +739,67 @@ buildConstructorDeclsWithTags (C.Module { moduleDecls }) =
               typeName
               (Map.insert constructorName ix m')
               m
+
+-- TODO: make this stack safe
+hoistVarDecls :: Array AST -> Array AST
+hoistVarDecls = map go
+  where
+  go (AST.Block xs) =
+    AST.Block $
+      let
+        (decls /\ xs') =
+          A.foldl
+            (\(decls /\ xs') x ->
+              case x of
+                AST.VariableIntroduction x@{ name, initialization: Just initialization } ->
+                  let
+                    decl =
+                      AST.VariableIntroduction $
+                        x { initialization = Nothing }
+                    x' =
+                      AST.Assignment
+                        (AST.Var x.name)
+                        initialization
+                  in
+                    (decls <> [ (name /\ decl) ]) /\ (xs' <> [ x' ])
+                x ->
+                  decls /\ (xs' <> [ x ])
+            ) ([] /\ []) xs
+      in map snd (A.nubBy (compare `on` fst) decls) <> hoistVarDecls xs'
+  go (AST.Unary i a) = AST.Unary i $ go a
+  go (AST.Binary i a b) = AST.Binary i (go a) (go b)
+  go (AST.ArrayLiteral xs) = AST.ArrayLiteral $ go <$> xs
+  go (AST.Indexer a b) = AST.Indexer (go a) (go b)
+  go (AST.ObjectLiteral xs) =
+    AST.ObjectLiteral $
+      xs <#> \{ key, value } ->
+        { key: go key
+        , value: go value
+        }
+  go (AST.Accessor a b) =
+    AST.Accessor (go a) (go b)
+  go (AST.Function (x@{ body: Just body })) =
+    AST.Function $ x { body = Just $ go body }
+  go (AST.Lambda (x@{ body })) =
+    AST.Lambda $ x { body = go body }
+  go (AST.Cast i b) =
+    AST.Cast i (go b)
+  go (AST.App a xs) =
+    AST.App (go a) (map go xs)
+  go (AST.Struct i xs) =
+    AST.Struct i $ map go xs
+  go (AST.VariableIntroduction (x@{ initialization: Just initialization })) =
+    AST.VariableIntroduction $
+      x { initialization = Just $ go initialization
+        }
+  go (AST.Assignment a b) =
+    AST.Assignment (go a) (go b)
+  go (AST.While a b) =
+    AST.While (go a) (go b)
+  go (AST.IfElse a b mC) =
+    AST.IfElse (go a) (go b) (go <$> mC)
+  go (AST.Switch a xs mC) =
+    AST.Switch (go a) (bimap go go <$> xs) (map go mC)
+  go (AST.Return a) =
+    AST.Return (go a)
+  go x = x
