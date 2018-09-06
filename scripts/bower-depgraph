@@ -1,0 +1,25 @@
+#!/bin/bash
+#
+# Generate and print a dependency graph of bower modules To use, navigate to a
+# given bower.json file, run `bower install` on it, and then run this script.
+#
+# Example usage:
+# bower-depgraph > deps.png
+
+function find_bower_jsons {
+	echo bower.json
+	find bower_components -type f -name bower.json
+}
+
+function generate_graph {
+	{
+		echo 'digraph dependencies {'
+		cat | \
+			while read -r f; do
+				jq < "$f" -r '. as $root | {} + .dependencies + .devDependencies | keys | unique [] | "\"" + $root.name + "\" -> \"" + . + "\";"' 
+			done
+		echo '}'
+	} | tred
+}
+
+find_bower_jsons | generate_graph | dot -Tpng /dev/stdin -o /dev/stdout
