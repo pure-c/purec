@@ -14,10 +14,12 @@ function find_bower_jsons {
 function generate_graph {
 	{
 		echo 'digraph dependencies {'
-		cat | \
-			while read -r f; do
-				jq < "$f" -r '. as $root | {} + .dependencies + .devDependencies | keys | unique [] | "\"" + $root.name + "\" -> \"" + . + "\";"' 
-			done
+		while read -r f; do
+			jq < "$f" -r '. as $root | {} + .dependencies + .devDependencies | keys | unique [] | $root.name + " " + .' | \
+				while read -r pkg dep; do
+					echo "\"$pkg\" -> \"$dep\""
+				done
+		done
 		echo '}'
 	} | tred
 }
