@@ -265,6 +265,11 @@ discoverPureScriptTests testsDirectory = do
                     ("bower_components/purescript-effect" <> _)
                     [ "/src/Effect.purs"
                     ]
+                purescriptAssert =
+                  map
+                    ("bower_components/purescript-assert" <> _)
+                    [ "/src/Test/Assert.purs"
+                    ]
                 purescriptEffectConsole =
                   map
                     ("bower_components/purescript-console" <> _)
@@ -277,6 +282,7 @@ discoverPureScriptTests testsDirectory = do
               purescriptPrelude <>
               purescriptEffect <>
               purescriptEffectConsole <>
+              purescriptAssert <>
               testModules
           }
 
