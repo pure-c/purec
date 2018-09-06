@@ -6,6 +6,20 @@
 # Example usage:
 # bower-depgraph > deps.png
 
+completed_ffi_for=(
+	purescript-prelude
+)
+
+function has_completed_ffi {
+	for x in "${completed_ffi_for[@]}"; do
+		if [ "$x" == "$1" ]
+		then
+			return 0
+		fi
+	done
+	return 1
+}
+
 function find_bower_jsons {
 	echo bower.json
 	find bower_components -type f -name bower.json
@@ -14,14 +28,36 @@ function find_bower_jsons {
 function generate_graph {
 	{
 		echo 'digraph dependencies {'
+
+		# draw all package -> dependency relationships
 		while read -r f; do
-			jq < "$f" -r '. as $root | {} + .dependencies + .devDependencies | keys | unique [] | $root.name + " " + .' | \
+			# generate the 'pkg -> dep' node
+			jq < "$f" -r '
+				. as $root |
+					{} + .dependencies + .devDependencies |
+							keys |
+							unique [] |
+							$root.name + " " + .
+				' | \
 				while read -r pkg dep; do
 					echo "\"$pkg\" -> \"$dep\""
 				done
+
+			# set attributes for pkg node
+			if [ "$(find "$(dirname $f)" -type f -name '*.js' | wc -l)" -gt 0 ]; then
+				if has_completed_ffi "$(jq -r .name < "$f")"
+				then
+					echo "\"$(jq < "$f" -r '.name')\" [fillcolor=green, style=filled]"
+				else
+					echo "\"$(jq < "$f" -r '.name')\" [fillcolor=orange, style=filled]"
+				fi
+			fi
 		done
 		echo '}'
-	} | tred
+	}
 }
 
-find_bower_jsons | generate_graph | dot -Tpng /dev/stdin -o /dev/stdout
+find_bower_jsons |\
+	generate_graph |\
+	tred |\
+	dot -Tpng /dev/stdin -o /dev/stdout
