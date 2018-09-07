@@ -1,5 +1,5 @@
 {
-  "name": "purescript-native",
+  "name": "purescript-pure-c",
   "ignore": [
     "**/.*",
     "node_modules",
