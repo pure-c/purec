@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "description": "A C backend for PureScript",
   "main": "index.js",
+  "bin": "purec",
   "directories": {
     "example": "examples",
     "test": "test"
@@ -12,7 +13,8 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "pulp build -t purec.js -O"
   },
   "repository": {
     "type": "git",

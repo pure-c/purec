@@ -42,6 +42,7 @@ import Test.Spec (describe, it)
 import Test.Spec.Reporter.Console as Spec
 import Test.Spec.Runner as Spec
 import Test.Utils (runProc)
+import Main as Main
 
 data PipelineError
   = CompileError C.CompileError
@@ -85,7 +86,7 @@ main =
                         pursOutputDir <> "/" <> moduleName <> "/corefn.json"
                     in do
                       Console.log $ "Compiling to C: " <> moduleName <> "..."
-                      compile
+                      Main.compileModule
                         (moduleName == test.name || moduleName == "Main")
                         cOutputDir
                         corefnJsonFile
@@ -102,94 +103,6 @@ main =
 
                 -- run the built executable
                 runProc (cOutputDir <> "/a.out") []
-
-compile
-  :: Boolean  -- ^ does this module contain  the 'main' entrypoint?
-  -> FilePath -- ^ output directory
-  -> FilePath -- ^ corefn json file
-  -> Aff (Array FilePath)
-compile isMain outputDir jsonFile = do
-  input <- FS.readTextFile UTF8 jsonFile
-  core  <- case runExcept $ C.moduleFromJSON input of
-    Right v ->
-      pure v
-    Left _ ->
-      throwError $ error "Failed to parse Corefn"
-
-  let
-    { module: mod@C.Module { moduleName, modulePath: C.FilePath modulePath } } = core
-    sourceFilePaths =
-      let
-        mkSourcePath ext = (_ <> ext) <<<
-          ((FilePath.dirname modulePath <> "/") <> _) <$>
-            Str.stripSuffix (wrap ".purs") (FilePath.basename modulePath)
-      in
-        { ffi:
-            { c: mkSourcePath ".c"
-            , h: mkSourcePath ".h"
-            }
-        }
-    targetFilePaths =
-      let
-        mkOutputFilePath ext =
-          outputDir <> "/" <> F.cModulePath moduleName <> ext
-      in
-        { h: mkOutputFilePath ".h"
-        , c: mkOutputFilePath ".c"
-        , ffi:
-            { h: mkOutputFilePath "_ffi.h"
-            , c: mkOutputFilePath "_ffi.c"
-            }
-        }
-
-  { header, implementation } <-
-    -- TODO: add `Show` instance for errors
-    either (throwError <<< error <<< const "FAILURE" <<< spy "compile") pure =<< do
-      runSupplyT $ runExceptT do
-        ast <-
-          withExceptT CompileError $
-            C.moduleToAST isMain core."module"
-        let
-          { init: headerAst, rest: implAst } =
-            A.span (notEq AST.EndOfHeader) ast
-        header         <- withExceptT PrintError $ except $ C.prettyPrint headerAst
-        implementation <- withExceptT PrintError $ except $ C.prettyPrint implAst
-        pure { header, implementation }
-
-  map A.catMaybes $ liftAff $
-    -- XXX this should be pulled from a library somewhere
-    let
-      cpTextFile src dst =
-        FS.writeTextFile UTF8 dst =<<
-          FS.readTextFile UTF8 src
-    in
-      sequence
-        [ Nothing <$ do
-            mkdirp $ FilePath.dirname targetFilePaths.h
-            FS.writeTextFile UTF8 targetFilePaths.h header
-        , Just targetFilePaths.c <$ do
-            mkdirp $ FilePath.dirname targetFilePaths.c
-            FS.writeTextFile UTF8 targetFilePaths.c implementation
-        , case sourceFilePaths.ffi.h of
-            Nothing ->
-              pure Nothing
-            Just sourceFile ->
-              Nothing <$ do
-                whenM (FS.exists sourceFile) do
-                  mkdirp $ FilePath.dirname targetFilePaths.ffi.h
-                  cpTextFile sourceFile targetFilePaths.ffi.h
-        , case sourceFilePaths.ffi.c of
-            Nothing ->
-              pure Nothing
-            Just sourceFile ->
-              FS.exists sourceFile >>=
-                if _
-                  then
-                    Just targetFilePaths.ffi.c <$ do
-                      mkdirp $ FilePath.dirname targetFilePaths.ffi.c
-                      cpTextFile sourceFile targetFilePaths.ffi.c
-                  else pure Nothing
-        ]
 
 discoverPureScriptTests
   :: FilePath
@@ -345,27 +258,6 @@ prog: $(RUNTIME_OBJECTS) $(objects)
 		$(LDFLAGS) \
 		-o a.out
   """
-
--- XXX should work recursively
-mkdirp :: String -> Aff Unit
-mkdirp dir = go Nothing (Str.split (wrap "/") dir)
-  where
-  go cd xs
-    | Just { head: x, tail: xs' } <- A.uncons xs
-    =
-      let
-        cd' =
-          maybe "" (_ <> "/") cd <> x
-      in do
-        mkdir cd'
-        go (Just cd') xs'
-  go _ _ =
-    pure unit
-
-  mkdir dir' =
-    FS.mkdir dir' `catchError` \e ->
-      unless (errorCode e == Just "EEXIST") do
-        throwError e
 
 foreign import errorCodeImpl
   :: ∀ a
