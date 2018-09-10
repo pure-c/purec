@@ -4,5 +4,6 @@
 *.o
 *.tmp
 bower_components/
+node_modules/
 output/
 .output/

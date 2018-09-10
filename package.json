@@ -1,0 +1,32 @@
+{
+  "name": "pure-c",
+  "version": "0.0.0",
+  "description": "A C backend for PureScript",
+  "main": "index.js",
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "dependencies": {
+    "posix-getopt": "^1.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pure-c/pure-c.git"
+  },
+  "keywords": [
+    "PureScript",
+    "C",
+    "backend"
+  ],
+  "author": "Felix Schlitter <felixschlitter@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pure-c/pure-c/issues"
+  },
+  "homepage": "https://github.com/pure-c/pure-c#readme"
+}

@@ -53,10 +53,10 @@ main =
     testsDirectory =
       "upstream/tests/purs/passing"
   in launchAff_ do
-    tests <-
-      A.take 1 <<<
-      A.dropWhile (\test -> test.name /= "2288") <$>
-        discoverPureScriptTests testsDirectory
+    tests <- pure []
+      -- A.take 1 <<<
+      -- A.dropWhile (\test -> test.name /= "2288") <$>
+      --   discoverPureScriptTests testsDirectory
     liftEffect $
       Spec.run' (Spec.defaultConfig { timeout = Just 20000 }) [Spec.consoleReporter] do
         describe "PureScript's 'passing' tests" do
@@ -275,6 +275,24 @@ discoverPureScriptTests testsDirectory = do
                     ("bower_components/purescript-console" <> _)
                     [ "/src/Effect/Console.purs"
                     ]
+                purescriptArrays =
+                  map
+                    ("bower_components/purescript-arrays" <> _)
+                    [ "/src/Data/Array.purs"
+                    , "/src/Data/Array/NonEmpty.purs"
+                    , "/src/Data/Array/ST/Iterator.purs"
+                    , "/src/Data/Array/ST/Partial.purs"
+                    , "/src/Data/Array/ST.purs"
+                    , "/src/Data/Array/Partial.purs"
+                    , "/src/Data/Array/NonEmpty/Internal.purs"
+                    ]
+                purescriptPartial =
+                  map
+                    ("bower_components/purescript-partial" <> _)
+                    [ "/src/Partial/Unsafe.purs"
+                    , "/src/Partial.purs"
+                    ]
+
                 testModules =
                   (testsDirectory <> "/" <> file) A.:
                   (((testsDirectory <> "/" <> moduleName <> "/") <> _) <$> subModules)
@@ -283,6 +301,8 @@ discoverPureScriptTests testsDirectory = do
               purescriptEffect <>
               purescriptEffectConsole <>
               purescriptAssert <>
+              purescriptArrays <>
+              purescriptPartial <>
               testModules
           }
 
