@@ -18,12 +18,13 @@ import Data.Traversable (for_, sequence, sequence_)
 import Debug.Trace (traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
-import Effect.Class (liftEffect)
+import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console as Console
 import Effect.Exception (Error)
 import Effect.Exception as Error
 import Language.PureScript.CodeGen.C as C
 import Language.PureScript.CodeGen.C.AST as AST
+import Language.PureScript.CodeGen.C.File (dottedModuleName)
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Pretty as C
 import Language.PureScript.CodeGen.C.Pretty as PrintError
@@ -39,30 +40,25 @@ import POSIX.GetOpt.Monad (GetOptT, getopt, runGetOptT)
 import POSIX.GetOpt.Monad as GetOpt
 
 type RawOptions =
-  { output :: Maybe String
-  , input :: Maybe (Array String)
-  , isMain :: Boolean
+  { input :: Maybe (Array String)
+  , main :: Maybe String
   }
 
 emptyOpts :: RawOptions
 emptyOpts =
   { input: Nothing
-  , output: Nothing
-  , isMain: false
+  , main: Nothing
   }
 
-help = """Usage: purec [-h] [--main] [--output <path>] <input>
+help = """Usage: purec [-h] [--main <name>] <input>...
 
 Options:
   -h, --help
     Show this help and exit.
-  -m, --main
-    Generate 'main' entry point in given module.
-    This requires the given module to define a 'main' function of type
-    'Effect Unit'.
-  -o, --output <path>
-    Where to write the generated C files.
-    Defaults to directory of corefn.json."""
+  -m, --main <name>
+    Specify the name of main module.
+    The main module contains the entry point to the final binary.
+"""
 
 main :: Effect Unit
 main = launchAff_ do
@@ -76,10 +72,8 @@ main = launchAff_ do
             liftEffect do
               Console.log help
               Process.exit 0
-          Just { option: 'o', optarg: Just arg } ->
-            go $ opts { output = Just arg }
-          Just { option: 'm' } ->
-            go $ opts { isMain = true }
+          Just { option: 'm', optarg: Just arg } ->
+            go $ opts { main = Just arg }
           Just _ ->
             go opts
           Nothing -> do
@@ -91,25 +85,23 @@ main = launchAff_ do
                 }
     in liftEffect do
       argv <- Process.argv
-      runGetOptT "mh(help)o:(output)" argv 2 $
+      runGetOptT "m:(main)h(help)" argv 2 $
         go emptyOpts
 
   -- validate options
-  isMain <- pure rawOpts.isMain
-  modulePath <-
-    case A.uncons =<< rawOpts.input of
-      Just { head: filePath } ->
-        pure filePath
-      _ ->
-        die "missing <input>"
-  outputDir <- pure $
-    fromMaybe (FilePath.dirname modulePath) rawOpts.output
+  mainModuleName <- pure rawOpts.main
+  modulePaths    <- pure $ fromMaybe [] $ rawOpts.input
 
-  -- run utility
-  Console.log $ "Compiling to: " <> outputDir
-  compileModule isMain outputDir modulePath
+  -- compile modules to C
+  for_ modulePaths \modulePath -> do
+    Console.log $ "Compiling " <> modulePath <> "..."
+    compileModule
+      (\(C.Module { moduleName }) ->
+        maybe false ((dottedModuleName moduleName) == _) mainModuleName)
+      modulePath
 
   where
+  die :: ∀ m a. MonadEffect m => String -> m a
   die msg =
     liftEffect do
       Console.error msg
@@ -132,12 +124,15 @@ renderPipelineError (PrintError (PrintError.NotImplementedError msg)) =
 
 -- | Compie the given corefn json file to C.
 compileModule
-  :: Boolean  -- ^ does this module contain  the 'main' entrypoint?
-  -> FilePath -- ^ output directory
+  :: (C.Module _ -> Boolean) -- ^ is main module?
   -> FilePath -- ^ corefn json file
   -> Aff Unit
-compileModule isMain outputDir jsonFile = do
-  input <- FS.readTextFile UTF8 jsonFile
+compileModule isMain corefn = do
+  let
+    outputDir =
+      FilePath.dirname corefn
+
+  input <- FS.readTextFile UTF8 corefn
   core  <- case runExcept $ C.moduleFromJSON input of
     Right v ->
       pure v
@@ -187,7 +182,7 @@ compileModule isMain outputDir jsonFile = do
 
       -- derive the C AST
       { header, implementation } <- withExceptT CompileError ado
-        ast <- C.moduleToAST isMain core."module"
+        ast <- C.moduleToAST (isMain $ core."module") core."module"
         in
           let
             { init: header

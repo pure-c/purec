@@ -26,11 +26,14 @@ LDFLAGS = -lBlocksRuntime -lgc -lm
 		$(CLANG_FLAGS) \
 		$^
 
-example1_sources = $(shell find .tmp/sources/Example1 -type f -name '*.c')
-example1_objects = $(patsubst %.c,%.o,$(example1_sources))
-example1: CLANG_FLAGS = -I .tmp/sources/Example1
-example1: $(RUNTIME_OBJECTS) $(example1_objects)
-	@clang \
-		$^ \
-		$(LDFLAGS) \
-		-o example1
+example1_srcs = $(shell find src -type f -name '*.purs')
+example1_deps = $(shell find bower_components/purescript-*/src -type f -name '*.purs')
+example1/corefns: $(example1_srcs) $(example1_deps)
+	@purs compile \
+		-g corefn \
+		-o $(patsubst %/corefns,.purec-work/%,$@) \
+		$^
+
+example1/genc: example1/corefns
+	@node ./purec \
+		$(shell find "$(patsubst %/genc,.purec-work/%,$@)" -type f -name corefn.json)

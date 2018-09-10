@@ -2,6 +2,7 @@ module Language.PureScript.CodeGen.C.File
   ( withHeaderGuard
   , toHeader
   , toBody
+  , dottedModuleName
   , cModuleName
   , cModulePath
   , nativeMain
@@ -33,6 +34,13 @@ import Language.PureScript.CodeGen.C.Common (safeName)
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 
+dottedModuleName
+  :: C.ModuleName
+  -> String
+dottedModuleName (C.ModuleName pieces) =
+  A.intercalate "." $
+    unwrap <$> pieces
+
 cModuleName
   :: C.ModuleName
   -> String
@@ -43,9 +51,8 @@ cModuleName (C.ModuleName pieces) =
 cModulePath
   :: C.ModuleName
   -> String
-cModulePath (C.ModuleName pieces) =
-  A.intercalate "/" $
-    unwrap <$> pieces
+cModulePath =
+  dottedModuleName
 
 withHeaderGuard
   :: C.ModuleName
