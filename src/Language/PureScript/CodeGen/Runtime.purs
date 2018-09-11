@@ -31,6 +31,7 @@ module Language.PureScript.CodeGen.Runtime
   , _NULL
   , purs_any_true
   , purs_any_false
+  , purs_scope_capture
   ) where
 
 import Prelude
@@ -78,6 +79,9 @@ purs_cons_get_tag = AST.Var "purs_cons_get_tag"
 
 purs_any_app :: AST
 purs_any_app = AST.Var "purs_any_app"
+
+purs_scope_capture :: AST
+purs_scope_capture = AST.Var "purs_scope_capture"
 
 purs_record_new_from_kvps :: AST
 purs_record_new_from_kvps = AST.Var "purs_record_new_from_kvps"

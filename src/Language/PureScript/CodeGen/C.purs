@@ -755,7 +755,10 @@ hoistVarDecls = map go
                     x' =
                       AST.Assignment
                         (AST.Var x.name)
-                        initialization
+                        -- XXX chance for optimization: only capture if required
+                        -- XXX same could be true for using heap vs. stack more
+                        --     more generally speaking
+                        (AST.App R.purs_scope_capture [ initialization ])
                   in
                     (decls <> [ (name /\ decl) ]) /\ (xs' <> [ x' ])
                 x ->
