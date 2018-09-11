@@ -1,3 +1,5 @@
+.PHONY: clean
+
 SHELL := /bin/bash
 
 RUNTIME_SOURCES = \
@@ -8,6 +10,9 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = $(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
 LDFLAGS = -lBlocksRuntime -lgc -lm
+
+clean:
+	@rm -rf .purec-work
 
 %.o: %.c
 	@echo "Compile" $^
@@ -51,9 +56,14 @@ example1/corefns: $(example1_srcs) $(example1_deps)
 		$^
 
 example1/genc: example1/corefns
+example1/genc:
 	@node ./purec -m Example1 \
 		$(shell find "$(patsubst %/genc,.purec-work/%,$@)" -type f -name corefn.json)
 
-example1: | example1/genc
-example1: $(RUNTIME_OBJECTS) $(patsubst %.c,%.o,$(wildcard .purec-work/example1/*.c))
-	clang $^ $(LDFLAGS) -o $@
+example1/build: \
+	$(RUNTIME_OBJECTS) \
+	$(patsubst %.c,%.o,$(wildcard .purec-work/example1/*.c))
+	clang $^ $(LDFLAGS) -o $(patsubst %/build,%,$@)
+
+example1: example1/genc
+	$(MAKE) example1/build
