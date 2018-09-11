@@ -2,6 +2,8 @@
 
 SHELL := /bin/bash
 
+PUREC_WORKDIR := .purec-work
+
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
 	$(shell find ccan -type f -name '*.c') \
@@ -12,7 +14,7 @@ RUNTIME_OBJECTS = $(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 LDFLAGS = -lBlocksRuntime -lgc -lm
 
 clean:
-	@rm -rf .purec-work
+	@rm -rf $(PUREC_WORKDIR)
 
 %.o: %.c
 	@echo "Compile" $^
@@ -52,17 +54,17 @@ example1_deps = \
 example1/corefns: $(example1_srcs) $(example1_deps)
 	@purs compile \
 		-g corefn \
-		-o $(patsubst %/corefns,.purec-work/%,$@) \
+		-o $(patsubst %/corefns,$(PUREC_WORKDIR)/%,$@) \
 		$^
 
 example1/genc: example1/corefns
 example1/genc:
 	@node ./purec -m Example1 \
-		$(shell find "$(patsubst %/genc,.purec-work/%,$@)" -type f -name corefn.json)
+		$(shell find "$(patsubst %/genc,$(PUREC_WORKDIR)/%,$@)" -type f -name corefn.json)
 
 example1/build: \
 	$(RUNTIME_OBJECTS) \
-	$(patsubst %.c,%.o,$(wildcard .purec-work/example1/*.c))
+	$(patsubst %.c,%.o,$(wildcard $(PUREC_WORKDIR)/example1/*.c))
 	clang $^ $(LDFLAGS) -o $(patsubst %/build,%,$@)
 
 example1: example1/genc
