@@ -36,7 +36,15 @@ apt-get install \
 	libgc-dev
 ```
 
+## Build the purec utility
+
+```
+npm run build
+```
+
 ## Running the example
+
+Make sure you built the purec utility first (`npm run build`).
 
 ```
 make example1 && ./example1
