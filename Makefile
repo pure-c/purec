@@ -35,20 +35,18 @@ clean:
 		$^
 
 example1_srcs = \
-	$(patsubst %.c,%.purs,$(patsubst %.h,%.purs,$(shell \
+	$(shell \
 		find examples \
+			\( ! -regex '.*/\..*' \) \
 			-type f \
-			-name '*.purs' \
-			-o -name '*.c' \
-			-o -name '*.h')))
+			-name '*.purs')
 
 example1_deps = \
-	$(patsubst %.c,%.purs,$(patsubst %.h,%.purs,$(shell \
+	$(shell \
 		find bower_components/purescript-{effect,console,prelude}/src \
+			\( ! -regex '.*/\..*' \) \
 			-type f \
-			-name '*.purs' \
-			-o -name '*.c' \
-			-o -name '*.h')))
+			-name '*.purs')
 
 example1/corefns: $(example1_srcs) $(example1_deps)
 	@purs compile \
@@ -68,6 +66,8 @@ example1/build: \
 		$(LDFLAGS) \
 		-ffunction-sections \
 		-Wl,-gc-sections \
+		-O3 \
+		-luv \
 		-o $(patsubst %/build,%,$@)
 
 example1: example1/genc

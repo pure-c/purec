@@ -135,6 +135,7 @@ nativeMain mainVar =
     , body: Just $
         AST.Block
           [ AST.App (AST.Var "GC_INIT") []
+          , AST.App (AST.Var "GC_allow_register_threads") []
           , AST.App
               R.purs_any_app
               [ mainVar

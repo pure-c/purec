@@ -341,7 +341,8 @@ PURS_ANY_GET_IMPL(const purs_record_t *, record);
 PURS_ANY_GET_IMPL(const purs_vec_t *, array);
 PURS_ANY_GET_IMPL(const purs_foreign_t *, foreign);
 
-#ifdef PURS_DEBUG_FINALIZATION
+/* #ifdef PURS_DEBUG_FINALIZATION */
+#if 0
 static void purs_print_finalized(void * ptr) {
 	const purs_any_t * x = (const purs_any_t *) ptr;
 	printf("finalizing: %p (tag=%s) (value=", x, purs_any_tag_str(*purs_any_get_tag_maybe(x)));

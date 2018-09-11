@@ -3,8 +3,10 @@ module Example1
   ) where
 
 
-import Prelude
 import Effect
+import Prelude
+
+import Effect.Console as Console
 
 data Maybe a
   = Nothing
@@ -213,8 +215,34 @@ main_1 = go 1
 
 foreign import usleep :: Int -> Effect Unit
 
-main :: Effect Unit
-main = do
+foreign import plus :: Int -> Int -> Int
+foreign import xpure :: ∀ a. a -> Effect a
+foreign import xbind :: ∀ a b. Effect a -> (a -> Effect b) -> Effect b
+
+xmain :: Effect Unit
+xmain = do
   main_1 *> runGC *> usleep 100
   main_2 *> runGC *> usleep 100
   main_3 *> runGC *> usleep 100
+
+foreign import data UVLoop :: Type
+foreign import data UVRunMode :: Type
+foreign import data UVThread :: Type
+
+foreign import uvDefaultLoop :: Effect UVLoop
+foreign import uvRun :: UVLoop -> UVRunMode -> Effect Unit
+foreign import uvRunDefault :: UVRunMode
+
+foreign import uvThreadCreate :: Effect Unit -> Effect UVThread
+foreign import uvThreadJoin :: UVThread -> Effect Unit
+
+main :: Effect Unit
+main = do
+  loop <- uvDefaultLoop
+  thread1 <- uvThreadCreate $ xmain
+  thread2 <- uvThreadCreate $ xmain *> xmain
+  thread3 <- uvThreadCreate $ xmain *> xmain *> xmain
+  uvThreadJoin thread1
+  uvThreadJoin thread2
+  uvThreadJoin thread3
+  uvRun loop uvRunDefault
