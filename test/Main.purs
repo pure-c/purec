@@ -54,55 +54,53 @@ main =
     testsDirectory =
       "upstream/tests/purs/passing"
   in launchAff_ do
-    tests <- pure []
-      -- A.take 1 <<<
+    tests <-
+      A.take 1 <$>
       -- A.dropWhile (\test -> test.name /= "2288") <$>
-      --   discoverPureScriptTests testsDirectory
+        discoverPureScriptTests testsDirectory
     liftEffect $
       Spec.run' (Spec.defaultConfig { timeout = Just 20000 }) [Spec.consoleReporter] do
         describe "PureScript's 'passing' tests" do
           for_ tests \test ->
             it test.name $
               let
-                pursOutputDir =
+                outputDir =
                   ".tmp/output/" <> test.name
-                cOutputDir =
-                  ".tmp/sources/" <> test.name
               in do
                 -- compile each module to it's corefn json rep
                 Console.log "Compiling PureScript to CoreFn..."
                 runProc "purs" $
                   [ "compile"
-                  , "-o", pursOutputDir
+                  , "-o", outputDir
                   , "-g", "corefn"
                   ] <> test.files
 
                 -- compile each module's corefn json rep to c
                 Console.log "Compiling CoreFn to C..."
                 void $
-                  FS.readdir pursOutputDir >>= traverse \moduleName ->
+                  FS.readdir outputDir >>= traverse \moduleName ->
                     let
                       corefnJsonFile =
-                        pursOutputDir <> "/" <> moduleName <> "/corefn.json"
+                        outputDir <> "/" <> moduleName <> "/corefn.json"
                     in do
-                      Console.log $ "Compiling to C: " <> moduleName <> "..."
-                      Main.compileModule
-                        (moduleName == test.name || moduleName == "Main")
-                        cOutputDir
-                        corefnJsonFile
+                      whenM (FS.exists corefnJsonFile) do
+                        Console.log $ "Compiling to C: " <> moduleName <> "..."
+                        Main.compileModule
+                          (const $ moduleName == test.name || moduleName == "Main")
+                          corefnJsonFile
 
                 -- generate Makefile
-                FS.writeTextFile UTF8 (cOutputDir <> "/Makefile") tempMakeFile
+                FS.writeTextFile UTF8 (outputDir <> "/Makefile") tempMakeFile
 
                 -- build the project using Makefile (will produce an executable
                 -- called 'a.out'
                 runProc "make"
-                  [ "-j", "4"
-                  , "-C", cOutputDir
+                  [ "-j", "8"
+                  , "-C", outputDir
                   ]
 
                 -- run the built executable
-                runProc (cOutputDir <> "/a.out") []
+                runProc (outputDir <> "/a.out") []
 
 discoverPureScriptTests
   :: FilePath
@@ -188,23 +186,6 @@ discoverPureScriptTests testsDirectory = do
                     ("bower_components/purescript-console" <> _)
                     [ "/src/Effect/Console.purs"
                     ]
-                purescriptArrays =
-                  map
-                    ("bower_components/purescript-arrays" <> _)
-                    [ "/src/Data/Array.purs"
-                    , "/src/Data/Array/NonEmpty.purs"
-                    , "/src/Data/Array/ST/Iterator.purs"
-                    , "/src/Data/Array/ST/Partial.purs"
-                    , "/src/Data/Array/ST.purs"
-                    , "/src/Data/Array/Partial.purs"
-                    , "/src/Data/Array/NonEmpty/Internal.purs"
-                    ]
-                purescriptPartial =
-                  map
-                    ("bower_components/purescript-partial" <> _)
-                    [ "/src/Partial/Unsafe.purs"
-                    , "/src/Partial.purs"
-                    ]
 
                 testModules =
                   (testsDirectory <> "/" <> file) A.:
@@ -214,8 +195,6 @@ discoverPureScriptTests testsDirectory = do
               purescriptEffect <>
               purescriptEffectConsole <>
               purescriptAssert <>
-              purescriptArrays <>
-              purescriptPartial <>
               testModules
           }
 
