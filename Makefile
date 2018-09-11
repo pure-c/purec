@@ -65,7 +65,7 @@ example1/genc:
 example1/build: \
 	$(RUNTIME_OBJECTS) \
 	$(patsubst %.c,%.o,$(wildcard $(PUREC_WORKDIR)/example1/*.c))
-	clang $^ $(LDFLAGS) -o $(patsubst %/build,%,$@)
+	@clang $^ $(LDFLAGS) -o $(patsubst %/build,%,$@)
 
 example1: example1/genc
 	$(MAKE) example1/build
