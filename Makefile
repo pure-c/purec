@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
 	$(shell find ccan -type f -name '*.c') \
@@ -26,8 +28,22 @@ LDFLAGS = -lBlocksRuntime -lgc -lm
 		$(CLANG_FLAGS) \
 		$^
 
-example1_srcs = $(shell find src -type f -name '*.purs')
-example1_deps = $(shell find bower_components/purescript-*/src -type f -name '*.purs')
+example1_srcs = \
+	$(patsubst %.c,%.purs,$(patsubst %.h,%.purs,$(shell \
+		find examples \
+			-type f \
+			-name '*.purs' \
+			-o -name '*.c' \
+			-o -name '*.h')))
+
+example1_deps = \
+	$(patsubst %.c,%.purs,$(patsubst %.h,%.purs,$(shell \
+		find bower_components/purescript-{effect,console,prelude}/src \
+			-type f \
+			-name '*.purs' \
+			-o -name '*.c' \
+			-o -name '*.h')))
+
 example1/corefns: $(example1_srcs) $(example1_deps)
 	@purs compile \
 		-g corefn \
@@ -35,5 +51,9 @@ example1/corefns: $(example1_srcs) $(example1_deps)
 		$^
 
 example1/genc: example1/corefns
-	@node ./purec \
+	@node ./purec -m Example1 \
 		$(shell find "$(patsubst %/genc,.purec-work/%,$@)" -type f -name corefn.json)
+
+example1: | example1/genc
+example1: $(RUNTIME_OBJECTS) $(patsubst %.c,%.o,$(wildcard .purec-work/example1/*.c))
+	clang $^ $(LDFLAGS) -o $@

@@ -64,13 +64,13 @@ data C = C | D A
 
 instance showC :: Show C where
   show C = "(C)"
-  show (D d) = (concatStringImpl "(D " (concatStringImpl (show d) ")"))
+  show (D d) = "(D " <> (show d) <> ")"
 
 
 instance showA :: Show A where
   show A = "(A)"
-  show (B a) = (concatStringImpl "(B " (concatStringImpl (show a) ")"))
-  show (E c) = (concatStringImpl "(C " (concatStringImpl (show c) ")"))
+  show (B a) = "(B " <> (show a) <> ")"
+  show (E c) = "(C " <> (show c) <> ")"
 
 showThemAll :: String
 showThemAll =

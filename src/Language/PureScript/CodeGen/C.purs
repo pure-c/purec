@@ -75,16 +75,13 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
       ("runtime/purescript" A.: _) $
        map F.cModulePath $
         (A.catMaybes [
-          let
-            C.ModuleName pieces =
-              moduleName
-          in ado
+          ado
             guard $ not (A.null moduleForeign)
-            { init, last: C.ProperName last } <- A.unsnoc pieces
             in
-              C.ModuleName $
-                A.snoc init $
-                  C.ProperName $ last <> "_ffi"
+              C.ModuleName
+                [ C.ProperName $
+                    F.dottedModuleName moduleName <> "_ffi"
+                ]
         ]) <> do
          A.filter
           (\(C.ModuleName pieces) ->

@@ -36,14 +36,16 @@ apt-get install \
 	libgc-dev
 ```
 
-## Running the tests
-
-**NOTE** The test suite is still being built out [#12](https://github.com/pure-c/pure-c/issues/12).
-For now this has to suffice:
-
+## Running the example
 
 ```
-pulp test && make example1
+make example1 && ./example1
+```
+
+## Running the tests
+
+```
+pulp test
 ```
 
 ## Contributing

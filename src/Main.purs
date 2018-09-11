@@ -5,6 +5,7 @@ module Main
 
 import Prelude
 
+import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except (except, runExcept, runExceptT, withExceptT)
 import CoreFn.FromJSON as C
@@ -15,7 +16,6 @@ import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (wrap)
 import Data.String as Str
 import Data.Traversable (for_, sequence, sequence_)
-import Debug.Trace (traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (class MonadEffect, liftEffect)
@@ -89,7 +89,7 @@ main = launchAff_ do
         go emptyOpts
 
   -- validate options
-  mainModuleName <- pure rawOpts.main
+  mainModuleName <- pure $ rawOpts.main <|> Just "Main"
   modulePaths    <- pure $ fromMaybe [] $ rawOpts.input
 
   -- compile modules to C
@@ -130,7 +130,7 @@ compileModule
 compileModule isMain corefn = do
   let
     outputDir =
-      FilePath.dirname corefn
+      FilePath.dirname corefn <> "/.."
 
   input <- FS.readTextFile UTF8 corefn
   core  <- case runExcept $ C.moduleFromJSON input of
@@ -194,7 +194,7 @@ compileModule isMain corefn = do
       -- pretty print the AST
       withExceptT PrintError ado
         header'         <- except $ C.prettyPrint header
-        implementation' <- except $ C.prettyPrint header
+        implementation' <- except $ C.prettyPrint implementation
         in { header: header', implementation: implementation' }
 
   -- Emit to disk
