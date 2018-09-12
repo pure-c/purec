@@ -3,24 +3,30 @@
 
 #include <purescript.h>
 
-PURS_FFI_FUNC_1(Example1_runGC, _, {
-	GC_gcollect();
+PURS_FFI_FUNC_2(Example1_putStr, s, _, {
+	printf("%s", purs_any_get_string(s)->data);
 	return NULL;
 })
 
-PURS_FFI_FUNC_2(Example1_usleep, x, _, {
-	usleep(*purs_any_get_int(x));
+PURS_FFI_FUNC_2(Example1_exit, _code, _, {
+	exit(*purs_any_get_int(_code));
 	return NULL;
 })
 
-PURS_FFI_FUNC_1(Example1_unsafeCoerce, x, {
-	return x;
+PURS_FFI_FUNC_2(Example1_putStrLn, s, _, {
+	printf("%s\n", purs_any_get_string(s)->data);
+	return NULL;
 })
 
-PURS_FFI_FUNC_2(Example1_consoleLog, _s, _, {
-	const void * s = purs_any_get_string(_s)->data;
-	printf("%s\n", s);
-	return NULL;
+PURS_FFI_FUNC_3(Example1_getLineImpl, Just, Nothing, _, {
+	int len;
+	char * line = NULL;
+	if (getline(&line, &len, stdin) != -1) {
+		line[strlen(line) - 1] = 0; // remove trailing newline
+		return purs_any_app(Just, PURS_ANY_STRING_NEW(line));
+	} else {
+		return Nothing;
+	}
 })
 
 #endif // Example1_FFI_H
