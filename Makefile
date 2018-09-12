@@ -11,7 +11,7 @@ RUNTIME_SOURCES = \
 
 RUNTIME_OBJECTS = $(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-LDFLAGS = -lBlocksRuntime -lgc -lm
+LDFLAGS = -l:libBlocksRuntime.a -l:libgc.a -lm -lpthread
 
 clean:
 	@rm -rf $(PUREC_WORKDIR)
@@ -65,9 +65,9 @@ example1/build: \
 	$(RUNTIME_OBJECTS) \
 	$(patsubst %.c,%.o,$(wildcard $(PUREC_WORKDIR)/example1/*.c))
 	@clang $^ \
+		$(LDFLAGS) \
 		-ffunction-sections \
 		-Wl,-gc-sections \
-		$(LDFLAGS) \
 		-o $(patsubst %/build,%,$@)
 
 example1: example1/genc
