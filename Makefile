@@ -1,4 +1,4 @@
-.PHONY: clean
+.PHONY: clean .purec-work/example1/.corefns
 
 SHELL := /bin/bash
 
@@ -50,25 +50,33 @@ example1_deps = \
 			-o -name '*.c' \
 			-o -name '*.h')))
 
-example1/corefns: $(example1_srcs) $(example1_deps)
-	@purs compile \
-		-g corefn \
-		-o $(patsubst %/corefns,$(PUREC_WORKDIR)/%,$@) \
-		$^
+%/corefn.json.1: %/corefn.json
+	rsync $< $@
 
-example1/genc: example1/corefns
-example1/genc:
-	@node ./purec -m Example1 \
-		$(shell find "$(patsubst %/genc,$(PUREC_WORKDIR)/%,$@)" -type f -name corefn.json)
+$(PUREC_WORKDIR)/example1/.corefns: $(example1_srcs) $(example1_deps)
+	@mkdir -p $(@D)
+	@purs compile -g corefn -o $(@D) $^
+	@touch $@
 
-example1/build: \
+$(PUREC_WORKDIR)/example1/.genc: $(PUREC_WORKDIR)/example1/.corefns
+$(PUREC_WORKDIR)/example1/.genc:
+	@mkdir -p $(@D)
+	@$(MAKE) $@.1
+	@touch $@
+
+$(PUREC_WORKDIR)/example1/.genc.1: $(patsubst %,%.1,$(shell find "$(PUREC_WORKDIR)/example1" -type f -name corefn.json))
+	@node ./purec -m Example1 $?
+	@touch $@
+
+$(PUREC_WORKDIR)/example1/.build: \
 	$(RUNTIME_OBJECTS) \
 	$(patsubst %.c,%.o,$(wildcard $(PUREC_WORKDIR)/example1/*.c))
 	@clang $^ \
 		$(LDFLAGS) \
 		-ffunction-sections \
 		-Wl,-gc-sections \
-		-o $(patsubst %/build,%,$@)
+		-o example1
+	@touch $@
 
-example1: example1/genc
-	$(MAKE) example1/build
+example1: $(PUREC_WORKDIR)/example1/.genc
+example1: ; $(MAKE) $(PUREC_WORKDIR)/example1/.build
