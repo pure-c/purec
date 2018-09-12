@@ -29,7 +29,6 @@ clean:
 		-Wno-unused-variable \
 		-Wno-unused-value \
 		-c \
-		-O3 \
 		-o $@ \
 		-I . \
 		$(CLANG_FLAGS) \
@@ -65,7 +64,11 @@ example1/genc:
 example1/build: \
 	$(RUNTIME_OBJECTS) \
 	$(patsubst %.c,%.o,$(wildcard $(PUREC_WORKDIR)/example1/*.c))
-	@clang $^ $(LDFLAGS) -o $(patsubst %/build,%,$@)
+	@clang $^ \
+		-ffunction-sections \
+		-Wl,-gc-sections \
+		$(LDFLAGS) \
+		-o $(patsubst %/build,%,$@)
 
 example1: example1/genc
 	$(MAKE) example1/build
