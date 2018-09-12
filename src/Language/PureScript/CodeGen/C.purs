@@ -363,14 +363,18 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
       C.CharLiteral c ->
         pure
           [ AST.IfElse
-              (AST.Binary AST.EqualTo (AST.Var varName) (AST.CharLiteral c))
+              (AST.App
+                R.purs_any_eq_char
+                [ AST.Var varName, AST.CharLiteral c ])
               (AST.Block next)
               Nothing
           ]
       C.StringLiteral str ->
         pure
           [ AST.IfElse
-              (AST.Binary AST.EqualTo (AST.Var varName) (AST.StringLiteral str))
+              (AST.App
+                R.purs_any_eq_string
+                [ AST.Var varName, AST.StringLiteral str ])
               (AST.Block next)
               Nothing
           ]

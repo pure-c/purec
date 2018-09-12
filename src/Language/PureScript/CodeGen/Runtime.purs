@@ -1,6 +1,8 @@
 module Language.PureScript.CodeGen.Runtime
   ( purs_any_app
   , purs_any_eq_int
+  , purs_any_eq_char
+  , purs_any_eq_string
   , purs_any_eq_float
   , purs_any_get_cons
   , purs_any_get_record
@@ -64,6 +66,12 @@ purs_any_true = AST.Var "purs_any_true"
 
 purs_any_eq_int :: AST
 purs_any_eq_int = AST.Var "purs_any_eq_int"
+
+purs_any_eq_char :: AST
+purs_any_eq_char = AST.Var "purs_any_eq_char"
+
+purs_any_eq_string :: AST
+purs_any_eq_string = AST.Var "purs_any_eq_string"
 
 purs_any_get_cons :: AST
 purs_any_get_cons = AST.Var "purs_any_get_cons"
