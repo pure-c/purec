@@ -1,7 +1,7 @@
 #ifndef Main_H
 #define Main_H
 
-#include "runtime/purescript.h"
+#include <purescript.h>
 
 PURS_FFI_EXPORT(Main_a$);
 PURS_FFI_EXPORT(Main_b$);

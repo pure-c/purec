@@ -1,4 +1,4 @@
-#include "runtime/purescript.h"
+#include <purescript.h>
 
 PURS_FFI_VALUE(Main_a$, PURS_ANY_NUMBER(0.0));
 PURS_FFI_VALUE(Main_b$, PURS_ANY_NUMBER(1.0));

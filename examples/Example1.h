@@ -1,7 +1,7 @@
 #ifndef Example1_FFI_H
 #define Example1_FFI_H
 
-#include "runtime/purescript.h"
+#include <purescript.h>
 
 PURS_FFI_FUNC_1(Example1_runGC, _, {
 	GC_gcollect();

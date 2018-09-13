@@ -1,4 +1,4 @@
-.PHONY: clean .purec-work/example1/.corefns
+.PHONY: clean
 
 SHELL := /bin/bash
 
@@ -30,6 +30,7 @@ clean:
 		-Wno-unused-value \
 		-c \
 		-o $@ \
+		-I runtime \
 		-I . \
 		$(CLANG_FLAGS) \
 		$^
@@ -44,7 +45,7 @@ example1_srcs = \
 
 example1_deps = \
 	$(patsubst %.c,%.purs,$(patsubst %.h,%.purs,$(shell \
-		find bower_components/purescript-{effect,console,prelude}/src \
+		find bower_components/purescript-{effect,console,prelude,control}/src \
 			-type f \
 			-name '*.purs' \
 			-o -name '*.c' \

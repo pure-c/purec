@@ -1,6 +1,6 @@
 #include <gc/gc.h>
 #include "Block.h"
-#include "runtime/purescript.h"
+#include "purescript.h"
 
 // -----------------------------------------------------------------------------
 // managed data: garbage collected data
@@ -532,6 +532,12 @@ const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
 		       sizeof (*copy->data) * vec->capacity);
 		return (const purs_vec_t *) copy;
 	}
+}
+
+const purs_vec_t * purs_vec_slice (const purs_vec_t * vec, int begin) {
+	purs_vec_t * copy = (purs_vec_t *) purs_vec_copy(vec);
+	vec_splice(copy, 0, begin);
+	return (const purs_vec_t *) copy;
 }
 
 const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,

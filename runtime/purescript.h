@@ -309,6 +309,7 @@ void purs_vec_release (purs_vec_t *);
 const purs_vec_t * purs_vec_new ();
 const purs_vec_t * purs_vec_new_va (int count, ...);
 const purs_vec_t * purs_vec_copy (const purs_vec_t *);
+const purs_vec_t * purs_vec_slice (const purs_vec_t *, int begin);
 
 #define purs_vec_new_from_array(count, ...)\
 	purs_vec_new_va(count, __VA_ARGS__)

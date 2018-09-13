@@ -72,7 +72,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
     cModulePath =
       F.cModulePath moduleName
     cIncludes =
-      ("runtime/purescript" A.: _) $
+      ("purescript" A.: _) $
        map F.cModulePath $
         (A.catMaybes [
           ado
