@@ -11,19 +11,10 @@ local machine for development and testing purposes.
 ### Prerequisites
 
 * Install node.js, including `npm`
-* Install global command line utilities for working with PureScript in general
 
 ```
-npm i -g \
-	bower \
-	purescript \
-	pulp
-```
-
-* Install project dependencies
-
-```
-bower install
+npm install && \
+	bower install
 ```
 
 ##### Ubuntu 16.04
@@ -31,7 +22,6 @@ bower install
 ```
 apt-get install \
 	libblocksruntime-dev \
-	uthash-dev \
 	uthash-dev \
 	libgc-dev
 ```
