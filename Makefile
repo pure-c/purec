@@ -2,16 +2,27 @@
 
 SHELL := /bin/bash
 
+MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR := $(notdir $(patsubst %/,%,$(dir $(MKFILE_PATH))))
+
 PUREC_WORKDIR := .purec-work
+
+PURS := PATH=$$PATH:$(CURRENT_DIR)/node_modules/.bin purs
+PUREC := node ./purec.js
 
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
 	$(shell find ccan -type f -name '*.c') \
 	$(shell find vendor -type f -name '*.c')
 
-RUNTIME_OBJECTS = $(patsubst %.c,%.o,$(RUNTIME_SOURCES))
+RUNTIME_OBJECTS = \
+	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-LDFLAGS = -l:libBlocksRuntime.a -l:libgc.a -lm -lpthread
+LDFLAGS = \
+	-l:libBlocksRuntime.a \
+	-l:libgc.a \
+	-lm \
+	-lpthread
 
 clean:
 	@rm -rf $(PUREC_WORKDIR)
@@ -56,7 +67,7 @@ example1_deps = \
 
 $(PUREC_WORKDIR)/example1/.corefns: $(example1_srcs) $(example1_deps)
 	@mkdir -p $(@D)
-	@purs compile -g corefn -o $(@D) $^
+	@$(PURS) compile -g corefn -o $(@D) $^
 	@touch $@
 
 $(PUREC_WORKDIR)/example1/.genc: $(PUREC_WORKDIR)/example1/.corefns
@@ -66,7 +77,7 @@ $(PUREC_WORKDIR)/example1/.genc:
 	@touch $@
 
 $(PUREC_WORKDIR)/example1/.genc.1: $(patsubst %,%.1,$(shell find "$(PUREC_WORKDIR)/example1" -type f -name corefn.json))
-	@node ./purec -m Example1 $?
+	$(PUREC) -m Example1 $?
 	@touch $@
 
 $(PUREC_WORKDIR)/example1/.build: \
