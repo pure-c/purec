@@ -32,12 +32,13 @@ apt-get install \
 npm run build
 ```
 
-## Running the example
+## Running the examples
 
 Make sure you built the purec utility first (`npm run build`).
 
 ```
-make example1 && ./example1
+# make examples/<name> && ./<name>.out
+make examples/example1 && ./example1.out
 ```
 
 ## Running the tests
