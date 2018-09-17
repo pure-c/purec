@@ -8,5 +8,4 @@ node_modules/
 output/
 .output/
 .purec-work/
-example1
 purec.js

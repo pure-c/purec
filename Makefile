@@ -46,49 +46,55 @@ clean:
 		$(CLANG_FLAGS) \
 		$^
 
-example1_srcs = \
-	$(patsubst %.c,%.purs,$(patsubst %.h,%.purs,$(shell \
-		find examples \
+%/corefn.json.1: %/corefn.json
+	@rsync $< $@
+
+define mk_target
+$(1)_srcs = \
+	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$(shell \
+		find "examples/$(1)" \
 			-type f \
 			-name '*.purs' \
 			-o -name '*.c' \
 			-o -name '*.h')))
 
-example1_deps = \
-	$(patsubst %.c,%.purs,$(patsubst %.h,%.purs,$(shell \
+$(1)_deps = \
+	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$(shell \
 		find bower_components/purescript-{effect,console,prelude,control}/src \
 			-type f \
 			-name '*.purs' \
 			-o -name '*.c' \
 			-o -name '*.h')))
 
-%/corefn.json.1: %/corefn.json
-	rsync $< $@
+$$(PUREC_WORKDIR)/$(1)/.corefns: $$($(1)_srcs) $$($(1)_deps)
+	@mkdir -p $$(@D)
+	@$$(PURS) compile -g corefn -o $$(@D) $$^
+	@touch $$@
 
-$(PUREC_WORKDIR)/example1/.corefns: $(example1_srcs) $(example1_deps)
-	@mkdir -p $(@D)
-	@$(PURS) compile -g corefn -o $(@D) $^
-	@touch $@
+$$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
+$$(PUREC_WORKDIR)/$(1)/.genc:
+	@mkdir -p $$(@D)
+	@$$(MAKE) $$@.1
+	@touch $$@
 
-$(PUREC_WORKDIR)/example1/.genc: $(PUREC_WORKDIR)/example1/.corefns
-$(PUREC_WORKDIR)/example1/.genc:
-	@mkdir -p $(@D)
-	@$(MAKE) $@.1
-	@touch $@
+$$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(shell find 2>/dev/null "$$(PUREC_WORKDIR)/$(1)" -type f -name corefn.json))
+	$$(PUREC) -m $(2) $$?
+	@touch $$@
 
-$(PUREC_WORKDIR)/example1/.genc.1: $(patsubst %,%.1,$(shell find "$(PUREC_WORKDIR)/example1" -type f -name corefn.json))
-	$(PUREC) -m Example1 $?
-	@touch $@
-
-$(PUREC_WORKDIR)/example1/.build: \
-	$(RUNTIME_OBJECTS) \
-	$(patsubst %.c,%.o,$(wildcard $(PUREC_WORKDIR)/example1/*.c))
-	@clang $^ \
-		$(LDFLAGS) \
+$$(PUREC_WORKDIR)/$(1)/.build: \
+	$$(RUNTIME_OBJECTS) \
+	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
+	@clang $$^ \
+		$$(LDFLAGS) \
 		-ffunction-sections \
 		-Wl,-gc-sections \
-		-o example1
-	@touch $@
+		-o "$(1).out"
+	@touch $$@
 
-example1: $(PUREC_WORKDIR)/example1/.genc
-example1: ; $(MAKE) $(PUREC_WORKDIR)/example1/.build
+examples/$(1): $$(PUREC_WORKDIR)/$(1)/.genc
+examples/$(1):
+	$$(MAKE) $$(PUREC_WORKDIR)/$(1)/.build
+endef
+
+$(eval $(call mk_target,example1,Example1))
+$(eval $(call mk_target,example2,Example1))
