@@ -92,7 +92,7 @@ $$(PUREC_WORKDIR)/$(1)/.genc:
 	@touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(shell find 2>/dev/null "$$(PUREC_WORKDIR)/$(1)" -type f -name corefn.json))
-	$$(PUREC) -m $(2) $$?
+	@$$(PUREC) -m $(2) $$?
 	@touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.build: \
