@@ -1,4 +1,4 @@
-module Example1
+module Example2
   ( Foo (..)
   ) where
 

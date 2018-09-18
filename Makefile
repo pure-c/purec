@@ -115,4 +115,6 @@ define mk_example_rule
 endef
 
 $(eval $(call mk_example_rule,example1,Example1))
-$(eval $(call mk_example_rule,example2,Example1))
+$(eval $(call mk_example_rule,example2,Example2))
+
+examples: example1 example2

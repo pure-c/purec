@@ -1,5 +1,5 @@
-#ifndef Example1_FFI_H
-#define Example1_FFI_H
+#ifndef Example1_H
+#define Example1_H
 
 #include <purescript.h>
 
@@ -29,4 +29,4 @@ PURS_FFI_FUNC_3(Example1_getLineImpl, Just, Nothing, _, {
 	}
 })
 
-#endif // Example1_FFI_H
+#endif // Example1_H
