@@ -26,6 +26,7 @@ LDFLAGS = \
 
 clean:
 	@rm -rf $(PUREC_WORKDIR)
+	@rm -f *.out
 
 %.o: %.c
 	@echo "Compile" $^
@@ -49,10 +50,23 @@ clean:
 %/corefn.json.1: %/corefn.json
 	@rsync $< $@
 
-define mk_target
+define mk_target_rule
+
+ifeq (,$(3))
+$(1)_src_dir := src
+else
+$(1)_src_dir := $(3)
+endif
+
+ifeq (,$(4))
+$(1)_deps_dir := bower_components/purescript-*/src
+else
+$(1)_deps_dir := $(4)
+endif
+
 $(1)_srcs = \
 	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$(shell \
-		find "examples/$(1)" \
+		find $$($(1)_src_dir) \
 			-type f \
 			-name '*.purs' \
 			-o -name '*.c' \
@@ -60,7 +74,7 @@ $(1)_srcs = \
 
 $(1)_deps = \
 	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$(shell \
-		find bower_components/purescript-{effect,console,prelude,control}/src \
+		find $$($(1)_deps_dir) \
 			-type f \
 			-name '*.purs' \
 			-o -name '*.c' \
@@ -74,7 +88,7 @@ $$(PUREC_WORKDIR)/$(1)/.corefns: $$($(1)_srcs) $$($(1)_deps)
 $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
 $$(PUREC_WORKDIR)/$(1)/.genc:
 	@mkdir -p $$(@D)
-	@$$(MAKE) $$@.1
+	@$$(MAKE) -s $$@.1
 	@touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(shell find 2>/dev/null "$$(PUREC_WORKDIR)/$(1)" -type f -name corefn.json))
@@ -91,10 +105,14 @@ $$(PUREC_WORKDIR)/$(1)/.build: \
 		-o "$(1).out"
 	@touch $$@
 
-examples/$(1): $$(PUREC_WORKDIR)/$(1)/.genc
-examples/$(1):
-	$$(MAKE) $$(PUREC_WORKDIR)/$(1)/.build
+$(1): $$(PUREC_WORKDIR)/$(1)/.genc
+$(1): ; @$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.build
 endef
 
-$(eval $(call mk_target,example1,Example1))
-$(eval $(call mk_target,example2,Example1))
+example_deps = bower_components/purescript-{control,effect,prelude,console,assert}/src/*
+define mk_example_rule
+	$(call mk_target_rule,$(1),$(2),examples/$(1),$(example_deps))
+endef
+
+$(eval $(call mk_example_rule,example1,Example1))
+$(eval $(call mk_example_rule,example2,Example1))
