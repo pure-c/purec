@@ -203,7 +203,7 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 }
 
 inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
-	static const char * tags[12] =
+	static const char * tags[] =
 		{ "BOGUS",
 		  "INT",
 		  "NUMBER",
@@ -401,7 +401,8 @@ inline int purs_cons_get_tag (const purs_cons_t * cons) {
 }
 
 inline const purs_any_t * purs_any_app (const purs_any_t * x,
-					const purs_any_t * arg) {
+					const purs_any_t * arg,
+					...) {
 	x = purs_any_unthunk(x);
 
 	const void * f;
@@ -409,7 +410,10 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x,
 
 	b = purs_any_get_abs_block_maybe(x);
 	if (b != NULL) {
-		return ((abs_block_t) b->data)(arg);
+		va_list args;
+		va_start(args, arg);
+		return ((abs_block_t) b->data)(arg, args);
+		va_end(args);
 	}
 
 	f = purs_any_get_abs_maybe(x);

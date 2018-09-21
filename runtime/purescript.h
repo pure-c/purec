@@ -24,7 +24,7 @@ typedef struct purs_record purs_record_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef enum purs_any_tag purs_any_tag_t;
-typedef const purs_any_t * (^abs_block_t)(const purs_any_t *);
+typedef const purs_any_t * (^abs_block_t)(const purs_any_t *, ...);
 typedef const purs_any_t * (*abs_t) (const purs_any_t*);
 
 
@@ -190,7 +190,7 @@ purs_any_t * purs_any_init_foreign   (purs_any_t *, const purs_foreign_t);
 // XXX: for convenient emitting only (might be removed)
 int purs_cons_get_tag (const purs_cons_t * cons);
 
-const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg);
+const purs_any_t * purs_any_app (const purs_any_t *, const purs_any_t * arg, ...);
 const purs_any_t * purs_any_concat(const purs_any_t *, const purs_any_t *);
 
 int purs_any_eq_string (const purs_any_t *, const void *);
@@ -410,24 +410,289 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 		)\
 	)
 
-#define PURS_LAMBDA_UNCURRIED_2(A1, A2, BODY)\
+/* TODO: generate these (using m4?) */
+#define __MK_PURS_LAMBDA_UNCURRIED(A1, BODY, VA_ARGS_DECLS, VA_ARGS_DEFS, VA_ARGS_CAPTURE)\
 	PURS_ANY_NEW(\
 		abs_block,\
 		managed_block_new(\
 			NULL,\
 			__scope__,\
 			Block_copy(^\
-				(const purs_any_t * A1, const purs_any_t * A2)\
+				(const purs_any_t * A1, ...)\
 				{\
 					purs_scope_t * __parent_scope__ = __scope__;\
 					purs_scope_t * __scope__ = purs_scope_new(__parent_scope__);\
 					purs_scope_capture(A1);\
-					purs_scope_capture(A2);\
+					VA_ARGS_DECLS;\
+					{\
+						va_list args;\
+						va_start(args, A1);\
+						VA_ARGS_DEFS;\
+						va_end(args);\
+					}\
+					VA_ARGS_CAPTURE;\
 					BODY\
 				}\
 			)\
 		)\
 	)
+
+#define __MK_PURS_LAMBDA_UNCURRIED_ARG(A)\
+	A = va_arg(args, const purs_any_t *)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_2(A1, A2, BODY)\
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);,\
+		purs_scope_capture(A2);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_3(A1, A2, A3, BODY)\
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_4(A1, A2, A3, A4, BODY)\
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_5(A1, A2, A3, A4, A5, BODY)	\
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_6(A1, A2, A3, A4, A5, A6, BODY)	\
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;\
+		const purs_any_t * A6;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A6);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+		purs_scope_capture(A6);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_7(A1, A2, A3, A4, A5, A6, A7, BODY)	\
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;\
+		const purs_any_t * A6;\
+		const purs_any_t * A7;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A6);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A7);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+		purs_scope_capture(A6);\
+		purs_scope_capture(A7);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_8(A1, A2, A3, A4, A5, A6, A7, A8, BODY)	\
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;\
+		const purs_any_t * A6;\
+		const purs_any_t * A7;\
+		const purs_any_t * A8;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A6);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A7);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A8);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+		purs_scope_capture(A6);\
+		purs_scope_capture(A7);\
+		purs_scope_capture(A8);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_9(A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY) \
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;\
+		const purs_any_t * A6;\
+		const purs_any_t * A7;\
+		const purs_any_t * A8;\
+		const purs_any_t * A9;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A6);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A7);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A8);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A9);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+		purs_scope_capture(A6);\
+		purs_scope_capture(A7);\
+		purs_scope_capture(A8);\
+		purs_scope_capture(A9);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_10(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY) \
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;\
+		const purs_any_t * A6;\
+		const purs_any_t * A7;\
+		const purs_any_t * A8;\
+		const purs_any_t * A9;\
+		const purs_any_t * A10;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A6);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A7);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A8);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A9);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A10);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+		purs_scope_capture(A6);\
+		purs_scope_capture(A7);\
+		purs_scope_capture(A8);\
+		purs_scope_capture(A9);\
+		purs_scope_capture(A10);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_11(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY) \
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;\
+		const purs_any_t * A6;\
+		const purs_any_t * A7;\
+		const purs_any_t * A8;\
+		const purs_any_t * A9;\
+		const purs_any_t * A10;\
+		const purs_any_t * A11;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A6);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A7);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A8);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A9);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A10);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A11);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+		purs_scope_capture(A6);\
+		purs_scope_capture(A7);\
+		purs_scope_capture(A8);\
+		purs_scope_capture(A9);\
+		purs_scope_capture(A10);\
+		purs_scope_capture(A11);\
+	)
+
+/* TODO: generate these (using m4?) */
+#define PURS_LAMBDA_UNCURRIED_12(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY) \
+	__MK_PURS_LAMBDA_UNCURRIED(A1, BODY,\
+		const purs_any_t * A2;\
+		const purs_any_t * A3;\
+		const purs_any_t * A4;\
+		const purs_any_t * A5;\
+		const purs_any_t * A6;\
+		const purs_any_t * A7;\
+		const purs_any_t * A8;\
+		const purs_any_t * A9;\
+		const purs_any_t * A10;\
+		const purs_any_t * A11;,\
+		const purs_any_t * A12;,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A2);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A3);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A4);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A5);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A6);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A7);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A8);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A9);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A10);\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A11);,\
+		__MK_PURS_LAMBDA_UNCURRIED_ARG(A12);,\
+		purs_scope_capture(A2);\
+		purs_scope_capture(A3);\
+		purs_scope_capture(A4);\
+		purs_scope_capture(A5);\
+		purs_scope_capture(A6);\
+		purs_scope_capture(A7);\
+		purs_scope_capture(A8);\
+		purs_scope_capture(A9);\
+		purs_scope_capture(A10);\
+		purs_scope_capture(A11);\
+		purs_scope_capture(A12);\
+	)
+
 
 #define PURS_LAMBDA_1(A1, BODY)\
 	PURS_LAMBDA(A1, BODY)
@@ -452,6 +717,41 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 		return PURS_LAMBDA(A5, BODY);\
 	})
 
+#define PURS_LAMBDA_6(A1, A2, A3, A4, A5, A6, BODY)\
+	PURS_LAMBDA_5(A1, A2, A3, A4, A5, {\
+		return PURS_LAMBDA(A6, BODY);\
+	})
+
+#define PURS_LAMBDA_7(A1, A2, A3, A4, A5, A6, A7, BODY)\
+	PURS_LAMBDA_6(A1, A2, A3, A4, A5, A6, {\
+		return PURS_LAMBDA(A7, BODY);\
+	})
+
+#define PURS_LAMBDA_8(A1, A2, A3, A4, A5, A6, A7, A8, BODY)\
+	PURS_LAMBDA_7(A1, A2, A3, A4, A5, A6, A7, {\
+		return PURS_LAMBDA(A8, BODY);\
+	})
+
+#define PURS_LAMBDA_9(A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY)\
+	PURS_LAMBDA_8(A1, A2, A3, A4, A5, A6, A7, A8, {\
+		return PURS_LAMBDA(A9, BODY);\
+	})
+
+#define PURS_LAMBDA_10(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY)\
+	PURS_LAMBDA_9(A1, A2, A3, A4, A5, A6, A7, A8, A9, {\
+		return PURS_LAMBDA(A10, BODY);\
+	})
+
+#define PURS_LAMBDA_11(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY) \
+	PURS_LAMBDA_10(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, {\
+		return PURS_LAMBDA(A11, BODY);\
+	})
+
+#define PURS_LAMBDA_12(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY) \
+	PURS_LAMBDA_11(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, {\
+		return PURS_LAMBDA(A12, BODY);\
+	})
+
 #define PURS_FFI_VALUE(NAME, INIT)\
 	static const purs_any_t _ ## NAME ## $ = INIT;\
 	const purs_any_t * NAME ## $ = & _ ## NAME ## $
@@ -460,7 +760,6 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 #define PURS_FFI_VALUE_THUNKED(NAME, INIT)\
 	PURS_ANY_THUNK_DEF(NAME ## $, INIT)
 
-/* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_FUNC_1(NAME, A1, BODY)\
 	PURS_FFI_VALUE_THUNKED(\
 		NAME,\
@@ -485,6 +784,101 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 	PURS_FFI_VALUE_THUNKED(\
 		NAME,\
 		PURS_LAMBDA_5(A1, A2, A3, A4, A5, BODY))
+
+#define PURS_FFI_FUNC_6(NAME, A1, A2, A3, A4, A5, A6, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_6(A1, A2, A3, A4, A5, A6, BODY))
+
+#define PURS_FFI_FUNC_7(NAME, A1, A2, A3, A4, A5, A6, A7, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_7(A1, A2, A3, A4, A5, A6, A7, BODY))
+
+#define PURS_FFI_FUNC_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_8(A1, A2, A3, A4, A5, A6, A7, A8, BODY))
+
+#define PURS_FFI_FUNC_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_9(A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY))
+
+#define PURS_FFI_FUNC_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_10(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY))
+
+#define PURS_FFI_FUNC_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_11(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY))
+
+#define PURS_FFI_FUNC_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY) \
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_12(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_1(NAME, A1, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_1(A1, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_2(NAME, A1, A2, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_2(A1, A2, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_3(NAME, A1, A2, A3, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_3(A1, A2, A3, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_4(NAME, A1, A2, A3, A4, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_4(A1, A2, A3, A4, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_5(NAME, A1, A2, A3, A4, A5, BODY)\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_5(A1, A2, A3, A4, A5, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_6(NAME, A1, A2, A3, A4, A5, A6, BODY)	\
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_6(A1, A2, A3, A4, A5, A6, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_7(NAME, A1, A2, A3, A4, A5, A6, A7, BODY) \
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_7(A1, A2, A3, A4, A5, A6, A7, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8, BODY) \
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_8(A1, A2, A3, A4, A5, A6, A7, A8, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY) \
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_9(A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY) \
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_10(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY) \
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_11(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY))
+
+#define PURS_FFI_FUNC_UNCURRIED_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY) \
+	PURS_FFI_VALUE_THUNKED(\
+		NAME,\
+		PURS_LAMBDA_UNCURRIED_12(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY))
 
 // -----------------------------------------------------------------------------
 // Prim shims

@@ -1,7 +1,9 @@
 module Example1 where
 
-import Prelude
 import Effect
+import Prelude
+
+import Effect.Uncurried (EffectFn2, runEffectFn2)
 
 data Maybe a
   = Just a
@@ -9,11 +11,16 @@ data Maybe a
 
 foreign import putStr :: String -> Effect Unit
 foreign import putStrLn :: String -> Effect Unit
-foreign import getLineImpl :: ∀ a. (a -> Maybe a) -> Maybe a -> Effect (Maybe String)
+foreign import getLineImpl
+  :: ∀ a
+   . EffectFn2
+      (a -> Maybe a)
+      (Maybe a)
+      (Maybe String)
 foreign import exit :: ∀ a. Int -> Effect a
 
 getLine :: Effect (Maybe String)
-getLine = getLineImpl Just Nothing
+getLine = runEffectFn2 getLineImpl Just Nothing
 
 instance showMaybe :: Show a => Show (Maybe a) where
   show Nothing = "(Nothing)"
