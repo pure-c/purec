@@ -212,6 +212,7 @@ data AST
       , type :: Type
       , qualifiers :: Array ValueQualifier
       , initialization :: Maybe AST
+      , managed :: Boolean
       }
   -- | A variable assignment
   | Assignment AST AST

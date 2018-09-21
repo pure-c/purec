@@ -85,6 +85,7 @@ toHeader = A.catMaybes <<< map go
       AST.VariableIntroduction
         { name
         , type: Type.Pointer (Type.Any [ Type.Const ])
+        , managed: true -- XXX irrelevant here
         , qualifiers: []
         , initialization: Nothing
         }

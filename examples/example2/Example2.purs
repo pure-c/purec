@@ -3,8 +3,10 @@ module Example2
   ) where
 
 
-import Prelude
 import Effect
+import Prelude
+
+import Control.Extend (extend)
 
 data Maybe a
   = Nothing
@@ -208,6 +210,7 @@ main_1 = go 1
     runGC
     consoleLog $ "hello world (" <> show n <> ")"
     consoleLog showThemAll
+    consoleLog $ show $ extend (map (_ * 2)) [ 1, 2, 3 ]
     runGC
     go (n + 1)
 

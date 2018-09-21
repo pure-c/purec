@@ -177,6 +177,7 @@ declToAst isTopLevel (x /\ ident) val = do
   pure $
     AST.VariableIntroduction
       { name
+      , managed: true
       , type: R.any'' [ Type.Const, Type.BlockStorage ]
       , qualifiers: []
       , initialization: Just initAst
@@ -288,6 +289,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
             AST.VariableIntroduction
               { name
               , type: R.any
+              , managed: true
               , qualifiers: []
               , initialization: Just valueAst
               }
@@ -412,6 +414,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                     { name: elementVar
                     , type: R.any
                     , qualifiers: []
+                    , managed: true
                     , initialization:
                         Just $
                           AST.Cast R.any $
@@ -450,6 +453,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                     { name: propVar
                     , type: R.any
                     , qualifiers: []
+                    , managed: true
                     , initialization:
                         Just $
                           AST.Accessor
@@ -473,6 +477,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         { name
         , type: R.any
         , qualifiers: []
+        , managed: true
         , initialization: Just $ AST.Var varName
         } A.: next
 
@@ -501,6 +506,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
               AST.VariableIntroduction
                 { name: argVarName
                 , type: R.any
+                , managed: true
                 , qualifiers: []
                 , initialization:
                     Just $
@@ -557,6 +563,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         { name
         , type: R.any
         , qualifiers: []
+        , managed: true
         , initialization: Just $ AST.Var varName
         } A.: ast
 
@@ -585,8 +592,9 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
           AST.Block $
             [ AST.VariableIntroduction
                 { name: valuesName
-                , type: Type.Pointer R.any'
+                , type: Type.Pointer R.any
                 , qualifiers: []
+                , managed: false
                 , initialization:
                     Just $
                       AST.App
@@ -751,7 +759,7 @@ hoistVarDecls = map go
           A.foldl
             (\(decls /\ xs') x ->
               case x of
-                AST.VariableIntroduction x@{ name, initialization: Just initialization } ->
+                AST.VariableIntroduction x@{ name, managed: true, initialization: Just initialization } ->
                   let
                     decl =
                       AST.VariableIntroduction $

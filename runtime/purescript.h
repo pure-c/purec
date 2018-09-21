@@ -107,7 +107,7 @@ const void * purs_assert_not_null(const void *, const char * message);
 
 struct purs_cons {
 	int tag;
-	const purs_any_t * const * values;
+	const purs_any_t ** values;
 };
 
 enum purs_any_tag {
@@ -257,7 +257,7 @@ int purs_any_eq_number (const purs_any_t *, double);
 	}\
 
 #define PURS_ANY_FOREIGN_NEW(TAG, DATA)\
-	PURS_ANY_NEW(foreign, ((purs_foreign_t) _PURS_FOREIGN(TAG, DATA)))
+	PURS_ANY_NEW(foreign, ((purs_foreign_t) _PURS_FOREIGN(TAG, (void *) DATA)))
 
 /*
  * purs_any_t initializers
@@ -290,7 +290,7 @@ int purs_any_eq_number (const purs_any_t *, double);
  * XXX: this macro only exist for easy code emission from PureScript.
  */
 #define PURS_CONS_VALUES_NEW(n)\
-	purs_malloc(sizeof (purs_any_t *) * n)
+	purs_malloc(sizeof (const purs_any_t *) * n)
 
 #define PURS_CONS_LIT(TAG, VALUES)\
 	((purs_cons_t) { .tag = TAG, .values = VALUES })
@@ -388,41 +388,41 @@ const purs_record_t * purs_record_remove(const purs_record_t *,
 #define managed_block_capture(MANAGED_BLOCK, PTR)\
 	vec_push(managed->ptrs, ptr)
 
-
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_EXPORT(NAME)\
 	const purs_any_t * NAME ## $
 
-#define PURS_LAMBDA_DEBUG(DEBUG_NAME, ARG_VARNAME, BODY)\
-	PURS_ANY_NEW(\
-		abs_block,\
-		managed_block_new(\
-			afmt("%s", DEBUG_NAME),\
-			__scope__,\
-			Block_copy(^\
-				(const purs_any_t * ARG_VARNAME) \
-				{\
-					purs_scope_t * __parent_scope__ = __scope__;\
-					purs_scope_t * __scope__ = purs_scope_new(__parent_scope__); \
-					purs_scope_capture(ARG_VARNAME);\
-					BODY;\
-				}\
-			)\
-		)\
-	)
-
-#define PURS_LAMBDA(ARG_VARNAME, BODY)\
+#define PURS_LAMBDA(A1, BODY)\
 	PURS_ANY_NEW(\
 		abs_block,\
 		managed_block_new(\
 			NULL,\
 			__scope__,\
 			Block_copy(^\
-				(const purs_any_t * ARG_VARNAME) \
+				(const purs_any_t * A1) \
 				{\
 					purs_scope_t * __parent_scope__ = __scope__;\
 					purs_scope_t * __scope__ = purs_scope_new(__parent_scope__);\
-					purs_scope_capture(ARG_VARNAME);\
+					purs_scope_capture(A1);\
+					BODY\
+				}\
+			)\
+		)\
+	)
+
+#define PURS_LAMBDA_UNCURRIED_2(A1, A2, BODY)\
+	PURS_ANY_NEW(\
+		abs_block,\
+		managed_block_new(\
+			NULL,\
+			__scope__,\
+			Block_copy(^\
+				(const purs_any_t * A1, const purs_any_t * A2)\
+				{\
+					purs_scope_t * __parent_scope__ = __scope__;\
+					purs_scope_t * __scope__ = purs_scope_new(__parent_scope__);\
+					purs_scope_capture(A1);\
+					purs_scope_capture(A2);\
 					BODY\
 				}\
 			)\

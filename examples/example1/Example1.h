@@ -19,7 +19,7 @@ PURS_FFI_FUNC_2(Example1_putStrLn, s, _, {
 })
 
 PURS_FFI_FUNC_3(Example1_getLineImpl, Just, Nothing, _, {
-	int len;
+	size_t len;
 	char * line = NULL;
 	if (getline(&line, &len, stdin) != -1) {
 		line[strlen(line) - 1] = 0; // remove trailing newline
@@ -28,5 +28,7 @@ PURS_FFI_FUNC_3(Example1_getLineImpl, Just, Nothing, _, {
 		return Nothing;
 	}
 })
+
+
 
 #endif // Example1_H

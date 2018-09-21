@@ -68,17 +68,21 @@ $(1)_srcs = \
 	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$(shell \
 		find $$($(1)_src_dir) \
 			-type f \
-			-name '*.purs' \
-			-o -name '*.c' \
-			-o -name '*.h')))
+			-a '(' \
+				-name '*.purs' \
+				-o -name '*.c' \
+				-o -name '*.h' ')' \
+			-a -not -name '.\#*')))
 
 $(1)_deps = \
 	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$(shell \
 		find $$($(1)_deps_dir) \
 			-type f \
-			-name '*.purs' \
-			-o -name '*.c' \
-			-o -name '*.h')))
+			-a '(' \
+				-name '*.purs' \
+				-o -name '*.c' \
+				-o -name '*.h' ')' \
+			-a -not -name '.\#*')))
 
 $$(PUREC_WORKDIR)/$(1)/.corefns: $$($(1)_srcs) $$($(1)_deps)
 	@mkdir -p $$(@D)
@@ -109,12 +113,17 @@ $(1): $$(PUREC_WORKDIR)/$(1)/.genc
 $(1): ; @$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.build
 endef
 
-example_deps = bower_components/purescript-{control,effect,prelude,console,assert}/src/*
+example_deps = \
+    bower_components/purescript-{control,effect,prelude,console,assert,maybe,invariant,newtype}/src/*
 define mk_example_rule
-	$(call mk_target_rule,$(1),$(2),examples/$(1),$(example_deps))
+	$(call mk_target_rule,examples/$(1),$(2),examples/$(1),$(example_deps))
 endef
 
 $(eval $(call mk_example_rule,example1,Example1))
 $(eval $(call mk_example_rule,example2,Example2))
+$(eval $(call mk_example_rule,integers,Main))
 
-examples: example1 example2
+examples: \
+	examples/example1 \
+	examples/example2 \
+	examples/integers
