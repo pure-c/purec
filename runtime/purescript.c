@@ -412,8 +412,9 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x,
 	if (b != NULL) {
 		va_list args;
 		va_start(args, arg);
-		return ((abs_block_t) b->data)(arg, args);
+		const purs_any_t * r = ((abs_block_t) b->data)(arg, args);
 		va_end(args);
+		return r;
 	}
 
 	f = purs_any_get_abs_maybe(x);

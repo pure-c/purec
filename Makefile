@@ -121,9 +121,9 @@ endef
 
 $(eval $(call mk_example_rule,example1,Example1))
 $(eval $(call mk_example_rule,example2,Example2))
-$(eval $(call mk_example_rule,integers,Main))
+$(eval $(call mk_example_rule,effect,Main))
 
 examples: \
 	examples/example1 \
 	examples/example2 \
-	examples/integers
+	examples/effect
