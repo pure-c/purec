@@ -14,7 +14,7 @@ local machine for development and testing purposes.
 
 ```
 npm install && \
-	bower install
+	./node_modules/.bin/bower install
 ```
 
 ##### Ubuntu 16.04

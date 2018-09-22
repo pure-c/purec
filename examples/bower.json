@@ -1,0 +1,20 @@
+{
+  "name": "purescript-pure-c--examples",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "pure-c/purescript-prelude#master",
+    "purescript-console": "pure-c/purescript-console#master",
+    "purescript-control": "pure-c/purescript-control#master",
+    "purescript-effect": "pure-c/purescript-effect#master"
+  },
+  "resolutions": {
+    "purescript-effect": "master",
+    "purescript-prelude": "master"
+  }
+}

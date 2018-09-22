@@ -1,4 +1,4 @@
-.PHONY: clean
+.PHONY: clean test test/build
 
 SHELL := /bin/bash
 
@@ -19,8 +19,8 @@ RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
 LDFLAGS = \
-	-l:libBlocksRuntime.a \
-	-l:libgc.a \
+	-lBlocksRuntime \
+	-lgc \
 	-lm \
 	-lpthread
 
@@ -76,7 +76,7 @@ $(1)_srcs = \
 
 $(1)_deps = \
 	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$(shell \
-		find $$($(1)_deps_dir) \
+		2>/dev/null find $$($(1)_deps_dir) \
 			-type f \
 			-a '(' \
 				-name '*.purs' \
@@ -114,7 +114,7 @@ $(1): ; @$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.build
 endef
 
 example_deps = \
-    bower_components/purescript-{control,effect,prelude,console,assert,maybe,invariant,newtype}/src/*
+    examples/bower_components/purescript-{control,effect,prelude,console,assert,maybe,invariant,newtype}/src/*
 define mk_example_rule
 	$(call mk_target_rule,examples/$(1),$(2),examples/$(1),$(example_deps))
 endef
@@ -127,3 +127,14 @@ examples: \
 	examples/example1 \
 	examples/example2 \
 	examples/effect
+
+examples/bower_components:
+	@cd examples && ../node_modules/.bin/bower install
+
+# note: this is temporary while building up the project
+test: examples/bower_components
+test:
+	@$(MAKE) -s examples
+	@./examples/example1.out <<< "john"
+	@./examples/example2.out
+	@./examples/effect.out

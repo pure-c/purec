@@ -7,9 +7,6 @@
     "output"
   ],
   "dependencies": {
-    "purescript-prelude": "pure-c/purescript-prelude#master",
-    "purescript-console": "pure-c/purescript-console#master",
-    "purescript-effect": "pure-c/purescript-effect#master",
     "purescript-aff": "^5.0.1",
     "purescript-avar": "^3.0.0",
     "purescript-node-fs-aff": "^6.0.0",
@@ -17,7 +14,10 @@
     "purescript-corefn": "felixschl/purescript-corefn#compiler/0.12.x",
     "purescript-spec": "^3.0.0",
     "purescript-argonaut": "^4.0.1",
-    "purescript-nullable": "^4.1.0"
+    "purescript-nullable": "^4.1.0",
+    "purescript-console": "^4.1.0",
+    "purescript-effect": "^2.0.0",
+    "purescript-prelude": "^4.1.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
