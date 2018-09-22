@@ -110,7 +110,7 @@ struct purs_cons {
 };
 
 enum purs_any_tag {
-	PURS_ANY_TAG_BOGUS = 0,     // integer
+	PURS_ANY_TAG_UNKNOWN = 0,   // unknown (unused)
 	PURS_ANY_TAG_INT = 1,       // integer
 	PURS_ANY_TAG_NUMBER = 2,    // number
 	PURS_ANY_TAG_ABS = 3,       // abstraction

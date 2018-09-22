@@ -187,7 +187,7 @@ inline const purs_any_t * purs_any_unthunk (const purs_any_t * x) {
 
 inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 	if      (x == NULL)                        return NULL;
-	else if (x->tag == PURS_ANY_TAG_BOGUS)     return &x->tag;
+	else if (x->tag == PURS_ANY_TAG_UNKNOWN)   return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_INT)       return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_NUMBER)    return &x->tag;
 	else if (x->tag == PURS_ANY_TAG_ABS)       return &x->tag;
@@ -204,7 +204,7 @@ inline const purs_any_tag_t * purs_any_get_tag_maybe (const purs_any_t * x) {
 
 inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 	static const char * tags[] =
-		{ "BOGUS",
+		{ "UNKNOWN",
 		  "INT",
 		  "NUMBER",
 		  "ABS",
