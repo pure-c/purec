@@ -1,5 +1,3 @@
-#include <gc/gc.h>
-#include "Block.h"
 #include "purescript.h"
 
 // -----------------------------------------------------------------------------
@@ -519,9 +517,7 @@ const purs_vec_t * purs_vec_new_va (int count, ...) {
 		xs[i] = va_arg(args, const purs_any_t *);
 	}
 	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
-	printf("hi(2): %p, %p %i %i\n", xs[0], o, count, o->capacity);
 	vec_pusharr(o, xs, count);
-	printf("hi(3): %p, %p %i %i\n", xs[0], o, count, o->capacity);
 	free(xs);
 	return (const purs_vec_t *) o;
 }
