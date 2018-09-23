@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "description": "A C backend for PureScript",
   "main": "index.js",
-  "bin": "purec",
+  "bin": {
+    "purec": "purec.js"
+  },
   "directories": {
     "example": "examples",
     "test": "test"
