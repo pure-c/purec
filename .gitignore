@@ -5,10 +5,11 @@
 *.a
 *.tar.gz
 *.tmp
+*.zip
 bower_components/
 node_modules/
 output/
-bwdgc/
+deps/
 .output/
 .purec-work/
 purec.js

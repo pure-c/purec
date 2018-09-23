@@ -1,4 +1,4 @@
-.PHONY: clean deps purec test test/build
+.PHONY: clean deps deps/bwdgc deps/blocksruntime purec test test/build
 
 SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
@@ -9,6 +9,13 @@ PUREC := node $(PUREC_JS)
 PUREC_WORKDIR := .purec-work
 
 BWDGC_V := v8.0.0
+BLOCKSRUNTIME_REV := master
+
+BWDGC_LIB := \
+	deps/bwdgc/.libs/libgc.a
+
+BLOCKSRUNTIME_LIB := \
+	deps/blocksruntime/libBlocksRuntime.a
 
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
@@ -26,31 +33,21 @@ CFLAGS := \
 	-D 'vec_free(x)=NULL' \
 	-D 'vec_malloc=GC_malloc'
 
-bwdgc: deps/bwdgc/.libs/libgc.a
-
-deps/bwdgc/.libs/libgc.a:
-	@if [ ! -d deps/bwdgc ]; then \
-		if [ ! -f gc.tar.gz ]; then \
-			echo "downloading bwdgc tarball...";\
-			curl -sfLo gc.tar.gz \
-				'https://api.github.com/repos/ivmai/bdwgc/tarball/$(BWDGC_V)'; \
-		fi && \
-		mkdir -p deps/bwdgc && \
-		tar -C deps/bwdgc -xzf gc.tar.gz --strip-components 1; \
-	fi
+$(BWDGC_LIB):
+	@$(MAKE) deps/bwdgc
 	@cd deps/bwdgc && \
 	    ./autogen.sh && \
 	    ./configure --enable-static && \
 	    $(MAKE)
-	@rm -f gc.tar.gz
 
-deps/blocksruntime/libBlocksRuntime.a:
-	@cd deps/blocksruntime && ./buildlib
+$(BLOCKSRUNTIME_LIB):
+	@$(MAKE) deps/blocksruntime
+	@cd 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' && ./buildlib
 
 libpurec.1.a: $(RUNTIME_OBJECTS)
 	@ar cr $@ $^
 
-libpurec.a: libpurec.1.a deps/bwdgc/.libs/libgc.a deps/blocksruntime/libBlocksRuntime.a
+libpurec.a: libpurec.1.a $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
 	{\
 		echo 'CREATE $@';\
 		$(foreach archive,$^,echo 'ADDLIB $(archive)';)\
@@ -66,7 +63,7 @@ clean:
 	@rm -f $(RUNTIME_OBJECTS)
 	@rm -f $(find . -name '*.out')
 
-%.o: %.c
+%.o: %.c | $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
 	@echo "Compile" $^
 	@clang $^ -c -o $@ \
 		-Wall \
@@ -78,6 +75,43 @@ clean:
 
 %/corefn.json.1: %/corefn.json
 	@rsync $< $@
+
+deps:
+	npm install
+	node_modules/.bin/bower install
+
+deps/bwdgc:
+	@if [ ! -d deps/bwdgc ]; then \
+		if [ ! -f gc.tar.gz ]; then \
+			echo "downloading bwdgc tarball...";\
+			curl -sfLo gc.tar.gz \
+				'https://api.github.com/repos/ivmai/bdwgc/tarball/$(BWDGC_V)'; \
+		fi && \
+		mkdir -p deps/bwdgc && \
+		tar -C deps/bwdgc -xzf gc.tar.gz --strip-components 1; \
+	fi
+
+deps/blocksruntime:
+	@if [ ! -d 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' ]; then\
+		if [ ! -f blocksruntime.zip ]; then\
+			echo "downloading blocksruntime zip...";\
+			curl -sfLo blocksruntime.zip\
+				'https://github.com/pure-c/blocksruntime/archive/$(BLOCKSRUNTIME_REV)';\
+		fi &&\
+		mkdir -p deps &&\
+		unzip -d deps blocksruntime.zip &&\
+		ln -s "$$PWD/deps/blocksruntime-$(BLOCKSRUNTIME_REV)" deps/blocksruntime;\
+	fi
+
+# note: this is temporary while building up the project
+test: examples/bower_components
+test:
+	@$(MAKE) -s examples
+	@./examples/example1.out <<< "john"
+	@./examples/example2.out
+	@./examples/effect.out
+
+#-------------------------------------------------------------------------------
 
 define mk_target_rule
 
@@ -162,15 +196,3 @@ examples: \
 
 examples/bower_components:
 	@cd examples && ../node_modules/.bin/bower install
-
-deps:
-	npm install
-	node_modules/.bin/bower install
-
-# note: this is temporary while building up the project
-test: examples/bower_components
-test:
-	@$(MAKE) -s examples
-	@./examples/example1.out <<< "john"
-	@./examples/example2.out
-	@./examples/effect.out
