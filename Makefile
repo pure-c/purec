@@ -1,14 +1,13 @@
-.PHONY: clean test test/build
+.PHONY: clean test test/build bwdgc
 
 SHELL := /bin/bash
-
-MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
-CURRENT_DIR := $(notdir $(patsubst %/,%,$(dir $(MKFILE_PATH))))
+SHELLFLAGS := -eo pipefail
 
 PUREC_WORKDIR := .purec-work
 
-PURS := PATH=$$PATH:$(CURRENT_DIR)/node_modules/.bin purs
-PUREC := node ./purec.js
+PURS := PATH=$$PATH:node_modules/.bin purs
+PUREC_JS := purec.js
+PUREC := node $(PUREC_JS)
 
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
@@ -18,34 +17,61 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-LDFLAGS = \
-	-lBlocksRuntime \
-	-lgc \
-	-lm \
-	-lpthread
+CFLAGS := \
+	-fblocks \
+	-D 'uthash_malloc=GC_MALLOC' \
+	-D 'uthash_free(ptr, sz)=NULL' \
+	-D 'vec_realloc=GC_realloc' \
+	-D 'vec_free(x)=NULL' \
+	-D 'vec_malloc=GC_MALLOC'
+
+.bwdgc: bwdgc/.libs/libgc.a
+
+.bwdgc/.libs/libgc.a:
+	@if [ ! -d .bwdgc ]; then \
+		if [ ! -f gc.tar.gz ]; then \
+			echo "downloading bwdgc tarball...";\
+			curl -sfLo gc.tar.gz \
+				'https://api.github.com/repos/ivmai/bdwgc/tarball/v8.0.0'; \
+		fi && \
+		mkdir -p bwdgc && \
+		tar -C bwdgc -xzf gc.tar.gz --strip-components 1; \
+	fi
+	@cd bwdgc && \
+	    ./autogen.sh && \
+	    ./configure --enable-static && \
+	    $(MAKE)
+	@rm -f gc.tar.gz
+
+blocksruntime/libBlocksRuntime.a:
+	@cd blocksruntime && ./buildlib
+
+libpurec.1.a: $(RUNTIME_OBJECTS)
+	@ar cr $@ $^
+
+libpurec.a: libpurec.1.a bwdgc/.libs/libgc.a blocksruntime/libBlocksRuntime.a
+	{\
+		echo 'CREATE $@';\
+		$(foreach archive,$^,echo 'ADDLIB $(archive)';)\
+		echo 'SAVE';\
+		echo 'END';\
+	} | ar -M
 
 clean:
 	@rm -rf $(PUREC_WORKDIR)
-	@rm -f *.out
+	@rm -f $(RUNTIME_OBJECTS)
+	@rm -f $(find . -name '*.out')
 
 %.o: %.c
 	@echo "Compile" $^
-	@clang \
-		-fblocks \
-		-D 'uthash_malloc=GC_MALLOC'\
-		-D 'uthash_free(ptr, sz)=NULL'\
-		-D 'vec_realloc=GC_realloc'\
-		-D 'vec_free(x)=NULL'\
-		-D 'vec_malloc=GC_MALLOC'\
+	@clang $^ -c -o $@ \
+		-fPIC \
 		-Wall \
 		-Wno-unused-variable \
 		-Wno-unused-value \
-		-c \
-		-o $@ \
 		-I runtime \
 		-I . \
-		$(CLANG_FLAGS) \
-		$^
+		$(CFLAGS)
 
 %/corefn.json.1: %/corefn.json
 	@rsync $< $@
@@ -100,10 +126,13 @@ $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(shell find 2>/dev/null "$$(
 	@touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.build: \
-	$$(RUNTIME_OBJECTS) \
+	libpurec.a \
 	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
 	@clang $$^ \
-		$$(LDFLAGS) \
+		-lm \
+		-L . \
+		-l:libpurec.a \
+		-lpthread \
 		-ffunction-sections \
 		-Wl,-gc-sections \
 		-o "$(1).out"

@@ -1,0 +1,3 @@
+[submodule "blocksruntime"]
+	path = blocksruntime
+	url = git@github.com:pure-c/blocksruntime
