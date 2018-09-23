@@ -1,3 +1,3 @@
 [submodule "blocksruntime"]
-	path = blocksruntime
+	path = deps/blocksruntime
 	url = git@github.com:pure-c/blocksruntime

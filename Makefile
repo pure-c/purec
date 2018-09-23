@@ -1,13 +1,14 @@
-.PHONY: clean test test/build bwdgc
+.PHONY: clean deps purec test test/build
 
 SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
 
-PUREC_WORKDIR := .purec-work
-
 PURS := PATH=$$PATH:node_modules/.bin purs
 PUREC_JS := purec.js
 PUREC := node $(PUREC_JS)
+PUREC_WORKDIR := .purec-work
+
+BWDGC_V := v8.0.0
 
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
@@ -19,43 +20,46 @@ RUNTIME_OBJECTS = \
 
 CFLAGS := \
 	-fblocks \
-	-D 'uthash_malloc=GC_MALLOC' \
+	-D 'uthash_malloc=GC_malloc' \
 	-D 'uthash_free(ptr, sz)=NULL' \
 	-D 'vec_realloc=GC_realloc' \
 	-D 'vec_free(x)=NULL' \
-	-D 'vec_malloc=GC_MALLOC'
+	-D 'vec_malloc=GC_malloc'
 
-.bwdgc: bwdgc/.libs/libgc.a
+bwdgc: deps/bwdgc/.libs/libgc.a
 
-.bwdgc/.libs/libgc.a:
-	@if [ ! -d .bwdgc ]; then \
+deps/bwdgc/.libs/libgc.a:
+	@if [ ! -d deps/bwdgc ]; then \
 		if [ ! -f gc.tar.gz ]; then \
 			echo "downloading bwdgc tarball...";\
 			curl -sfLo gc.tar.gz \
-				'https://api.github.com/repos/ivmai/bdwgc/tarball/v8.0.0'; \
+				'https://api.github.com/repos/ivmai/bdwgc/tarball/$(BWDGC_V)'; \
 		fi && \
-		mkdir -p bwdgc && \
-		tar -C bwdgc -xzf gc.tar.gz --strip-components 1; \
+		mkdir -p deps/bwdgc && \
+		tar -C deps/bwdgc -xzf gc.tar.gz --strip-components 1; \
 	fi
-	@cd bwdgc && \
+	@cd deps/bwdgc && \
 	    ./autogen.sh && \
 	    ./configure --enable-static && \
 	    $(MAKE)
 	@rm -f gc.tar.gz
 
-blocksruntime/libBlocksRuntime.a:
-	@cd blocksruntime && ./buildlib
+deps/blocksruntime/libBlocksRuntime.a:
+	@cd deps/blocksruntime && ./buildlib
 
 libpurec.1.a: $(RUNTIME_OBJECTS)
 	@ar cr $@ $^
 
-libpurec.a: libpurec.1.a bwdgc/.libs/libgc.a blocksruntime/libBlocksRuntime.a
+libpurec.a: libpurec.1.a deps/bwdgc/.libs/libgc.a deps/blocksruntime/libBlocksRuntime.a
 	{\
 		echo 'CREATE $@';\
 		$(foreach archive,$^,echo 'ADDLIB $(archive)';)\
 		echo 'SAVE';\
 		echo 'END';\
 	} | ar -M
+
+purec:
+	@npm run build
 
 clean:
 	@rm -rf $(PUREC_WORKDIR)
@@ -65,7 +69,6 @@ clean:
 %.o: %.c
 	@echo "Compile" $^
 	@clang $^ -c -o $@ \
-		-fPIC \
 		-Wall \
 		-Wno-unused-variable \
 		-Wno-unused-value \
@@ -159,6 +162,10 @@ examples: \
 
 examples/bower_components:
 	@cd examples && ../node_modules/.bin/bower install
+
+deps:
+	npm install
+	node_modules/.bin/bower install
 
 # note: this is temporary while building up the project
 test: examples/bower_components

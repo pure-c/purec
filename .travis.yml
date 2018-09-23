@@ -1,11 +1,8 @@
 language: node_js
 node_js:
   - "9"
-before_install:
-  - sudo apt-get install -y libblocksruntime-dev uthash-dev libgc-dev
 install:
-  - npm install
-  - ./node_modules/.bin/bower install
+  - make deps
 script:
-  - npm run build
+  - make purec
   - make test
