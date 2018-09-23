@@ -129,7 +129,7 @@ test:
 # Examples
 #-------------------------------------------------------------------------------
 
-examples: examples/bower_components
+examples: purec examples/bower_components
 	@$(MAKE) -s -C examples/example1
 	@$(MAKE) -s -C examples/example2
 	@$(MAKE) -s -C examples/effect

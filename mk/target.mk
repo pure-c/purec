@@ -79,7 +79,6 @@ $$(PUREC_WORKDIR)/$(1)/.corefns: $$($(1)_srcs) $$($(1)_deps)
 	@touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
-$$(PUREC_WORKDIR)/$(1)/.genc:
 	@mkdir -p $$(@D)
 	@$$(MAKE) -s $$@.1
 	@touch $$@

@@ -56,7 +56,7 @@ main =
   in launchAff_ do
     tests <-
       A.take 1 <$>
-      -- A.dropWhile (\test -> test.name /= "2288") <$>
+      -- A.dropWhile (\test -> test.name /= "2018") <$>
         discoverPureScriptTests testsDirectory
     liftEffect $
       Spec.run' (Spec.defaultConfig { timeout = Just 20000 }) [Spec.consoleReporter] do
@@ -67,40 +67,32 @@ main =
                 outputDir =
                   ".tmp/output/" <> test.name
               in do
-                -- compile each module to it's corefn json rep
-                Console.log "Compiling PureScript to CoreFn..."
-                runProc "purs" $
-                  [ "compile"
-                  , "-o", outputDir
-                  , "-g", "corefn"
-                  ] <> test.files
+                mkdirp outputDir
+                FS.writeTextFile UTF8 (outputDir <> "/sources") $
+                  A.intercalate "\n" test.files
+                FS.writeTextFile UTF8 (outputDir <> "/Makefile") $
+                  makefileContents
+                runProc "make" [ "-s", "-j", "16", "-C", outputDir ]
+                runProc (outputDir <> "/main.out") []
 
-                -- compile each module's corefn json rep to c
-                Console.log "Compiling CoreFn to C..."
-                void $
-                  FS.readdir outputDir >>= traverse \moduleName ->
-                    let
-                      corefnJsonFile =
-                        outputDir <> "/" <> moduleName <> "/corefn.json"
-                    in do
-                      whenM (FS.exists corefnJsonFile) do
-                        Console.log $ "Compiling to C: " <> moduleName <> "..."
-                        Main.compileModule
-                          (const $ moduleName == test.name || moduleName == "Main")
-                          corefnJsonFile
+makefileContents :: String
+makefileContents = """
+default: main
+.PHONY: default
 
-                -- generate Makefile
-                FS.writeTextFile UTF8 (outputDir <> "/Makefile") tempMakeFile
+PUREC_DIR := ../../..
+include $(PUREC_DIR)/mk/target.mk
 
-                -- build the project using Makefile (will produce an executable
-                -- called 'a.out'
-                runProc "make"
-                  [ "-j", "8"
-                  , "-C", outputDir
-                  ]
+SHELL := /bin/bash
 
-                -- run the built executable
-                runProc (outputDir <> "/a.out") []
+srcs := $(addprefix ../../../,$(shell cat sources))
+deps := $(shell\
+	find "$(PUREC_DIR)"/upstream/tests/support/bower_components/purescript-{control,effect,prelude,console}/src/\
+	    -type f\
+	    -name '*.purs')
+
+$(eval $(call purs_mk_target,main,Main,$(srcs),$(deps)))
+"""
 
 discoverPureScriptTests
   :: FilePath
@@ -124,119 +116,9 @@ discoverPureScriptTests testsDirectory = do
           { name: moduleName
           , directory: testsDirectory
           , files:
-              -- * purescript-prelude
-              let
-                purescriptPrelude =
-                  map
-                    ("bower_components/purescript-prelude" <> _)
-                    [ "/src/Type/Data/RowList.purs"
-                    , "/src/Type/Data/Row.purs"
-                    , "/src/Data/BooleanAlgebra.purs"
-                    , "/src/Data/Ordering.purs"
-                    , "/src/Data/Ord/Unsafe.purs"
-                    , "/src/Data/Ord.purs"
-                    , "/src/Data/CommutativeRing.purs"
-                    , "/src/Data/EuclideanRing.purs"
-                    , "/src/Data/Function.purs"
-                    , "/src/Data/Functor.purs"
-                    , "/src/Data/Symbol.purs"
-                    , "/src/Data/Show.purs"
-                    , "/src/Data/Field.purs"
-                    , "/src/Data/DivisionRing.purs"
-                    , "/src/Data/Unit.purs"
-                    , "/src/Data/Monoid.purs"
-                    , "/src/Data/Bounded.purs"
-                    , "/src/Prelude.purs"
-                    , "/src/Data/Monoid/Disj.purs"
-                    , "/src/Data/Monoid/Conj.purs"
-                    , "/src/Data/Monoid/Additive.purs"
-                    , "/src/Data/Monoid/Dual.purs"
-                    , "/src/Data/Monoid/Endo.purs"
-                    , "/src/Data/Monoid/Multiplicative.purs"
-                    , "/src/Data/NaturalTransformation.purs"
-                    , "/src/Data/Void.purs"
-                    , "/src/Data/Eq.purs"
-                    , "/src/Data/Boolean.purs"
-                    , "/src/Data/HeytingAlgebra.purs"
-                    , "/src/Data/Semiring.purs"
-                    , "/src/Data/Ring.purs"
-                    , "/src/Data/Semigroup.purs"
-                    , "/src/Data/Semigroup/Last.purs"
-                    , "/src/Data/Semigroup/First.purs"
-                    , "/src/Control/Apply.purs"
-                    , "/src/Control/Applicative.purs"
-                    , "/src/Control/Bind.purs"
-                    , "/src/Control/Monad.purs"
-                    , "/src/Control/Semigroupoid.purs"
-                    , "/src/Control/Category.purs"
-                    , "/src/Record/Unsafe.purs"
-                    ]
-                purescriptEffect =
-                  map
-                    ("bower_components/purescript-effect" <> _)
-                    [ "/src/Effect.purs"
-                    ]
-                purescriptAssert =
-                  map
-                    ("bower_components/purescript-assert" <> _)
-                    [ "/src/Test/Assert.purs"
-                    ]
-                purescriptEffectConsole =
-                  map
-                    ("bower_components/purescript-console" <> _)
-                    [ "/src/Effect/Console.purs"
-                    ]
-
-                testModules =
-                  (testsDirectory <> "/" <> file) A.:
-                  (((testsDirectory <> "/" <> moduleName <> "/") <> _) <$> subModules)
-              in
-              purescriptPrelude <>
-              purescriptEffect <>
-              purescriptEffectConsole <>
-              purescriptAssert <>
-              testModules
+              (testsDirectory <> "/" <> file) A.:
+                (((testsDirectory <> "/" <> moduleName <> "/") <> _) <$> subModules)
           }
-
-tempMakeFile :: String
-tempMakeFile =
-  """
-RUNTIME_SOURCES = \
-	../../../runtime/purescript.c \
-	$(shell find ../../../ccan -type f -name '*.c') \
-	$(shell find ../../../vendor -type f -name '*.c')
-
-RUNTIME_OBJECTS = $(patsubst %.c,%.o,$(RUNTIME_SOURCES))
-
-LDFLAGS = -lBlocksRuntime -lgc -lm
-
-%.o: %.c
-	@echo "Compile" $^
-	@clang \
-		-fblocks \
-		-D 'uthash_malloc=GC_MALLOC'\
-		-D 'uthash_free(ptr, sz)=NULL'\
-		-D 'vec_realloc=GC_realloc'\
-		-D 'vec_free(x)=NULL'\
-		-D 'vec_malloc=GC_MALLOC'\
-		-Wall \
-		-Wno-unused-variable \
-		-Wno-unused-value \
-		-c \
-		-o $@ \
-		-I . \
-		$(CLANG_FLAGS) \
-		$^
-
-sources = $(shell find . -type f -name '*.c')
-objects = $(patsubst %.c,%.o,$(sources))
-prog: CLANG_FLAGS = -I . -I ../../..
-prog: $(RUNTIME_OBJECTS) $(objects)
-	@clang \
-		$^ \
-		$(LDFLAGS) \
-		-o a.out
-  """
 
 foreign import errorCodeImpl
   :: ∀ a
@@ -247,3 +129,25 @@ foreign import errorCodeImpl
 
 errorCode :: Error -> Maybe String
 errorCode = errorCodeImpl Nothing Just
+
+-- TODO Pick up a library for this
+mkdirp :: String -> Aff Unit
+mkdirp dir = go Nothing (Str.split (wrap "/") dir)
+  where
+  go cd xs
+    | Just { head: x, tail: xs' } <- A.uncons xs
+    =
+      let
+        cd' =
+          maybe "" (_ <> "/") cd <> x
+      in do
+        unless (Str.null cd') do
+          mkdir cd'
+          go (Just cd') xs'
+  go _ _ =
+    pure unit
+
+  mkdir dir' =
+    FS.mkdir dir' `catchError` \e ->
+      unless (errorCode e == Just "EEXIST") do
+        throwError e

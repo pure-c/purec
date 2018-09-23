@@ -226,7 +226,6 @@ compileModule isMain corefn = do
       ]
 
 -- TODO Pick up a library for this
--- XXX should work recursively
 mkdirp :: String -> Aff Unit
 mkdirp dir = go Nothing (Str.split (wrap "/") dir)
   where
