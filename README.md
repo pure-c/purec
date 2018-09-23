@@ -13,32 +13,32 @@ local machine for development and testing purposes.
 * Install node.js, including `npm`
 
 ```
-npm install && \
-	./node_modules/.bin/bower install
-```
-
-##### Ubuntu 16.04
-
-```
-apt-get install \
-	libblocksruntime-dev \
-	uthash-dev \
-	libgc-dev
+make deps
 ```
 
 ## Build the purec utility
 
 ```
-npm run build
+make purec
 ```
 
 ## Running the examples
 
-Make sure you built the purec utility first (`npm run build`).
+Each example is an isolated example of how to use purec.
+You can cd into each of these directories and invoke `make`.
+
+To build all examples:
 
 ```
-# make examples/<name> && ./<name>.out
-make examples/example1 && ./example1.out
+make examples
+```
+
+To run a particular example:
+
+```
+# ./examples/<name>/main.out
+# example:
+./examples/example1/main.out
 ```
 
 ## Running the tests

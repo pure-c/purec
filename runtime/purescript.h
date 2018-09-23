@@ -11,9 +11,9 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include <gc.h>
-#include <Block.h>
-#include <uthash.h>
+#include "deps/bwdgc/include/gc.h"
+#include "deps/blocksruntime/BlocksRuntime/Block.h"
+#include "vendor/uthash.h"
 #include "vendor/utf8.h"
 #include "vendor/vec.h"
 #include "ccan/asprintf/asprintf.h"

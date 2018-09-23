@@ -2,10 +2,14 @@
 *.tar.bz2
 *.gch
 *.o
+*.a
+*.tar.gz
 *.tmp
+*.zip
 bower_components/
 node_modules/
 output/
+deps/
 .output/
 .purec-work/
 purec.js
