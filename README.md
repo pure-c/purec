@@ -44,7 +44,7 @@ To run a particular example:
 ## Running the tests
 
 ```
-pulp test
+make test
 ```
 
 ## Contributing

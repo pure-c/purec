@@ -4,6 +4,7 @@ SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
 
 PURS := PATH=$$PATH:node_modules/.bin purs
+PULP := PATH=$$PATH:node_modules/.bin pulp
 PUREC_JS := purec.js
 PUREC := node $(PUREC_JS)
 PUREC_WORKDIR := .purec-work
@@ -119,11 +120,19 @@ deps/blocksruntime:
 
 # note: this is temporary while building up the project
 test: examples/bower_components
-test:
+
+test/examples:
 	@$(MAKE) -s examples
 	@./examples/example1/main.out <<< "john"
 	@./examples/example2/main.out
 	@./examples/effect/main.out
+.PHONY: test/examples
+
+test/pulp:
+	$(PULP) test
+.PHONY: test/pulp
+
+test: test/examples test/pulp
 
 #-------------------------------------------------------------------------------
 # Examples
