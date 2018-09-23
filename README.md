@@ -24,17 +24,21 @@ make purec
 
 ## Running the examples
 
-Make sure you built the purec utility first (`make purec`).
-
-```
-# make examples && ./examples/<name>.out
-make examples/example1 && ./examples/example1.out
-```
+Each example is an isolated example of how to use purec.
+You can cd into each of these directories and invoke `make`.
 
 To build all examples:
 
 ```
 make examples
+```
+
+To run a particular example:
+
+```
+# ./examples/<name>/main.out
+# example:
+./examples/example1/main.out
 ```
 
 ## Running the tests
