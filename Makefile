@@ -34,26 +34,29 @@ CFLAGS := \
 	-D 'vec_malloc=GC_malloc'
 
 $(BWDGC_LIB):
-	@$(MAKE) deps/bwdgc
+	@$(MAKE) -s deps/bwdgc
 	@cd deps/bwdgc && \
 	    ./autogen.sh && \
 	    ./configure --enable-static && \
 	    $(MAKE)
 
 $(BLOCKSRUNTIME_LIB):
-	@$(MAKE) deps/blocksruntime
+	@$(MAKE) -s deps/blocksruntime
 	@cd 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' && ./buildlib
 
-libpurec.1.a: $(RUNTIME_OBJECTS)
+libpurec.base.a: $(RUNTIME_OBJECTS)
 	@ar cr $@ $^
 
-libpurec.a: libpurec.1.a $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
+libpurec.a: libpurec.base.a $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
 	{\
 		echo 'CREATE $@';\
-		$(foreach archive,$^,echo 'ADDLIB $(archive)';)\
+		echo 'ADDLIB libpurec.base.a';\
+		echo 'ADDLIB $(BLOCKSRUNTIME_LIB)';\
+		echo 'ADDLIB $(BWDGC_LIB)';\
 		echo 'SAVE';\
 		echo 'END';\
 	} | ar -M
+.PHONY: libpurec.a
 
 purec:
 	@npm run build
@@ -98,13 +101,14 @@ deps/bwdgc:
 
 deps/blocksruntime:
 	@if [ ! -d 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' ]; then\
-		    if [ ! -f 'blocksruntime-$(BLOCKSRUNTIME_REV).zip' ]; then\
+		if [ ! -f 'blocksruntime-$(BLOCKSRUNTIME_REV).zip' ]; then\
 			echo "downloading blocksruntime zip...";\
 			curl -sfLo 'blocksruntime-$(BLOCKSRUNTIME_REV).zip'\
 				'https://github.com/pure-c/blocksruntime/archive/$(BLOCKSRUNTIME_REV).zip';\
 		fi &&\
 		mkdir -p deps &&\
-		>/dev/null unzip -d deps 'blocksruntime-$(BLOCKSRUNTIME_REV).zip'
+		>/dev/null unzip -d deps 'blocksruntime-$(BLOCKSRUNTIME_REV).zip' &&\
+		ln -s "$$PWD/deps/blocksruntime-$(BLOCKSRUNTIME_REV)" "$$PWD/deps/blocksruntime";\
 	fi
 
 # note: this is temporary while building up the project
@@ -193,10 +197,11 @@ $(eval $(call mk_example_rule,example1,Example1))
 $(eval $(call mk_example_rule,example2,Example2))
 $(eval $(call mk_example_rule,effect,Main))
 
-examples: \
-	examples/example1 \
-	examples/example2 \
-	examples/effect
+examples:
+	$(MAKE) examples/example1
+	$(MAKE) examples/example2
+	$(MAKE) examples/effect
+.PHONY: examples
 
 examples/bower_components:
 	@cd examples && ../node_modules/.bin/bower install
