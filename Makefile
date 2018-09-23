@@ -1,4 +1,4 @@
-.PHONY: clean deps deps/bwdgc deps/blocksruntime purec test test/build
+.PHONY: clean deps deps/npm deps/bwdgc deps/blocksruntime purec test test/build
 
 SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
@@ -15,7 +15,7 @@ BWDGC_LIB := \
 	deps/bwdgc/.libs/libgc.a
 
 BLOCKSRUNTIME_LIB := \
-	deps/blocksruntime/libBlocksRuntime.a
+	deps/blocksruntime-$(BLOCKSRUNTIME_REV)/libBlocksRuntime.a
 
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
@@ -76,9 +76,14 @@ clean:
 %/corefn.json.1: %/corefn.json
 	@rsync $< $@
 
-deps:
-	npm install
-	node_modules/.bin/bower install
+deps:\
+	deps/npm\
+	deps/bwdgc\
+	deps/blocksruntime
+
+deps/npm:
+	@npm install
+	@node_modules/.bin/bower install
 
 deps/bwdgc:
 	@if [ ! -d deps/bwdgc ]; then \
@@ -93,14 +98,13 @@ deps/bwdgc:
 
 deps/blocksruntime:
 	@if [ ! -d 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' ]; then\
-		if [ ! -f blocksruntime.zip ]; then\
+		    if [ ! -f 'blocksruntime-$(BLOCKSRUNTIME_REV).zip' ]; then\
 			echo "downloading blocksruntime zip...";\
-			curl -sfLo blocksruntime.zip\
-				'https://github.com/pure-c/blocksruntime/archive/$(BLOCKSRUNTIME_REV)';\
+			curl -sfLo 'blocksruntime-$(BLOCKSRUNTIME_REV).zip'\
+				'https://github.com/pure-c/blocksruntime/archive/$(BLOCKSRUNTIME_REV).zip';\
 		fi &&\
 		mkdir -p deps &&\
-		unzip -d deps blocksruntime.zip &&\
-		ln -s "$$PWD/deps/blocksruntime-$(BLOCKSRUNTIME_REV)" deps/blocksruntime;\
+		>/dev/null unzip -d deps 'blocksruntime-$(BLOCKSRUNTIME_REV).zip'
 	fi
 
 # note: this is temporary while building up the project
