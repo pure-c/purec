@@ -45,18 +45,9 @@ $(BLOCKSRUNTIME_LIB):
 	@$(MAKE) -s deps/blocksruntime
 	@cd 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' && ./buildlib
 
-libpurec.base.a: $(RUNTIME_OBJECTS)
-	@ar cr $@ $^
-
-libpurec.a: libpurec.base.a $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
-	{\
-		echo 'CREATE $@';\
-		echo 'ADDLIB libpurec.base.a';\
-		echo 'ADDLIB $(BLOCKSRUNTIME_LIB)';\
-		echo 'ADDLIB $(BWDGC_LIB)';\
-		echo 'SAVE';\
-		echo 'END';\
-	} | ar -M
+libpurec.a: $(RUNTIME_OBJECTS) $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
+	@ar -rcT $@ $^
+	@ranlib $@
 .PHONY: libpurec.a
 
 purec:
