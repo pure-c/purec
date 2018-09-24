@@ -12,6 +12,13 @@ PUREC_LIB = $(PUREC_DIR)/libpurec.a
 PUREC_LIB_DIR = $(dir $(PUREC_LIB))
 PUREC_LIB_NAME = $(notdir %/%,%,$(PUREC_LIB))
 
+OS := $(shell uname)
+ifeq ($(OS),Darwin)
+LD_FLAGS += -dead_strip
+else
+LD_FLAGS += -gc-sections
+endif
+
 $(PUREC_LIB):
 	$(MAKE) -s -C $(PUREC_DIR) libpurec.a
 
@@ -90,13 +97,14 @@ $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(shell find 2>/dev/null "$$(
 $$(PUREC_WORKDIR)/$(1)/.build: \
 	$(PUREC_LIB) \
 	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
+	nm $(PUREC_LIB)
 	@clang $$^ \
 		-L $(PUREC_LIB_DIR) \
 		-lpurec \
 		-lm \
 		-lpthread \
 		-ffunction-sections \
-		-Wl,-gc-sections \
+		-Wl,$(LD_FLAGS) \
 		-o "$(1).out"
 	@touch $$@
 
