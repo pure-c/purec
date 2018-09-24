@@ -92,7 +92,7 @@ $$(PUREC_WORKDIR)/$(1)/.build: \
 	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
 	@clang $$^ \
 		-L $(PUREC_LIB_DIR) \
-		-l:$(PUREC_LIB_NAME) \
+		-lpurec \
 		-lm \
 		-lpthread \
 		-ffunction-sections \
