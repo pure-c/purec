@@ -128,7 +128,7 @@ test/examples:
 	@./examples/effect/main.out
 .PHONY: test/examples
 
-test/pulp:
+test/pulp: upstream/tests/support/bower_components
 	$(PULP) test
 .PHONY: test/pulp
 
@@ -144,5 +144,7 @@ examples: purec examples/bower_components
 	@$(MAKE) -s -C examples/effect
 .PHONY: examples
 
-examples/bower_components:
-	@cd examples && ../node_modules/.bin/bower install
+%/bower_components:
+	@ROOT=$(PWD) &&\
+		cd "$(dir $@)" &&\
+		"$$ROOT/node_modules/.bin/bower" install
