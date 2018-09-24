@@ -57,6 +57,7 @@ clean:
 	@rm -rf $(PUREC_WORKDIR)
 	@rm -f $(RUNTIME_OBJECTS)
 	@rm -f $$(find . -name '*.out')
+	@rm -f $$(find . -maxdepth 1 -name '*.a')
 	@rm -rf $$(find examples -type d -name $(PUREC_WORKDIR))
 
 %.o: %.c | $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
