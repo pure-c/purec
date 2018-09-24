@@ -12,9 +12,9 @@ PUREC_WORKDIR := .purec-work
 BWDGC_V := v8.0.0
 BLOCKSRUNTIME_REV := master
 
-BWDGC_LIB := \
-	deps/bwdgc/.libs/libgc.a
-
+PUREC_LIB := libpurec.a
+PUREC_INTERMEDIATE_LIB := libpurec.intermediate.a
+BWDGC_LIB := deps/bwdgc/.libs/libgc.a
 BLOCKSRUNTIME_LIB := \
 	deps/blocksruntime-$(BLOCKSRUNTIME_REV)/libBlocksRuntime.a
 
@@ -45,10 +45,20 @@ $(BLOCKSRUNTIME_LIB):
 	@$(MAKE) -s deps/blocksruntime
 	@cd 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' && ./buildlib
 
-libpurec.a: $(RUNTIME_OBJECTS) $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
-	@ar -rcT $@ $^
-	@ranlib $@
-.PHONY: libpurec.a
+$(PUREC_INTERMEDIATE_LIB): $(RUNTIME_OBJECTS)
+	@ar csr $@ $^
+
+$(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB) $(BLOCKSRUNTIME_LIB) $(BWDGC_LIB)
+	@rm -rf .build
+	@mkdir -p .build
+	@cd .build &&\
+		for a in $^; do\
+			ar x ../$$a;\
+		done &&\
+		ar csr $@ $$(find . -type f -name '*.o')&&\
+		cp $@ ..
+
+.PHONY: $(PUREC_LIB)
 
 purec:
 	@npm run build

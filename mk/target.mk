@@ -97,7 +97,6 @@ $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(shell find 2>/dev/null "$$(
 $$(PUREC_WORKDIR)/$(1)/.build: \
 	$(PUREC_LIB) \
 	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
-	nm $(PUREC_LIB)
 	@clang $$^ \
 		-L $(PUREC_LIB_DIR) \
 		-lpurec \
