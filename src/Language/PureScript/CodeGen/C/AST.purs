@@ -13,6 +13,7 @@ import Prelude
 
 import Data.Bifunctor (bimap)
 import Data.Either (Either)
+import Data.Foldable (foldl)
 import Data.Generic.Rep as Rep
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
@@ -139,7 +140,7 @@ instance eqType :: Eq Type where
 instance showType :: Show Type where
   show x = genericShow x
 
--- | Data type for simplified C++11 expressions
+-- | Data type for simplified C expressions
 data AST
   -- | A numeric literal
   = NumericLiteral (Either Int Number)
@@ -201,9 +202,7 @@ data AST
   | Symbol String
   -- | A block of expressions in braces
   | Block (Array AST)
-  -- | An C++ struct declaration (name, members)
-  | Struct String (Array AST)
-  -- | A C++ #include
+  -- | An #include
   | Include
       { path :: String
       }
@@ -252,40 +251,48 @@ instance showAST :: Show AST where
 everywhere :: (AST -> AST) -> AST -> AST
 everywhere f = go
   where
-  go (Block xs) = f $ Block $ map go xs
-  go (Binary i a b) = f $ Binary i (go a) (go b)
-  go (ArrayLiteral xs) = f $ ArrayLiteral $ go <$> xs
-  go (Indexer a b) = f $ Indexer (go a) (go b)
-  go (ObjectLiteral xs) = f $
-    ObjectLiteral $
-      xs <#> \{ key, value } ->
-        { key: go key
-        , value: go value
-        }
-  go (Accessor a b) = f $
-    Accessor (go a) (go b)
-  go (Function (x@{ body })) = f $
-    Function $ x { body = go <$> body }
-  go (Lambda (x@{ body })) = f $
-    Lambda $ x { body = go body }
-  go (Cast i b) = f $
-    Cast i (go b)
-  go (App a xs) = f $
-    App (go a) (map go xs)
-  go (Struct i xs) = f $
-    Struct i $ map go xs
-  go (VariableIntroduction x@{ initialization }) = f $
-    VariableIntroduction $
-      x { initialization = go <$> initialization
-        }
-  go (Assignment a b) = f $
-    Assignment (go a) (go b)
-  go (While a b) = f $
-    While (go a) (go b)
-  go (IfElse a b mC) = f $
-    IfElse (go a) (go b) (go <$> mC)
-  go (Switch a xs mC) = f $
-    Switch (go a) (bimap go go <$> xs) (map go mC)
-  go (Return a) = f $
-    Return (go a)
+  go (Block xs) =
+    f $ Block $ map go xs
+  go (Binary i a b) =
+    f $ Binary i (go a) (go b)
+  go (ArrayLiteral xs) =
+    f $ ArrayLiteral $ go <$> xs
+  go (Indexer a b) =
+    f $ Indexer (go a) (go b)
+  go (StructLiteral x) =
+    f $
+      StructLiteral $
+        go <$> x
+  go (ObjectLiteral xs) =
+    f $
+      ObjectLiteral $
+        xs <#> \{ key, value } ->
+          { key: go key
+          , value: go value
+          }
+  go (Accessor a b) =
+    f $ Accessor (go a) (go b)
+  go (Function (x@{ body })) =
+    f $ Function $ x { body = go <$> body }
+  go (Lambda (x@{ body })) =
+    f $ Lambda $ x { body = go body }
+  go (Cast i b) =
+    f $ Cast i (go b)
+  go (App a xs) =
+    f $ App (go a) (map go xs)
+  go (VariableIntroduction x@{ initialization }) =
+    f $
+      VariableIntroduction $
+        x { initialization = go <$> initialization
+          }
+  go (Assignment a b) =
+    f $ Assignment (go a) (go b)
+  go (While a b) =
+    f $ While (go a) (go b)
+  go (IfElse a b mC) =
+    f $ IfElse (go a) (go b) (go <$> mC)
+  go (Switch a xs mC) =
+    f $ Switch (go a) (bimap go go <$> xs) (map go mC)
+  go (Return a) =
+    f $ Return (go a)
   go x = f x

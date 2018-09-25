@@ -36,6 +36,7 @@ import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.Common (safeName)
 import Language.PureScript.CodeGen.C.File as F
+import Language.PureScript.CodeGen.C.Optimizer (optimize)
 import Language.PureScript.CodeGen.C.Pretty as P
 import Language.PureScript.CodeGen.Common (runModuleName)
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
@@ -96,11 +97,9 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
               moduleImports
   in runReaderT <@> { module: mod } $ do
     decls <- do
-      decls <- A.concat <$> do
-        traverse (bindToAst true) moduleDecls
-      pure $
-        hoistVarDecls $
-          decls
+      decls <- A.concat <$> traverse (bindToAst true) moduleDecls
+      hoistVarDecls <$>
+        traverse optimize decls
 
     let
       moduleHeader =
@@ -318,7 +317,8 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                 in
                   AST.IfElse
                     (AST.App R.purs_any_eq_int
-                      [ condAst, AST.NumericLiteral (Left 1)
+                      [ condAst
+                      , AST.NumericLiteral (Left 1)
                       ])
                     (AST.Block [ AST.Return valAst ])
                     Nothing
@@ -748,6 +748,8 @@ buildConstructorDeclsWithTags (C.Module { moduleDecls }) =
               (Map.insert constructorName ix m')
               m
 
+-- | Split out variable declarations and definitions on a per-block (scope)
+-- | level and hoist the declarations to the top of the scope.
 hoistVarDecls :: Array AST -> Array AST
 hoistVarDecls = map go
   where

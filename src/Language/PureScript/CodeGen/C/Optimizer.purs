@@ -6,9 +6,12 @@ import Prelude
 
 import Data.Foldable (foldl)
 import Language.PureScript.CodeGen.C.AST (AST)
+import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks, collapseNestedIfs)
+import Language.PureScript.CodeGen.C.Optimizer.Inliner (unThunk)
+import Language.PureScript.CodeGen.C.Optimizer.Unused (removeCodeAfterReturnStatements, removeUndefinedApp)
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 
--- | Apply a series of optimizer passes to simplified JavaScript code
+-- | Apply a series of optimizer passes
 optimize
   :: ∀ m
    . Monad m
@@ -18,31 +21,15 @@ optimize
 optimize =
   untilFixedPoint (pure <<< tidyUp)
 
-  --   untilFixedPoint (return . tidyUp) . tco . inlineST
-  --     =<< untilFixedPoint (return . magicDo')
-  --     =<< untilFixedPoint (return . magicDo) js'
-  --     =<< untilFixedPoint
-            --  (inlineFnComposition <<<
-            --   inlineUnsafeCoerce <<<
-            --   inlineUnsafePartial <<<
-            --   tidyUp <<<
-            --   applyAll
-            --     [ inlineCommonValues
-            --     , inlineCommonOperators
-            --     ])
   where
-    tidyUp :: AST -> AST
-    tidyUp =
-      foldl (<<<) identity
-        [
-        -- , collapseNestedBlocks
-        -- , collapseNestedIfs
-        -- , removeCodeAfterReturnStatements
-        -- , removeUndefinedApp
-        -- , unThunk
-        -- , etaConvert
-        -- , evaluateIifes
-        -- , inlineVariables
+  tidyUp :: AST -> AST
+  tidyUp =
+    foldl (<<<) identity
+      [ collapseNestedBlocks
+      , collapseNestedIfs
+      , removeCodeAfterReturnStatements
+      , removeUndefinedApp
+      , unThunk
         ]
 
 untilFixedPoint
