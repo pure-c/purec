@@ -748,69 +748,34 @@ buildConstructorDeclsWithTags (C.Module { moduleDecls }) =
               (Map.insert constructorName ix m')
               m
 
--- TODO: make this stack safe
 hoistVarDecls :: Array AST -> Array AST
 hoistVarDecls = map go
   where
-  go (AST.Block xs) =
-    AST.Block $
-      let
-        (decls /\ xs') =
-          A.foldl
-            (\(decls /\ xs') x ->
-              case x of
-                AST.VariableIntroduction x@{ name, managed: true, initialization: Just initialization } ->
-                  let
-                    decl =
-                      AST.VariableIntroduction $
-                        x { initialization = Nothing }
-                    x' =
-                      AST.Assignment
-                        (AST.Var x.name)
-                        -- XXX chance for optimization: only capture if required
-                        -- XXX same could be true for using heap vs. stack more
-                        --     more generally speaking
-                        (AST.App R.purs_scope_capture [ initialization ])
-                  in
-                    (decls <> [ (name /\ decl) ]) /\ (xs' <> [ x' ])
-                x ->
-                  decls /\ (xs' <> [ x ])
-            ) ([] /\ []) xs
-      in map snd (A.nubBy (compare `on` fst) decls) <> hoistVarDecls xs'
-  go (AST.Unary i a) = AST.Unary i $ go a
-  go (AST.Binary i a b) = AST.Binary i (go a) (go b)
-  go (AST.ArrayLiteral xs) = AST.ArrayLiteral $ go <$> xs
-  go (AST.Indexer a b) = AST.Indexer (go a) (go b)
-  go (AST.ObjectLiteral xs) =
-    AST.ObjectLiteral $
-      xs <#> \{ key, value } ->
-        { key: go key
-        , value: go value
-        }
-  go (AST.Accessor a b) =
-    AST.Accessor (go a) (go b)
-  go (AST.Function (x@{ body: Just body })) =
-    AST.Function $ x { body = Just $ go body }
-  go (AST.Lambda (x@{ body })) =
-    AST.Lambda $ x { body = go body }
-  go (AST.Cast i b) =
-    AST.Cast i (go b)
-  go (AST.App a xs) =
-    AST.App (go a) (map go xs)
-  go (AST.Struct i xs) =
-    AST.Struct i $ map go xs
-  go (AST.VariableIntroduction (x@{ initialization: Just initialization })) =
-    AST.VariableIntroduction $
-      x { initialization = Just $ go initialization
-        }
-  go (AST.Assignment a b) =
-    AST.Assignment (go a) (go b)
-  go (AST.While a b) =
-    AST.While (go a) (go b)
-  go (AST.IfElse a b mC) =
-    AST.IfElse (go a) (go b) (go <$> mC)
-  go (AST.Switch a xs mC) =
-    AST.Switch (go a) (bimap go go <$> xs) (map go mC)
-  go (AST.Return a) =
-    AST.Return (go a)
-  go x = x
+  go =
+    AST.everywhere case _ of
+      AST.Block xs ->
+        AST.Block $
+          let
+            (decls /\ xs') =
+              A.foldl
+                (\(decls /\ xs') x ->
+                  case x of
+                    AST.VariableIntroduction x@{ name, managed: true, initialization: Just initialization } ->
+                      let
+                        decl =
+                          AST.VariableIntroduction $
+                            x { initialization = Nothing }
+                        x' =
+                          AST.Assignment
+                            (AST.Var x.name)
+                            -- XXX chance for optimization: only capture if required
+                            -- XXX same could be true for using heap vs. stack
+                            --     more generally speaking
+                            (AST.App R.purs_scope_capture [ initialization ])
+                      in
+                        (decls <> [ (name /\ decl) ]) /\ (xs' <> [ x' ])
+                    x ->
+                      decls /\ (xs' <> [ x ])
+                ) ([] /\ []) xs
+          in map snd (A.nubBy (compare `on` fst) decls) <> hoistVarDecls xs'
+      x -> x

@@ -20,7 +20,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "pulp build -t purec.js -O"
+    "build": "pulp build -t purec.js -O",
+    "watch": "pulp -w build"
   },
   "repository": {
     "type": "git",

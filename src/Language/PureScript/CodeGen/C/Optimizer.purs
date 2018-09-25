@@ -4,6 +4,7 @@ module Language.PureScript.CodeGen.C.Optimizer
 
 import Prelude
 
+import Data.Foldable (foldl)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 
@@ -15,7 +16,7 @@ optimize
   => AST
   -> m AST
 optimize =
-  untilFixedPoint pure
+  untilFixedPoint (pure <<< tidyUp)
 
   --   untilFixedPoint (return . tidyUp) . tco . inlineST
   --     =<< untilFixedPoint (return . magicDo')
@@ -29,18 +30,20 @@ optimize =
             --     [ inlineCommonValues
             --     , inlineCommonOperators
             --     ])
-  -- where
-  --   tidyUp :: AST -> AST
-  --   tidyUp = applyAll
-  --     [ collapseNestedBlocks
-  --     , collapseNestedIfs
-  --     , removeCodeAfterReturnStatements
-  --     , removeUndefinedApp
-  --     , unThunk
-  --     , etaConvert
-  --     , evaluateIifes
-  --     , inlineVariables
-  --     ]
+  where
+    tidyUp :: AST -> AST
+    tidyUp =
+      foldl (<<<) identity
+        [
+        -- , collapseNestedBlocks
+        -- , collapseNestedIfs
+        -- , removeCodeAfterReturnStatements
+        -- , removeUndefinedApp
+        -- , unThunk
+        -- , etaConvert
+        -- , evaluateIifes
+        -- , inlineVariables
+        ]
 
 untilFixedPoint
   :: ∀ m a
