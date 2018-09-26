@@ -188,26 +188,34 @@ data AST
       , qualifiers :: Array ValueQualifier
       , body :: Maybe AST
       }
+
   -- | A lambda introduction (via Blocks)
   | Lambda
       { arguments :: Array { name :: String, type :: Type }
       , returnType :: Type
       , body :: AST
       }
+
   -- | Value type cast
   | Cast Type AST
+
   -- | Function application
   | App AST (Array AST)
+
   -- | Variable
   | Var String
+
   -- | Unique system-wide name/constant
   | Symbol String
+
   -- | A block of expressions in braces
   | Block (Array AST)
+
   -- | An #include
   | Include
       { path :: String
       }
+
   -- | A variable introduction and optional initialization
   | VariableIntroduction
       { name :: String
@@ -216,20 +224,28 @@ data AST
       , initialization :: Maybe AST
       , managed :: Boolean
       }
+
   -- | A variable assignment
   | Assignment AST AST
+
   -- | While loop
   | While AST AST
+
   -- | If-then-else statement
   | IfElse AST AST (Maybe AST)
+
   -- | Return statement
   | Return AST
+
   -- | Continue statement
   | Continue
+
   -- | Empty statement/expression
   | NoOp
+
   -- | Marker for header/source split
   | EndOfHeader
+
   -- | Raw C
   | Raw String
 
