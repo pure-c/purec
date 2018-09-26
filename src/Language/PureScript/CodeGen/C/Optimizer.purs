@@ -4,17 +4,20 @@ module Language.PureScript.CodeGen.C.Optimizer
 
 import Prelude
 
+import Control.Monad.Error.Class (class MonadError)
 import Data.Foldable (foldl)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks, collapseNestedIfs)
 import Language.PureScript.CodeGen.C.Optimizer.Inliner (unThunk)
 import Language.PureScript.CodeGen.C.Optimizer.Unused (removeCodeAfterReturnStatements, removeUndefinedApp)
+import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 
 -- | Apply a series of optimizer passes
 optimize
   :: ∀ m
    . Monad m
+  => MonadError CompileError m
   => MonadSupply m
   => AST
   -> m AST

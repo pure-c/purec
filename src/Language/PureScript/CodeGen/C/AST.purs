@@ -7,20 +7,19 @@ module Language.PureScript.CodeGen.C.AST
   , TypeQualifier(..)
   , ValueQualifier
   , everywhere
+  , everything
+  , everythingM
   ) where
 
 import Prelude
 
-import Data.Array (foldl)
 import Data.Array as A
-import Data.Bifunctor (bimap)
 import Data.Either (Either)
-import Data.Foldable (foldl)
 import Data.Generic.Rep as Rep
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
-import Data.Tuple.Nested (type (/\))
+import Data.Traversable (for, traverse)
 import Foreign.Object (Object)
 
 -- | Built-in unary operators
@@ -360,5 +359,117 @@ everything combine toA = go
     toA j `combine` go a `combine` go b `combine` go x
   go j@(Return a) =
     toA j `combine` go a
+  go x =
+    toA x
+
+everythingM
+  :: ∀ a f
+   . Applicative f
+  => (a -> a -> a)
+  -> (AST -> f a)
+  -> AST
+  -> f a
+everythingM combine toA = go
+  where
+  go j@(Block xs) =
+    A.foldl combine
+      <$> toA j
+      <*> traverse go xs
+  go j@(Binary _ a b) =
+    combine
+      <$> toA j
+      <*> do
+        combine
+          <$> go a
+          <*> go b
+  go j@(ArrayLiteral xs) =
+    A.foldl combine
+      <$> toA j
+      <*> traverse go xs
+  go j@(Indexer a b) =
+    combine
+      <$> toA j
+      <*> do
+        combine
+          <$> go a
+          <*> go b
+  go j@(StructLiteral x) =
+    A.foldl combine
+      <$> toA j
+      <*> traverse go x
+  go j@(ObjectLiteral xs) =
+    A.foldl combine
+      <$> toA j
+      <*> do
+        for xs\{ key, value } ->
+          combine
+            <$> toA key
+            <*> toA value
+  go j@(Accessor a b) =
+    combine
+      <$> toA j
+      <*> do
+        combine
+          <$> go a
+          <*> go b
+  go j@(Function (x@{ body: Nothing })) =
+    toA j
+  go j@(Function (x@{ body: Just body })) =
+    combine
+      <$> toA j
+      <*> go body
+  go j@(Lambda (x@{ body })) =
+    combine
+      <$> toA j
+      <*> go body
+  go j@(Cast _ b) =
+    combine
+      <$> toA j
+      <*> go b
+  go j@(App a xs) = do
+    A.foldl combine
+      <$> (combine <$> toA j <*> go a)
+      <*> traverse go xs
+  go j@(VariableIntroduction x@{ initialization: Nothing }) =
+    toA j
+  go j@(VariableIntroduction x@{ initialization: Just i }) =
+    combine
+      <$> toA j
+      <*> go i
+  go j@(Assignment a b) =
+    combine
+      <$> toA j
+      <*> do
+        combine
+          <$> go a
+          <*> go b
+  go j@(While a b) =
+    combine
+      <$> toA j
+      <*> do
+        combine
+          <$> go a
+          <*> go b
+  go j@(IfElse a b Nothing) =
+    combine
+      <$> toA j
+      <*> do
+        combine
+          <$> go a
+          <*> go b
+  go j@(IfElse a b (Just x)) =
+    combine
+      <$> toA j
+      <*> do
+        combine
+          <$> go a
+          <*> do
+            combine
+              <$> go b
+              <*> go x
+  go j@(Return a) =
+    combine
+      <$> toA j
+      <*> go a
   go x =
     toA x
