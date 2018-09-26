@@ -11,13 +11,15 @@ module Language.PureScript.CodeGen.C.AST
 
 import Prelude
 
+import Data.Array (foldl)
+import Data.Array as A
 import Data.Bifunctor (bimap)
 import Data.Either (Either)
 import Data.Foldable (foldl)
 import Data.Generic.Rep as Rep
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.Tuple.Nested (type (/\))
 import Foreign.Object (Object)
 
@@ -220,8 +222,6 @@ data AST
   | While AST AST
   -- | If-then-else statement
   | IfElse AST AST (Maybe AST)
-  -- | Switch statement
-  | Switch AST (Array (AST /\ AST)) (Maybe AST)
   -- | Return statement
   | Return AST
   -- | Continue statement
@@ -252,7 +252,7 @@ everywhere :: (AST -> AST) -> AST -> AST
 everywhere f = go
   where
   go (Block xs) =
-    f $ Block $ map go xs
+    f $ Block $ go <$> xs
   go (Binary i a b) =
     f $ Binary i (go a) (go b)
   go (ArrayLiteral xs) =
@@ -279,7 +279,7 @@ everywhere f = go
   go (Cast i b) =
     f $ Cast i (go b)
   go (App a xs) =
-    f $ App (go a) (map go xs)
+    f $ App (go a) (go <$> xs)
   go (VariableIntroduction x@{ initialization }) =
     f $
       VariableIntroduction $
@@ -291,8 +291,58 @@ everywhere f = go
     f $ While (go a) (go b)
   go (IfElse a b mC) =
     f $ IfElse (go a) (go b) (go <$> mC)
-  go (Switch a xs mC) =
-    f $ Switch (go a) (bimap go go <$> xs) (map go mC)
   go (Return a) =
     f $ Return (go a)
-  go x = f x
+  go x =
+    f x
+
+-- TODO: make this stack safe
+everything :: ∀ a. (a -> a -> a) -> (AST -> a) -> AST -> a
+everything combine toA = go
+  where
+  go j@(Block xs) =
+    A.foldl combine (toA j) $
+      go <$> xs
+  go j@(Binary _ a b) =
+    toA j `combine` go a `combine` go b
+  go j@(ArrayLiteral xs) =
+    A.foldl combine (toA j) $
+      go <$> xs
+  go j@(Indexer a b) =
+    toA j `combine` go a `combine` go b
+  go j@(StructLiteral x) =
+    A.foldl combine (toA j) $
+      go <$> x
+  go j@(ObjectLiteral xs) =
+    A.foldl combine (toA j) $
+      xs <#> \{ key, value } ->
+        toA key `combine` toA value
+  go j@(Accessor a b) =
+    toA j `combine` go a `combine` go b
+  go j@(Function (x@{ body: Nothing })) =
+    toA j
+  go j@(Function (x@{ body: Just body })) =
+    toA j `combine` go body
+  go j@(Lambda (x@{ body })) =
+    toA j `combine` go body
+  go j@(Cast _ b) =
+    toA j `combine` go b
+  go j@(App a xs) =
+    A.foldl combine (toA j `combine` go a) $
+      go <$> xs
+  go j@(VariableIntroduction x@{ initialization: Nothing }) =
+    toA j
+  go j@(VariableIntroduction x@{ initialization: Just i }) =
+    toA j `combine` go i
+  go j@(Assignment a b) =
+    toA j `combine` go a `combine` go b
+  go j@(While a b) =
+    toA j `combine` go a `combine` go b
+  go j@(IfElse a b Nothing) =
+    toA j `combine` go a `combine` go b
+  go j@(IfElse a b (Just x)) =
+    toA j `combine` go a `combine` go b `combine` go x
+  go j@(Return a) =
+    toA j `combine` go a
+  go x =
+    toA x
