@@ -8,7 +8,7 @@ import Control.Monad.Error.Class (class MonadError)
 import Data.Foldable (foldl)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks, collapseNestedIfs)
-import Language.PureScript.CodeGen.C.Optimizer.Inliner (unThunk)
+import Language.PureScript.CodeGen.C.Optimizer.Inliner (inlineVariables, unThunk)
 import Language.PureScript.CodeGen.C.Optimizer.Unused (removeCodeAfterReturnStatements, removeUndefinedApp)
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
@@ -22,18 +22,20 @@ optimize
   => AST
   -> m AST
 optimize =
-  untilFixedPoint (pure <<< tidyUp)
+  -- untilFixedPoint tidyUp
+  tidyUp
 
   where
-  tidyUp :: AST -> AST
+  tidyUp :: AST -> m AST
   tidyUp =
-    foldl (<<<) identity
-      [ collapseNestedBlocks
-      , collapseNestedIfs
-      , removeCodeAfterReturnStatements
-      , removeUndefinedApp
-      , unThunk
-        ]
+    foldl (<=<) (pure <<< identity)
+      [ pure <<< collapseNestedBlocks
+      , pure <<< collapseNestedIfs
+      , pure <<< removeCodeAfterReturnStatements
+      , pure <<< removeUndefinedApp
+      , pure <<< unThunk
+      , inlineVariables
+      ]
 
 untilFixedPoint
   :: ∀ m a

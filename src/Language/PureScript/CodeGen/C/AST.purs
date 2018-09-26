@@ -7,6 +7,7 @@ module Language.PureScript.CodeGen.C.AST
   , TypeQualifier(..)
   , ValueQualifier
   , everywhere
+  , everywhereM
   , everything
   , everythingM
   ) where
@@ -308,6 +309,91 @@ everywhere f = go
     f $ IfElse (go a) (go b) (go <$> mC)
   go (Return a) =
     f $ Return (go a)
+  go x =
+    f x
+
+everywhereM
+  :: ∀ m
+   . Monad m
+  => (AST -> m AST)
+  -> AST
+  -> m AST
+everywhereM f = go
+  where
+  go (Block xs) =
+    f =<< do
+      Block
+        <$> traverse go xs
+  go (Binary i a b) =
+    f =<<  do
+      Binary i
+        <$> go a
+        <*> go b
+  go (ArrayLiteral xs) =
+    f =<< do
+      ArrayLiteral
+        <$> traverse go xs
+  go (Indexer a b) =
+    f =<< do
+      Indexer
+        <$> go a
+        <*> go b
+  go (StructLiteral x) =
+    f =<< do
+      StructLiteral
+        <$> traverse go x
+  go (ObjectLiteral xs) =
+    f =<< do
+      ObjectLiteral <$>
+        for xs \{ key, value } ->
+          { key: _, value: _ }
+            <$> go key
+            <*> go value
+  go (Accessor a b) =
+    f =<< do
+      Accessor
+        <$> go a
+        <*> go b
+  go (Function (x@{ body })) =
+    f =<< do
+      Function <<< x { body = _ }
+        <$> traverse go body
+  go (Lambda (x@{ body })) =
+    f =<< do
+      Lambda <<< x { body = _ }
+        <$> go body
+  go (Cast i b) =
+    f =<< do
+      Cast i <$> go b
+  go (App a xs) =
+    f =<< do
+      App
+        <$> go a
+        <*> traverse go xs
+  go (VariableIntroduction x@{ initialization }) =
+    f =<< do
+      VariableIntroduction <<<
+        x { initialization = _
+          } <$> traverse go initialization
+  go (Assignment a b) =
+    f =<< do
+      Assignment
+        <$> go a
+        <*> go b
+  go (While a b) =
+    f =<< do
+      While
+        <$> go a
+        <*> go b
+  go (IfElse a b mC) =
+    f =<< do
+      IfElse
+        <$> go a
+        <*> go b
+        <*> traverse go mC
+  go (Return a) =
+    f =<< do
+      Return <$> go a
   go x =
     f x
 

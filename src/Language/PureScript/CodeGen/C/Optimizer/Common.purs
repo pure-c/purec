@@ -1,15 +1,17 @@
 module Language.PureScript.CodeGen.C.Optimizer.Common
-  ( mapBlocks
+  ( mapBlock
+  , isReassigned
+  , isRebound
+  , isUpdated
+  , shouldInline
   , replaceIdent
   , replaceIdents
-  , isReassigned
   ) where
 
 import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Data.Array as A
-import Data.Foldable (any, or)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -17,9 +19,16 @@ import Language.PureScript.CodeGen.C.AST (AST, everything, everythingM, everywhe
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 
-mapBlocks :: (Array AST -> Array AST) -> AST -> AST
-mapBlocks go (AST.Block sts) = AST.Block (go sts)
-mapBlocks _  x = x
+shouldInline :: AST -> Boolean
+shouldInline (AST.Var _) = true
+shouldInline (AST.NumericLiteral _) = true
+shouldInline (AST.CharLiteral _) = true
+shouldInline (AST.StringLiteral _) = true
+shouldInline _ = false
+
+mapBlock :: (Array AST -> Array AST) -> AST -> AST
+mapBlock go (AST.Block sts) = AST.Block (go sts)
+mapBlock _  x = x
 
 replaceIdent :: String -> AST -> AST -> AST
 replaceIdent var1 ast = everywhere replace

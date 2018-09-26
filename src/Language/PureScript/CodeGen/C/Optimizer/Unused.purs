@@ -10,11 +10,10 @@ import Data.Maybe (fromMaybe)
 import Language.PureScript.Constants as Constants
 import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST as AST
-import Language.PureScript.CodeGen.C.Optimizer.Common (mapBlocks)
+import Language.PureScript.CodeGen.C.Optimizer.Common (mapBlock)
 
 removeCodeAfterReturnStatements :: AST -> AST
-removeCodeAfterReturnStatements = everywhere (mapBlocks go)
-
+removeCodeAfterReturnStatements = everywhere (mapBlock go)
   where
   go :: Array AST -> Array AST
   go asts = fromMaybe asts ado
