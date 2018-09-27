@@ -8,6 +8,10 @@
 
 completed_ffi_for=(
 	purescript-prelude
+	purescript-console
+	purescript-effect
+	purescript-assert
+	purescript-math
 )
 
 function has_completed_ffi {
