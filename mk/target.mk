@@ -21,6 +21,7 @@ endif
 
 $(PUREC_LIB):
 	$(MAKE) -s -C $(PUREC_DIR) libpurec.a
+.PHONY: $(PUREC_LIB)
 
 %/corefn.json.1: %/corefn.json
 	@rsync $< $@
