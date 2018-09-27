@@ -4,7 +4,7 @@
 #include <purescript.h>
 
 PURS_FFI_FUNC_2(Example1_putStr, s, _, {
-	printf("%s", purs_any_get_string(s)->data);
+	printf("%s", purs_any_get_string(s));
 	return NULL;
 });
 
@@ -14,7 +14,7 @@ PURS_FFI_FUNC_2(Example1_exit, _code, _, {
 });
 
 PURS_FFI_FUNC_2(Example1_putStrLn, s, _, {
-	printf("%s\n", purs_any_get_string(s)->data);
+	printf("%s\n", purs_any_get_string(s));
 	return NULL;
 });
 

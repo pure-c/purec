@@ -262,10 +262,10 @@ inline const managed_block_t * purs_any_get_abs_block_maybe (const purs_any_t * 
 	}
 }
 
-inline const managed_utf8str_t * purs_any_get_string_maybe (const purs_any_t * x) {
+inline const void * purs_any_get_string_maybe (const purs_any_t * x) {
 	x = purs_any_unthunk(x);
 	if (x->tag == PURS_ANY_TAG_STRING) {
-		return (const managed_block_t *) x->value.string;
+		return (const managed_block_t *) x->value.string->data;
 	} else {
 		return NULL;
 	}
@@ -358,7 +358,7 @@ PURS_ANY_GET_IMPL_DEREF(const double, number);
 PURS_ANY_GET_IMPL(const purs_cons_t *, cons);
 PURS_ANY_GET_IMPL(const abs_t, abs);
 PURS_ANY_GET_IMPL(const managed_block_t *, abs_block);
-PURS_ANY_GET_IMPL(const managed_utf8str_t *, string);
+PURS_ANY_GET_IMPL(const void *, string);
 PURS_ANY_GET_IMPL(const purs_record_t *, record);
 PURS_ANY_GET_IMPL(const purs_vec_t *, array);
 PURS_ANY_GET_IMPL(const purs_foreign_t *, foreign);
@@ -453,8 +453,8 @@ inline int purs_any_eq_char (const purs_any_t * x, utf8_int32_t y) {
 }
 
 inline int purs_any_eq_string (const purs_any_t * x, const void * str) {
-	const managed_utf8str_t * a = purs_any_get_string(x);
-	return utf8cmp(a->data, str) == 0;
+	const void * a = purs_any_get_string(x);
+	return utf8cmp(a, str) == 0;
 }
 
 inline int purs_any_eq_int (const purs_any_t * x, purs_any_int_t y) {
@@ -483,10 +483,10 @@ const purs_any_t * purs_any_concat(const purs_any_t * x, const purs_any_t * y) {
 	} else {
 		switch(x->tag) {
 		case PURS_ANY_TAG_STRING: {
-			const managed_utf8str_t * x_utf8str = purs_any_get_string(x);
-			const managed_utf8str_t * y_utf8str = purs_any_get_string(y);
 			return PURS_ANY_STRING_NEW(
-				afmt("%s%s", x_utf8str->data, y_utf8str->data));
+				afmt("%s%s",
+				     purs_any_get_string(x),
+				     purs_any_get_string(y)));
 		}
 		case PURS_ANY_TAG_ARRAY: {
 			const purs_vec_t * x_vec = purs_any_get_array(x);
@@ -686,8 +686,8 @@ const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 				return purs_any_false;
 			}
 		case PURS_ANY_TAG_STRING:
-			if (utf8cmp(purs_any_get_string(x)->data,
-				    purs_any_get_string(y)->data) == 0) {
+			if (utf8cmp(purs_any_get_string(x),
+				    purs_any_get_string(y)) == 0) {
 				return purs_any_true;
 			} else {
 				return purs_any_false;
