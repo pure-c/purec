@@ -307,10 +307,33 @@ inline const purs_foreign_t * purs_any_get_foreign_maybe (const purs_any_t * x) 
 	}
 }
 
+#define PURS_ANY_GET_IMPL_DEREF(T, X)\
+	inline T purs_any_get_##X (const purs_any_t * x) {\
+		x = purs_any_unthunk(x);\
+		purs_assert(x != NULL, "(purs_any_get_" X ") expected: " X ", got: NULL");\
+		/* TODO: put this behind a flag or make it more efficient. */\
+		char * msg = afmt(\
+			"(purs_any_get_" #X ") (got: %s)",\
+			purs_any_tag_str(\
+				* (const int *) purs_assert_not_null(\
+					purs_any_get_tag_maybe(x),\
+					"(purs_any_get_" #X ") expected purs_any_t"\
+				)\
+			)\
+		);\
+		T * r = (T *) purs_assert_not_null(\
+			purs_any_get_##X##_maybe(x),\
+			msg\
+		);\
+		free(msg);\
+		return *r;\
+	}
+
 #define PURS_ANY_GET_IMPL(T, X)\
 	inline T purs_any_get_##X (const purs_any_t * x) {\
 		x = purs_any_unthunk(x);\
 		purs_assert(x != NULL, "(purs_any_get_" X ") expected: " X ", got: NULL");\
+		/* TODO: put this behind a flag or make it more efficient. */\
 		char * msg = afmt(\
 			"(purs_any_get_" #X ") (got: %s)",\
 			purs_any_tag_str(\
@@ -328,13 +351,14 @@ inline const purs_foreign_t * purs_any_get_foreign_maybe (const purs_any_t * x) 
 		return r;\
 	}
 
+PURS_ANY_GET_IMPL_DEREF(const utf8_int32_t, char);
+PURS_ANY_GET_IMPL_DEREF(const purs_any_int_t, int);
+PURS_ANY_GET_IMPL_DEREF(const double, number);
+
 PURS_ANY_GET_IMPL(const purs_cons_t *, cons);
 PURS_ANY_GET_IMPL(const abs_t, abs);
-PURS_ANY_GET_IMPL(const purs_any_int_t *, int);
-PURS_ANY_GET_IMPL(const double *, number);
 PURS_ANY_GET_IMPL(const managed_block_t *, abs_block);
 PURS_ANY_GET_IMPL(const managed_utf8str_t *, string);
-PURS_ANY_GET_IMPL(const utf8_int32_t *, char);
 PURS_ANY_GET_IMPL(const purs_record_t *, record);
 PURS_ANY_GET_IMPL(const purs_vec_t *, array);
 PURS_ANY_GET_IMPL(const purs_foreign_t *, foreign);
@@ -424,8 +448,8 @@ inline const purs_any_t * purs_any_app (const purs_any_t * x,
 }
 
 inline int purs_any_eq_char (const purs_any_t * x, utf8_int32_t y) {
-	const utf8_int32_t * a = purs_any_get_char(x);
-	return *a == y;
+	const utf8_int32_t a = purs_any_get_char(x);
+	return a == y;
 }
 
 inline int purs_any_eq_string (const purs_any_t * x, const void * str) {
@@ -434,13 +458,13 @@ inline int purs_any_eq_string (const purs_any_t * x, const void * str) {
 }
 
 inline int purs_any_eq_int (const purs_any_t * x, purs_any_int_t y) {
-	const int * a = purs_any_get_int(x);
-	return *a == y;
+	const int a = purs_any_get_int(x);
+	return a == y;
 }
 
 inline int purs_any_eq_number (const purs_any_t * x, double y) {
-	const double * a = purs_any_get_number(x);
-	return *a == y;
+	const double a = purs_any_get_number(x);
+	return a == y;
 }
 
 /**
@@ -650,13 +674,13 @@ const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 	} else if (x->tag == y->tag) {
 		switch (x->tag) {
 		case PURS_ANY_TAG_INT:
-			if (*purs_any_get_int(x) == *purs_any_get_int(y)) {
+			if (purs_any_get_int(x) == purs_any_get_int(y)) {
 				return purs_any_true;
 			} else {
 				return purs_any_false;
 			}
 		case PURS_ANY_TAG_NUMBER:
-			if (*purs_any_get_number(x) == *purs_any_get_number(y)) {
+			if (purs_any_get_number(x) == purs_any_get_number(y)) {
 				return purs_any_true;
 			} else {
 				return purs_any_false;
@@ -669,7 +693,7 @@ const purs_any_t * purs_any_eq(const purs_any_t * x, const purs_any_t * y) {
 				return purs_any_false;
 			}
 		case PURS_ANY_TAG_CHAR:
-			if (*purs_any_get_char(x) == *purs_any_get_char(y)) {
+			if (purs_any_get_char(x) == purs_any_get_char(y)) {
 				return purs_any_true;
 			} else {
 				return purs_any_false;

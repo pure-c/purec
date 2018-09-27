@@ -9,7 +9,7 @@ PURS_FFI_FUNC_2(Example1_putStr, s, _, {
 });
 
 PURS_FFI_FUNC_2(Example1_exit, _code, _, {
-	exit(*purs_any_get_int(_code));
+	exit(purs_any_get_int(_code));
 	return NULL;
 });
 

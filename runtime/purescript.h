@@ -103,6 +103,7 @@ const void * purs_assert_not_null(const void *, const char * message);
 // -----------------------------------------------------------------------------
 
 #define purs_any_int_t int32_t
+#define purs_any_number_t double
 
 struct purs_cons {
 	int tag;
@@ -133,7 +134,7 @@ typedef struct purs_foreign {
 
 union purs_any_value {
 	purs_any_int_t integer;
-	double number;
+	purs_any_number_t number;
 	abs_t fn;
 	utf8_int32_t _char;
 	const managed_utf8str_t * string;
@@ -164,12 +165,12 @@ const purs_vec_t *        purs_any_get_array_maybe     (const purs_any_t *);
 const purs_foreign_t *    purs_any_get_foreign_maybe   (const purs_any_t *);
 
 const abs_t               purs_any_get_abs       (const purs_any_t *);
-const purs_any_int_t *    purs_any_get_int       (const purs_any_t *);
-const double *            purs_any_get_number    (const purs_any_t *);
+const purs_any_int_t      purs_any_get_int       (const purs_any_t *);
+const double              purs_any_get_number    (const purs_any_t *);
 const managed_block_t *   purs_any_get_abs_block (const purs_any_t *);
 const purs_cons_t *       purs_any_get_cons      (const purs_any_t *);
 const managed_utf8str_t * purs_any_get_string    (const purs_any_t *);
-const utf8_int32_t *      purs_any_get_char      (const purs_any_t *);
+const utf8_int32_t        purs_any_get_char      (const purs_any_t *);
 const purs_record_t *     purs_any_get_record    (const purs_any_t *);
 const purs_vec_t *        purs_any_get_array     (const purs_any_t *);
 const purs_foreign_t *    purs_any_get_foreign   (const purs_any_t *);
@@ -281,6 +282,14 @@ int purs_any_eq_number (const purs_any_t *, double);
 			}\
 		}\
 	}
+
+#define PURS_ANY_ABS(FUN)\
+	{\
+		.tag = PURS_ANY_TAG_ABS,\
+		.value = {\
+			.fn = FUN\
+		}\
+	}\
 
 /**
  * Helper to allocate a cons' 'value' field large enough to fit 'n' amount of

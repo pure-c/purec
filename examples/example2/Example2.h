@@ -9,7 +9,7 @@ PURS_FFI_FUNC_1(Example2_runGC, _, {
 })
 
 PURS_FFI_FUNC_2(Example2_usleep, x, _, {
-	usleep(*purs_any_get_int(x));
+	usleep(purs_any_get_int(x));
 	return NULL;
 })
 
