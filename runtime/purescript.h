@@ -48,7 +48,7 @@ const managed_t * managed_new(const void * data, void * ctx, char * label, manag
 // -----------------------------------------------------------------------------
 
 typedef struct purs_scope_entries {
-	const purs_any_t * key;
+	const void * key;
 	UT_hash_handle hh;
 } purs_scope_entries_t;
 
@@ -62,9 +62,9 @@ purs_scope_t * purs_scope_new (const purs_scope_t * parent);
 
 purs_scope_t * __scope__;
 
-const purs_any_t * _purs_scope_capture(purs_scope_t *, const purs_any_t *);
+const void * _purs_scope_capture(purs_scope_t *, const void *);
 #define purs_scope_capture(PTR)\
-	(const purs_any_t *) _purs_scope_capture(__scope__, PTR)
+	(const void *) _purs_scope_capture(__scope__, PTR)
 
 // -----------------------------------------------------------------------------
 // managed blocks

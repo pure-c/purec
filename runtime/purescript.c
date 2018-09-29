@@ -58,7 +58,7 @@ static const purs_scope_entries_t * _purs_scope_entries_copy_shallow(const purs_
 			hh,
 			record,
 			entry_copy->key,
-			sizeof(const purs_any_t *),
+			sizeof(const void *),
 			entry_copy
 		);
 	}
@@ -79,7 +79,7 @@ static purs_scope_t * purs_scope_copy(const purs_scope_t * scope) {
 	}
 }
 
-const purs_any_t * _purs_scope_capture(purs_scope_t * scope, const purs_any_t * o) {
+const void * _purs_scope_capture(purs_scope_t * scope, const void * o) {
 	if (scope != NULL && o != NULL) {
 		purs_scope_entries_t * entry = purs_new(purs_scope_entries_t);
 		entry->key = o;
@@ -88,7 +88,7 @@ const purs_any_t * _purs_scope_capture(purs_scope_t * scope, const purs_any_t * 
 			hh,
 			scope->objects,
 			entry->key,
-			sizeof(const purs_any_t *),
+			sizeof(const void *),
 			entry
 		);
 
@@ -106,7 +106,7 @@ const purs_any_t * _purs_scope_capture(purs_scope_t * scope, const purs_any_t * 
 							hh,
 							block_scope->objects,
 							entry->key,
-							sizeof(const purs_any_t *),
+							sizeof(const void *),
 							entry
 						);
 						GC_general_register_disappearing_link((void **) &block_scope->objects, obj);
