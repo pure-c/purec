@@ -31,6 +31,7 @@ import Language.PureScript.CodeGen.C.Constants as C
 
 data PrintError
   = NotImplementedError String
+  | InvalidStateError String
   | InternalError String
 
 empty :: AST
@@ -117,22 +118,9 @@ prettyPrintAst (AST.Accessor field o)
   prettyPrintAst o
   emit $ "->"
   prettyPrintAst field
-prettyPrintAst (AST.Lambda
-  { arguments
-  , returnType
-  , body
-  }) = do
-  -- TODO: Remove AST.Lambda and perform transformation in C.purs
-  -- XXXX: This really is an ugly hack (we don't use the type info, lambdas
-  --       in the runtime MUST only take one value, etc.)
-  emit "PURS_LAMBDA_1("
-  emit $ fromMaybe "____unused____" (_.name <$> A.head arguments)
-  emit ", "
-  prettyPrintAst body
-  emit ")"
-  where
-  renderArg { name } =
-    name
+prettyPrintAst (AST.Lambda _) =
+  throwError $
+    InvalidStateError "`AST.Lambda`s should have been erased by now"
 prettyPrintAst (AST.Function
   { name
   , arguments

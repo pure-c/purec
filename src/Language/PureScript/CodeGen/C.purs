@@ -7,6 +7,7 @@ import Control.Monad.Error.Class (class MonadError, throwError)
 import Control.Monad.Reader (class MonadAsk, ask, runReaderT)
 import Control.Monad.State (State, execState)
 import Control.Monad.State as State
+import Control.Monad.Writer (runWriterT, tell)
 import Control.MonadPlus (guard)
 import CoreFn.Ann (Ann(..)) as C
 import CoreFn.Binders (Binder(..)) as C
@@ -747,6 +748,34 @@ buildConstructorDeclsWithTags (C.Module { moduleDecls }) =
               typeName
               (Map.insert constructorName ix m')
               m
+
+-- | Erase lambdas from the AST by creating tailor-made scope structures for
+-- | every lambda we encounter.
+-- | For example:
+-- |    foo = \a b -> b
+-- | This is trivially representable as a couple of continuation functions:
+-- |   struct foo_1_scope { const ANY * a; };
+-- |   struct foo_2_scope { const ANY * a; const ANY * b; };
+-- |   const ANY * foo_2 (const void * super, const ANY * b);
+-- |   const ANY * foo_1 (const void * super, const ANY * a);
+-- | XXX: note that the above could be further optimized by analyzing which
+-- |      allocations `foo_2` actually keeps reference to. This would allow
+-- |      unreferenced sibling allocations to be garbage collected early.
+eraseLambdas
+  :: ∀ m
+   . Monad m
+  => AST
+  -> m { structs :: Array AST, ast :: AST }
+eraseLambdas ast = ado
+  ast' /\ structs <-
+    runWriterT do
+      runReaderT <@> Nothing $ do
+        AST.everywhereM <@> ast $ case _ of
+          AST.Block xs ->
+            i <-
+          x ->
+            pure x
+  in { structs, ast: ast' }
 
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
