@@ -779,5 +779,10 @@ hoistVarDecls = map go
                     x ->
                       decls /\ (xs' <> [ x ])
                 ) ([] /\ []) xs
-          in map snd (A.nubBy (compare `on` fst) decls) <> hoistVarDecls xs'
+          in
+            if A.null decls
+              then xs
+              else
+                map snd (A.nubBy (compare `on` fst) decls) <>
+                  hoistVarDecls xs'
       x -> x
