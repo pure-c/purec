@@ -103,7 +103,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
   in runReaderT <@> { module: mod } $ do
     decls <- do
       decls <- A.concat <$> traverse (bindToAst true) moduleDecls
-      eraseLambdas =<< do
+      eraseLambdas cModuleName =<< do
         hoistVarDecls <$>
           traverse optimize decls
 
@@ -765,9 +765,10 @@ eraseLambdas
   :: ∀ m
    . Monad m
   => MonadSupply m
-  => Array AST
+  => String -- ^ lambda prefix
+  -> Array AST
   -> m (Array AST)
-eraseLambdas asts =
+eraseLambdas moduleName asts =
   ado
     asts' /\ toplevels <-
       runWriterT $
@@ -799,8 +800,9 @@ eraseLambdas asts =
         contFuncName <- ado
           id <- freshId
           in
-            (fromMaybe "anon" currentScope.function) <>
-              "__cont_"  <> show id <> "__"
+            moduleName <> "_" <>
+              (fromMaybe "anon" currentScope.function) <>
+                "__cont_"  <> show id <> "__"
 
         body' <-
           withReaderT

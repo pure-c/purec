@@ -39,18 +39,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#ifndef utf8_malloc
-#define utf8_malloc malloc
-#endif
-
-#ifndef utf8_realloc
-#define utf8_realloc realloc
-#endif
-
-#ifndef utf8_free
-#define utf8_free free
-#endif
-
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
@@ -413,7 +401,7 @@ void *utf8dup(const void *src) {
   // figure out how many bytes (including the terminator) we need to copy first
   size_t bytes = utf8size(src);
 
-  n = (char *)utf8_malloc(bytes);
+  n = (char *)malloc(bytes);
 
   if (utf8_null == n) {
     // out of memory so we bail
@@ -620,7 +608,7 @@ void *utf8ndup(const void *src, size_t n) {
   // to be used later in the copy byte by byte.
   n = bytes;
 
-  c = (char *)utf8_malloc(bytes + 1);
+  c = (char *)malloc(bytes + 1);
   if (utf8_null == c) {
     // out of memory so we bail
     return utf8_null;

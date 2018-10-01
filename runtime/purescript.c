@@ -124,53 +124,54 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 	do {\
 		purs_assert(v != NULL, "expected tag: %s, but got: NULL", \
 			    purs_any_tag_str(TAG));\
-		purs_assert(TAG == v->tag, "expected tag: %s, but got: %s",\
+		v = purs_any_unthunk(v);\
+		purs_assert(v->tag == TAG, "expected tag: %s, but got: %s",\
 			    purs_any_tag_str(TAG),\
 			    purs_any_tag_str(v->tag));\
 	} while (0)
 
 
-const purs_any_int_t purs_any_get_int (const ANY * v) {
+inline const purs_any_int_t purs_any_get_int (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_INT);
 	return v->value.i;
 }
 
-const purs_any_num_t purs_any_get_num (const ANY * v) {
+inline const purs_any_num_t purs_any_get_num (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_NUM);
 	return v->value.n;
 }
 
-const purs_cont_t * purs_any_get_cont (const ANY * v) {
+inline const purs_cont_t * purs_any_get_cont (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONT);
 	return (const purs_cont_t *) &v->value.cont;
 }
 
-const purs_cons_t * purs_any_get_cons (const ANY * v) {
+inline const purs_cons_t * purs_any_get_cons (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONS);
 	return (const purs_cons_t *) &v->value.cons;
 }
 
-const purs_record_t * purs_any_get_record (const ANY * v) {
+inline const purs_record_t * purs_any_get_record (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_RECORD);
 	return v->value.record;
 }
 
-const void * purs_any_get_string (const ANY * v) {
+inline const void * purs_any_get_string (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_STRING);
 	return v->value.str->data;
 }
 
-const utf8_int32_t purs_any_get_char (const ANY * v) {
+inline const utf8_int32_t purs_any_get_char (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CHAR);
 	return v->value.chr;
 }
 
-const purs_vec_t * purs_any_get_array (const ANY * v) {
+inline const purs_vec_t * purs_any_get_array (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_ARRAY);
 	return v->value.array;
 }
 
-const purs_foreign_t * purs_any_get_foreign (const ANY * v) {
+inline const purs_foreign_t * purs_any_get_foreign (const ANY * v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_FOREIGN);
 	return (const purs_foreign_t *) &v->value.foreign;
 }
@@ -190,6 +191,10 @@ inline const ANY * purs_any_unthunk (const ANY * x) {
 	return (const ANY *) out;
 }
 
+inline const purs_any_tag_t purs_any_get_tag (const ANY * v) {
+	return v->tag;
+}
+
 inline const ANY * purs_any_app(const ANY * f, const ANY * v) {
 	f = purs_any_unthunk(f);
 	if (f->tag == PURS_ANY_TAG_CONT) {
@@ -199,8 +204,11 @@ inline const ANY * purs_any_app(const ANY * f, const ANY * v) {
 }
 
 // -----------------------------------------------------------------------------
-// Any: built-in functions
+// Any: built-ins
 // -----------------------------------------------------------------------------
+
+PURS_ANY_THUNK_DEF(purs_any_true, purs_any_int_new(1));
+PURS_ANY_THUNK_DEF(purs_any_false, purs_any_int_new(0));
 
 inline int purs_any_eq_char (const ANY * x, utf8_int32_t y) {
 	return purs_any_get_char(x) == y;
@@ -214,8 +222,56 @@ inline int purs_any_eq_int (const ANY * x, purs_any_int_t y) {
 	return purs_any_get_int(x) == y;
 }
 
-inline int purs_any_eq_number (const ANY * x, double y) {
-	return purs_any_get_number(x) == y;
+inline int purs_any_eq_num (const ANY * x, double y) {
+	return purs_any_get_num(x) == y;
+}
+
+const ANY * purs_any_eq(const ANY * x, const ANY * y) {
+	x = purs_any_unthunk(x);
+	y = purs_any_unthunk(y);
+
+	purs_assert(x->tag == y->tag,
+		    "Cannot eq %s with %s",
+		    purs_any_tag_str(x->tag),
+		    purs_any_tag_str(y->tag));
+
+	if (x == y) {
+		return purs_any_true;
+	} else if (x == NULL || y == NULL) {
+		return purs_any_false;
+	} else if (x->tag == y->tag) {
+		switch (x->tag) {
+		case PURS_ANY_TAG_INT:
+			if (purs_any_get_int(x) == purs_any_get_int(y)) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		case PURS_ANY_TAG_NUM:
+			if (purs_any_get_num(x) == purs_any_get_num(y)) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		case PURS_ANY_TAG_STRING:
+			if (utf8cmp(purs_any_get_string(x),
+				    purs_any_get_string(y)) == 0) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		case PURS_ANY_TAG_CHAR:
+			if (purs_any_get_char(x) == purs_any_get_char(y)) {
+				return purs_any_true;
+			} else {
+				return purs_any_false;
+			}
+		default:
+			return purs_any_false;
+		}
+	} else {
+		return purs_any_false;
+	}
 }
 
 /**
@@ -256,6 +312,150 @@ const ANY * purs_any_concat(const ANY * x, const ANY * y) {
 			purs_assert(0, "cannot concat %s", purs_any_tag_str(x->tag));
 		}
 	}
+}
+
+// -----------------------------------------------------------------------------
+// strings
+// -----------------------------------------------------------------------------
+
+const void * purs_string_copy (const void * source) {
+	size_t sz = utf8size(source);
+	void * dest = purs_malloc(sz);
+	memcpy(dest, source, sz);
+	return (const void*) dest;
+}
+
+// -----------------------------------------------------------------------------
+// arrays
+// -----------------------------------------------------------------------------
+
+inline void purs_vec_release (purs_vec_t * vec) {
+	vec_deinit(vec);
+}
+
+inline const purs_vec_t * purs_vec_new () {
+	purs_vec_t * v = purs_new(purs_vec_t);
+	vec_init(v);
+	return (const purs_vec_t *) v;
+}
+
+const purs_vec_t * purs_vec_new_va (int count, ...) {
+	int i;
+	va_list args;
+	const ANY ** xs = malloc(sizeof (ANY *) * count);
+	va_start(args, count);
+	for (i = 0; i < count; i++) {
+		xs[i] = va_arg(args, const ANY *);
+	}
+	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
+	vec_pusharr(o, xs, count);
+	free(xs);
+	return (const purs_vec_t *) o;
+}
+
+const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
+	if (vec == NULL || vec->data == NULL) {
+		return (purs_vec_t *) purs_vec_new();
+	} else {
+		purs_vec_t * copy = (purs_vec_t *) purs_vec_new();
+		copy->length = vec->length;
+		copy->capacity = vec->capacity;
+		copy->data = vec_malloc(sizeof (ANY*) * vec->capacity);
+		memcpy(copy->data,
+		       vec->data,
+		       sizeof (*copy->data) * vec->capacity);
+		return (const purs_vec_t *) copy;
+	}
+}
+
+const purs_vec_t * purs_vec_slice (const purs_vec_t * vec, int begin) {
+	purs_vec_t * copy = (purs_vec_t *) purs_vec_copy(vec);
+	vec_splice(copy, 0, begin);
+	return (const purs_vec_t *) copy;
+}
+
+const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
+				   int idx,
+				   const ANY * val) {
+	if (vec == NULL) {
+		return purs_vec_new_va(1, val);
+	} else {
+		purs_vec_t * out = (purs_vec_t *) purs_vec_copy(vec);
+		vec_insert(out, idx, val);
+		return (const purs_vec_t *) out;
+	}
+}
+
+// -----------------------------------------------------------------------------
+// records
+// -----------------------------------------------------------------------------
+
+PURS_ANY_THUNK_DEF(purs_record_empty, purs_any_record_new(NULL));
+
+const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
+	const purs_record_t * current_entry, * tmp;
+	purs_record_t * entry_copy;
+	purs_record_t * record = NULL;
+	HASH_ITER(hh, source, current_entry, tmp) {
+		entry_copy = purs_new(purs_record_t);
+		memcpy(entry_copy, current_entry, sizeof(purs_record_t));
+		HASH_ADD_KEYPTR(
+			hh,
+			record,
+			entry_copy->key->data,
+			utf8size(entry_copy->key->data),
+			entry_copy
+		);
+	}
+	return (const purs_record_t *) record;
+}
+
+const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t count, ...) {
+	if (count == 0) {
+		return source;
+	}
+
+	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
+
+	va_list args;
+	va_start(args, count);
+
+	for (size_t i = 0; i < count; i++) {
+		const void * key = va_arg(args, const void *);
+		const ANY * value = va_arg(args, const ANY *);
+		purs_record_t * entry = purs_new(purs_record_t);
+		entry->key = managed_new(afmt("%s", key), NULL);
+		entry->value = value;
+		HASH_ADD_KEYPTR(
+			hh,
+			copy,
+			entry->key->data,
+			utf8size(entry->key->data),
+			entry
+		);
+	}
+
+	va_end(args);
+
+	return (const purs_record_t *) copy;
+}
+
+const purs_record_t * purs_record_remove(const purs_record_t * source,
+					 const void * key) {
+	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
+	purs_record_t * v = (purs_record_t *) purs_record_find_by_key(source, key);
+	if (v != NULL) {
+		HASH_DEL(copy, (purs_record_t *) v);
+	}
+	return (const purs_record_t *) copy;
+}
+
+const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
+					      const void * key) {
+	purs_record_t * result;
+	size_t len = utf8size(key);
+	HASH_FIND(hh, record, key, len, result);
+	return result;
 }
 
 // -----------------------------------------------------------------------------

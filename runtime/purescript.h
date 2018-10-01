@@ -114,6 +114,7 @@ struct purs_any {
 
 const ANY * purs_any_app(const ANY * f, const ANY * v);
 const ANY * purs_any_unthunk (const ANY *);
+const purs_any_tag_t purs_any_get_tag (const ANY *);
 const char * purs_any_tag_str (const purs_any_tag_t);
 
 const ANY * purs_any_int_new(const purs_any_int_t);
@@ -144,8 +145,9 @@ const purs_foreign_t *   purs_any_get_foreign   (const ANY *);
 int purs_any_eq_string (const ANY *, const void *);
 int purs_any_eq_char   (const ANY *, utf8_int32_t);
 int purs_any_eq_int    (const ANY *, purs_any_int_t);
-int purs_any_eq_number (const ANY *, double);
+int purs_any_eq_num    (const ANY *, double);
 
+const ANY * purs_any_eq(const ANY *, const ANY *);
 const ANY * purs_any_concat(const ANY *, const ANY *);
 
 // -----------------------------------------------------------------------------
@@ -285,7 +287,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	{ .tag = PURS_ANY_TAG_NUM, .value = { .n = x } }
 
 #define PURS_ANY_CHAR(x)\
-	{ .tag = PURS_ANY_TAG_CHAR, .value = { chr = x } }
+	{ .tag = PURS_ANY_TAG_CHAR, .value = { .chr = x } }
 
 #define PURS_ANY_FOREIGN(TAG, DATA)\
 	{\
@@ -465,7 +467,5 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 
 const ANY * purs_any_true;
 const ANY * purs_any_false;
-
-const ANY * purs_any_eq(const ANY *, const ANY *);
 
 #endif // PURESCRIPT_RUNTIME_H
