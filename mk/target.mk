@@ -1,5 +1,8 @@
 .PHONY: clean
 
+CLANG ?= clang
+CFLAGS ?=
+
 PUREC_WORKDIR ?= .purec-work
 PURS ?= purs
 
@@ -36,7 +39,7 @@ clean:
 
 %.o: %.c
 	@echo "Compile" $^
-	@clang $^ -c -o $@ \
+	@$(CLANG) $^ -c -o $@ \
 		-fblocks \
 		-Wall \
 		-Wno-unused-variable \
@@ -98,7 +101,7 @@ $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(shell find 2>/dev/null "$$(
 $$(PUREC_WORKDIR)/$(1)/.build: \
 	$(PUREC_LIB) \
 	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
-	@clang $$^ \
+	@$(CLANG) $$^ \
 		-L $(PUREC_LIB_DIR) \
 		-lpurec \
 		-lm \

@@ -6,28 +6,24 @@ module Language.PureScript.CodeGen.C.Pretty
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError, throwError)
-import Control.Monad.Except (ExceptT(..), runExceptT)
-import Control.Monad.Reader (ReaderT(..), ask, local, runReaderT)
-import Control.Monad.State (StateT(..), evalStateT)
-import Control.Monad.Writer (class MonadWriter, WriterT(..), execWriterT, mapWriterT, runWriterT, tell)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except (ExceptT, runExceptT)
+import Control.Monad.Reader (ReaderT, ask, local, runReaderT)
+import Control.Monad.Writer (WriterT, execWriterT, tell)
 import Data.Array as A
 import Data.Bifunctor (rmap)
 import Data.Either (Either(..))
-import Data.Foldable (all)
 import Data.FoldableWithIndex (traverseWithIndex_)
-import Data.Identity (Identity(..))
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Identity (Identity)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
-import Data.String as Str
 import Data.String.CodeUnits as CodeUnits
-import Data.Traversable (for_, traverse, traverse_)
-import Effect.Aff (bracket)
+import Data.Traversable (for_, traverse)
+import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST, PrimitiveType, Type, ValueQualifier)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (dotsTo, safeName)
-import Language.PureScript.CodeGen.C.Constants as C
+import Language.PureScript.CodeGen.Runtime as R
 
 data PrintError
   = NotImplementedError String
@@ -121,7 +117,7 @@ prettyPrintAst (AST.Accessor field o)
 prettyPrintAst (AST.Lambda _) =
   throwError $
     InvalidStateError "`AST.Lambda`s should have been erased by now"
-prettyPrintAst (AST.Function
+prettyPrintAst x@(AST.Function
   { name
   , arguments
   , returnType
@@ -170,6 +166,9 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         indent *> prettyPrintAst last
       lf
       indent *> emit ")"
+  -- TODO move this logic out of the printer
+  when (fnAst == R._PURS_SCOPE_T) do
+    emit ";"
 prettyPrintAst (AST.Assignment l r) = do
   prettyPrintAst l
   emit " ="
@@ -248,8 +247,6 @@ prettyPrintAst (AST.Binary op lhsAst rhsAst) = do
   emit " ("
   prettyPrintAst rhsAst
   emit ")"
-prettyPrintAst AST.NoOp =
-  pure unit
 prettyPrintAst AST.Null =
   emit "NULL"
 prettyPrintAst (AST.DefineTag name tag) =
@@ -325,7 +322,6 @@ renderType = case _ of
         then ""
         else " "
   renderTypeQualifier Type.Const = "const"
-  renderTypeQualifier Type.BlockStorage = "__block"
 
 renderPrimitiveType :: PrimitiveType -> String
 renderPrimitiveType Type.Int = "int"

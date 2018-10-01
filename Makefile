@@ -1,5 +1,7 @@
 .PHONY: clean deps deps/npm deps/bwdgc deps/blocksruntime purec test test/build
 
+CLANG ?= clang
+
 SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
 
@@ -30,6 +32,9 @@ CFLAGS := \
 	-fblocks \
 	-D 'uthash_malloc=GC_malloc' \
 	-D 'uthash_free(ptr, sz)=NULL' \
+	-D 'utf8_realloc=GC_realloc' \
+	-D 'utf8_free(x)=NULL' \
+	-D 'utf8_malloc=GC_malloc' \
 	-D 'vec_realloc=GC_realloc' \
 	-D 'vec_free(x)=NULL' \
 	-D 'vec_malloc=GC_malloc'
@@ -72,7 +77,7 @@ clean:
 
 %.o: %.c | $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
 	@echo "Compile" $^
-	@clang $^ -c -o $@ \
+	@$(CLANG) $^ -c -o $@ \
 		-Wall \
 		-Wno-unused-variable \
 		-Wno-unused-value \

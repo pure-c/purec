@@ -4,9 +4,10 @@ module Language.PureScript.CodeGen.C
 import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
-import Control.Monad.Reader (class MonadAsk, ask, runReaderT)
+import Control.Monad.Reader (class MonadAsk, ask, runReaderT, withReaderT)
 import Control.Monad.State (State, execState)
 import Control.Monad.State as State
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (runWriterT, tell)
 import Control.MonadPlus (guard)
 import CoreFn.Ann (Ann(..)) as C
@@ -22,17 +23,20 @@ import Data.Bifunctor (bimap)
 import Data.Char as Int
 import Data.Either (Either(..), either)
 import Data.Function (on)
+import Data.Identity (Identity(..))
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
+import Data.Set (Set)
+import Data.Set as Set
 import Data.Traversable (for, for_, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
-import Debug.Trace (traceM)
+import Debug.Trace (trace, traceM)
 import Foreign.Object as Object
-import Language.PureScript.CodeGen.C.AST (AST)
+import Language.PureScript.CodeGen.C.AST (AST, everywhereTopDownM)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.Common (safeName)
@@ -99,8 +103,9 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
   in runReaderT <@> { module: mod } $ do
     decls <- do
       decls <- A.concat <$> traverse (bindToAst true) moduleDecls
-      hoistVarDecls <$>
-        traverse optimize decls
+      eraseLambdas =<< do
+        hoistVarDecls <$>
+          traverse optimize decls
 
     let
       moduleHeader =
@@ -178,7 +183,7 @@ declToAst isTopLevel (x /\ ident) val = do
     AST.VariableIntroduction
       { name
       , managed: true
-      , type: R.any'' [ Type.Const, Type.BlockStorage ]
+      , type: R.any'' [ Type.Const ]
       , qualifiers: []
       , initialization: Just initAst
       }
@@ -207,23 +212,23 @@ exprToAst (C.Var ann ident) =
           identToVarName ident
 exprToAst (C.Literal _ (C.NumericLiteral n)) =
   pure $
-   AST.Cast (R.any) $
+   AST.Cast R.any $
     AST.App
-      (either (const R._PURS_ANY_INT_NEW) (const R._PURS_ANY_NUMBER_NEW) n)
+      (either (const R.purs_any_int_new) (const R.purs_any_num_new) n)
       [ AST.NumericLiteral n
       ]
 exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
-   AST.Cast (R.any) $
+   AST.Cast R.any $
     AST.App
-      R._PURS_ANY_STRING_NEW_FROM_LIT
+      R.purs_any_string_new
       [ AST.StringLiteral s
       ]
 exprToAst (C.Literal _ (C.CharLiteral c)) =
   pure $
-   AST.Cast (R.any) $
+   AST.Cast R.any $
     AST.App
-      R._PURS_ANY_CHAR_NEW
+      R.purs_any_char_new
       [ AST.NumericLiteral $ Left $ Int.toCharCode c
       ]
 exprToAst (C.Literal _ (C.BooleanLiteral b)) =
@@ -236,7 +241,7 @@ exprToAst (C.Literal _ (C.ArrayLiteral xs)) = ado
   in
    AST.Cast (R.any) $
     AST.App
-      R._PURS_ANY_ARRAY_NEW $
+      R.purs_any_array_new $
       [ AST.App
         R.purs_vec_new_from_array $
         [ AST.NumericLiteral $ Left $ A.length xs
@@ -257,7 +262,7 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
         R.purs_record_empty
       else
         AST.App
-          R._PURS_ANY_RECORD_NEW $
+          R.purs_any_record_new $
             [ AST.App
               R.purs_record_new_from_kvps $
               [ AST.NumericLiteral $ Left $ A.length kvpAsts
@@ -605,15 +610,9 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
             ] <> assignments <> [
               AST.Return $
                AST.Cast R.any $
-                AST.App R._PURS_ANY_CONS_NEW
-                  [ AST.App R._PURS_CONS_LIT
-                      [ let
-                          tag =
-                            qualifiedVarName moduleName constructorName
-                        in AST.Var tag
-                      , AST.Cast (Type.Pointer R.any) $
-                          AST.Var valuesName
-                      ]
+                AST.App R.purs_any_cons_new
+                  [ AST.Var $ qualifiedVarName moduleName constructorName
+                  , AST.Cast (Type.Pointer R.any) $ AST.Var valuesName
                   ]
             ]
       }
@@ -639,7 +638,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
       qualifiedVarName moduleName constructorName
   pure $
     AST.App
-      R._PURS_ANY_CONS_NEW
+      R.purs_any_cons_new
       [ AST.Cast (AST.RawType R.purs_cons_t []) $
           AST.StructLiteral $
             Object.empty
@@ -749,33 +748,230 @@ buildConstructorDeclsWithTags (C.Module { moduleDecls }) =
               (Map.insert constructorName ix m')
               m
 
+runIdentity :: ∀ a. Identity a -> a
+runIdentity = unwrap
+
 -- | Erase lambdas from the AST by creating tailor-made scope structures for
 -- | every lambda we encounter.
--- | For example:
+-- |
+-- | For example, given the following function:
 -- |    foo = \a b -> b
 -- | This is trivially representable as a couple of continuation functions:
 -- |   struct foo_1_scope { const ANY * a; };
 -- |   struct foo_2_scope { const ANY * a; const ANY * b; };
 -- |   const ANY * foo_2 (const void * super, const ANY * b);
 -- |   const ANY * foo_1 (const void * super, const ANY * a);
--- | XXX: note that the above could be further optimized by analyzing which
--- |      allocations `foo_2` actually keeps reference to. This would allow
--- |      unreferenced sibling allocations to be garbage collected early.
+-- |
+-- | XXX: we might have to run this pass *after* optimization passes ran in
+-- |      order to not capture inlined and unused variables.
 eraseLambdas
   :: ∀ m
    . Monad m
-  => AST
-  -> m { structs :: Array AST, ast :: AST }
-eraseLambdas ast = ado
-  ast' /\ structs <-
-    runWriterT do
-      runReaderT <@> Nothing $ do
-        AST.everywhereM <@> ast $ case _ of
-          AST.Block xs ->
-            i <-
-          x ->
-            pure x
-  in { structs, ast: ast' }
+  => MonadSupply m
+  => Array AST
+  -> m (Array AST)
+eraseLambdas asts =
+  ado
+    asts' /\ toplevels <-
+      runWriterT $
+        runReaderT (traverse go asts) $
+          { function: Nothing
+          , bindings: Set.empty
+          }
+    in toplevels <> asts'
+
+  where
+  go =
+    case _ of
+      AST.Lambda { body, arguments } -> do
+        currentScope <- ask
+
+        -- TODO: reduce this to what is know to actually being used.
+        --       objects are considered used if there's an (unshadowed)
+        --       reference from anywhere in the lambda's body AST.
+        let
+          capturedScope =
+            currentScope
+
+        -- emit the struct to the top-level
+        scopeStruct <- do
+          { name, members, ast } <- scopeToStruct capturedScope
+          { name, members } <$ tell [ ast ]
+
+        -- assemble a new top-level function that re-assembles the captured
+        contFuncName <- ado
+          id <- freshId
+          in
+            (fromMaybe "anon" currentScope.function) <>
+              "__cont_"  <> show id <> "__"
+
+        body' <-
+          withReaderT
+            (\scope ->
+              scope {
+                bindings =
+                  scope.bindings <> Set.fromFoldable (_.name <$> arguments)
+              }) $ go body
+
+        tell $ A.singleton $
+          AST.Function
+            { name: contFuncName
+            , arguments:
+                [ { name: "ctx"
+                  , type: Type.Pointer (Type.RawType scopeStruct.name [])
+                  }
+                ] <> arguments
+            , returnType: R.any
+            , qualifiers: []
+            , body:
+                Just $
+                  AST.Block $
+                    (A.fromFoldable capturedScope.bindings <#> \varName ->
+                      AST.VariableIntroduction
+                        { name: varName
+                        , type: R.any
+                        , qualifiers: []
+                        , managed: false
+                        , initialization:
+                            Just $
+                              AST.Accessor (AST.Var varName) $
+                                AST.Var "ctx"
+                        }
+                    ) <> [ body' ]
+            }
+
+        -- build up the continuation context and return it.
+        -- since this lambda might have been inlined, we must be sure to operate
+        -- in the context of an expression also. This means that we must return
+        -- a single AST node that produces the continuation.
+        contCtxName <- ado
+          id <- freshId
+          in "__cont_"  <> show id <> "__"
+        pure $
+          AST.App
+            R.purs_any_cont_new
+            [ case A.length scopeStruct.members of
+                0 -> R._NULL
+                n ->
+                  AST.App
+                    R._purs_scope_new $
+                      (AST.NumericLiteral $ Left n)
+                      A.: map AST.Var scopeStruct.members
+            , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
+                AST.Var contFuncName
+            ]
+
+      AST.Block xs -> do
+        currentScope <- ask
+        xs' <- A.reverse <<< snd <$>
+          A.foldM (\(scope /\ asts') ->
+            case _ of
+              ast@AST.VariableIntroduction { name } ->
+                let
+                  scope' =
+                    scope { bindings = Set.insert name scope.bindings }
+                in do
+                  ast' <-
+                    withReaderT (const scope) $
+                      go ast
+                  pure (scope' /\ ast' A.: asts')
+              ast@AST.Var var ->
+                let
+                  scope' =
+                    scope { bindings = Set.insert var scope.bindings }
+                in
+                  pure (scope' /\ ast A.: asts')
+              ast -> ado
+                ast' <-
+                  withReaderT (const scope) do
+                    go ast
+                in scope /\ ast' A.: asts'
+          ) (currentScope /\ []) xs
+        pure $ AST.Block xs'
+      AST.VariableIntroduction x@{ name, initialization } -> ado
+        initialization' <-
+          for initialization \init ->
+            withReaderT
+              (\scope -> scope { bindings = Set.insert name scope.bindings }) $
+              go init
+        in AST.VariableIntroduction $ x { initialization = initialization' }
+      AST.App a xs ->
+        AST.App <$> go a <*> traverse go xs
+      AST.Return a ->
+        AST.Return <$> go a
+      AST.Assignment a b ->
+        AST.Assignment <$> go a <*> go b
+      AST.Binary i a b ->
+        AST.Binary i <$> go a <*> go b
+      AST.ArrayLiteral xs ->
+        AST.ArrayLiteral <$> traverse go xs
+      AST.Indexer a b ->
+        AST.Indexer <$> go a <*> go b
+      AST.StructLiteral x ->
+        AST.StructLiteral <$> traverse go x
+      AST.ObjectLiteral xs ->
+        AST.ObjectLiteral <$>
+          for xs \{ key, value } ->
+            { key: _, value: _ }
+              <$> go key
+              <*> go value
+      AST.Cast t ast ->
+        AST.Cast t <$> go ast
+      AST.Accessor a b ->
+        AST.Accessor <$> go a <*> go b
+      AST.While a b ->
+        AST.While <$> go a <*> go b
+      AST.IfElse a b mC ->
+        AST.IfElse <$> go a <*> go b <*> traverse go mC
+      AST.Function x@{ name, arguments, body } -> ado
+        body' <-
+          withReaderT (_ { function = Just name }) do
+            for body \body' ->
+              withReaderT
+                (\scope ->
+                  scope {
+                    bindings =
+                      scope.bindings <> Set.fromFoldable (_.name <$> arguments)
+                  }) $ go body'
+        in AST.Function $ x { body = body' }
+      x ->
+        pure x
+
+  scopeToStruct
+    :: ∀ n
+     . Applicative n
+    => MonadSupply n
+    => { function :: Maybe String, bindings :: Set String }
+    -> n { name :: String, ast :: AST, members :: Array String }
+  scopeToStruct { function, bindings } =
+    let
+      members =
+        A.fromFoldable bindings
+
+    in ado
+      name <- ado
+        id <- freshId
+        in
+          (fromMaybe "anon" function) <>
+            "__scope_" <> show id <> "__"
+      in
+        { name
+        , members
+        , ast:
+            AST.App
+              R._PURS_SCOPE_T
+              [ AST.Raw name
+              , AST.Block $
+                  members <#> \var ->
+                    AST.VariableIntroduction
+                      { name: var
+                      , type: R.any
+                      , qualifiers: []
+                      , initialization: Nothing
+                      , managed: false
+                      }
+              ]
+        }
 
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
@@ -799,10 +995,7 @@ hoistVarDecls = map go
                         x' =
                           AST.Assignment
                             (AST.Var x.name)
-                            -- XXX chance for optimization: only capture if required
-                            -- XXX same could be true for using heap vs. stack
-                            --     more generally speaking
-                            (AST.App R.purs_scope_capture [ initialization ])
+                            initialization
                       in
                         (decls <> [ (name /\ decl) ]) /\ (xs' <> [ x' ])
                     x ->
