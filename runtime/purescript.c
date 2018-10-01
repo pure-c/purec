@@ -55,7 +55,7 @@ inline const ANY * purs_any_thunk_new(purs_any_thunk_t * thunk) {
 	return v;
 }
 
-const ANY * purs_any_cons_new(int tag, const purs_any_t ** values) {
+const ANY * purs_any_cons_new(int tag, const ANY ** values) {
 	ANY * v = purs_new(ANY);
 	v->tag = PURS_ANY_TAG_CONS;
 	v->value.cons.tag = tag;
@@ -120,44 +120,59 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 	return tags[tag];
 }
 
-#define PURS_ASSERT_TAG(TAG)\
+#define _PURS_ASSERT_TAG(TAG)\
 	do {\
-		if (v == NULL){\
-			purs_assert("expected tag: %s, but got: NULL",\
-				    purs_any_tag_str(TAG));\
-		} else {\
-			purs_assert("expected tag: %s, but got: %s",\
-				    purs_any_tag_str(TAG),\
-				    purs_any_tag_str(v->tag));\
-		}\
+		purs_assert(v != NULL, "expected tag: %s, but got: NULL", \
+			    purs_any_tag_str(TAG));\
+		purs_assert(TAG == v->tag, "expected tag: %s, but got: %s",\
+			    purs_any_tag_str(TAG),\
+			    purs_any_tag_str(v->tag));\
 	} while (0)
 
 
 const purs_any_int_t purs_any_get_int (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_INT);
+	return v->value.i;
 }
 
 const purs_any_num_t purs_any_get_num (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_NUM);
+	return v->value.n;
 }
 
 const purs_cont_t * purs_any_get_cont (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONT);
+	return (const purs_cont_t *) &v->value.cont;
 }
 
 const purs_cons_t * purs_any_get_cons (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONS);
+	return (const purs_cons_t *) &v->value.cons;
 }
 
 const purs_record_t * purs_any_get_record (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_RECORD);
+	return v->value.record;
 }
 
 const void * purs_any_get_string (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_STRING);
+	return v->value.str->data;
 }
 
 const utf8_int32_t purs_any_get_char (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_CHAR);
+	return v->value.chr;
 }
 
 const purs_vec_t * purs_any_get_array (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_ARRAY);
+	return v->value.array;
 }
 
 const purs_foreign_t * purs_any_get_foreign (const ANY * v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_FOREIGN);
+	return (const purs_foreign_t *) &v->value.foreign;
 }
 
 // -----------------------------------------------------------------------------
@@ -187,11 +202,69 @@ inline const ANY * purs_any_app(const ANY * f, const ANY * v) {
 // Any: built-in functions
 // -----------------------------------------------------------------------------
 
+inline int purs_any_eq_char (const ANY * x, utf8_int32_t y) {
+	return purs_any_get_char(x) == y;
+}
 
+inline int purs_any_eq_string (const ANY * x, const void * str) {
+	return utf8cmp(purs_any_get_string(x), str) == 0;
+}
+
+inline int purs_any_eq_int (const ANY * x, purs_any_int_t y) {
+	return purs_any_get_int(x) == y;
+}
+
+inline int purs_any_eq_number (const ANY * x, double y) {
+	return purs_any_get_number(x) == y;
+}
+
+/**
+ Concatenate two dyanmic values into a new dynamic value
+*/
+const ANY * purs_any_concat(const ANY * x, const ANY * y) {
+	x = purs_any_unthunk(x);
+	y = purs_any_unthunk(y);
+
+	if (x->tag != y->tag) {
+		purs_assert(
+			0,
+			"cannot concat %s with %s",
+			purs_any_tag_str(x->tag),
+			purs_any_tag_str(y->tag));
+	} else {
+		switch(x->tag) {
+		case PURS_ANY_TAG_STRING: {
+			return purs_any_string_new(
+				afmt("%s%s",
+				     purs_any_get_string(x),
+				     purs_any_get_string(y)));
+		}
+		case PURS_ANY_TAG_ARRAY: {
+			const purs_vec_t * x_vec = purs_any_get_array(x);
+			const purs_vec_t * y_vec = purs_any_get_array(y);
+			if (x_vec->length == 0) {
+				return y;
+			} else if (y_vec->length == 0) {
+				return x;
+			} else {
+				purs_vec_t * out_vec = (purs_vec_t *) purs_vec_copy(x_vec);
+				vec_pusharr(out_vec, y_vec->data, y_vec->length);
+				return purs_any_array_new((const purs_vec_t *) out_vec);
+			}
+		}
+		default:
+			purs_assert(0, "cannot concat %s", purs_any_tag_str(x->tag));
+		}
+	}
+}
 
 // -----------------------------------------------------------------------------
 // Code-gen helpers
 // -----------------------------------------------------------------------------
+
+inline int purs_cons_get_tag (const purs_cons_t * cons) {
+	return cons->tag;
+}
 
 inline const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...) {
 	if (num_bindings == 0) return NULL;

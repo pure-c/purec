@@ -639,11 +639,8 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
   pure $
     AST.App
       R.purs_any_cons_new
-      [ AST.Cast (AST.RawType R.purs_cons_t []) $
-          AST.StructLiteral $
-            Object.empty
-              # Object.insert "tag" (AST.Var constructorName')
-              # Object.insert "values" AST.Null
+      [ AST.Var constructorName'
+      , AST.Null
       ]
 exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   f   <- exprToAst ident
@@ -826,17 +823,19 @@ eraseLambdas asts =
             , body:
                 Just $
                   AST.Block $
-                    (A.fromFoldable capturedScope.bindings <#> \varName ->
-                      AST.VariableIntroduction
-                        { name: varName
-                        , type: R.any
-                        , qualifiers: []
-                        , managed: false
-                        , initialization:
-                            Just $
-                              AST.Accessor (AST.Var varName) $
-                                AST.Var "ctx"
-                        }
+                    (A.fromFoldable
+                      (Set.difference capturedScope.bindings
+                      (Set.fromFoldable (_.name <$> arguments))) <#> \varName ->
+                        AST.VariableIntroduction
+                          { name: varName
+                          , type: R.any
+                          , qualifiers: []
+                          , managed: false
+                          , initialization:
+                              Just $
+                                AST.Accessor (AST.Var varName) $
+                                  AST.Var "ctx"
+                          }
                     ) <> [ body' ]
             }
 

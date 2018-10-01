@@ -52,6 +52,7 @@ typedef struct purs_any purs_any_t;
 typedef vec_t(const purs_any_t*) purs_vec_t;
 typedef struct purs_record purs_record_t;
 typedef struct purs_cons purs_cons_t;
+typedef struct purs_cont purs_cont_t;
 typedef struct purs_any_cont purs_any_cont_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
@@ -90,7 +91,7 @@ struct purs_foreign {
 
 struct purs_cons {
 	int tag;
-	const purs_any_t ** values;
+	const ANY ** values;
 };
 
 union purs_any_value {
@@ -119,7 +120,7 @@ const ANY * purs_any_int_new(const purs_any_int_t);
 const ANY * purs_any_num_new(const purs_any_num_t);
 const ANY * purs_any_cont_new(const void * ctx, purs_any_fun_t *);
 const ANY * purs_any_thunk_new(purs_any_thunk_t *);
-const ANY * purs_any_cons_new(int tag, const purs_any_t ** values);
+const ANY * purs_any_cons_new(int tag, const ANY ** values);
 const ANY * purs_any_record_new(const purs_record_t *);
 const ANY * purs_any_string_new(const char *);
 const ANY * purs_any_char_new(utf8_int32_t);
@@ -135,6 +136,17 @@ const void *             purs_any_get_string    (const ANY *);
 const utf8_int32_t       purs_any_get_char      (const ANY *);
 const purs_vec_t *       purs_any_get_array     (const ANY *);
 const purs_foreign_t *   purs_any_get_foreign   (const ANY *);
+
+// -----------------------------------------------------------------------------
+// Any: built-in functions
+// -----------------------------------------------------------------------------
+
+int purs_any_eq_string (const ANY *, const void *);
+int purs_any_eq_char   (const ANY *, utf8_int32_t);
+int purs_any_eq_int    (const ANY *, purs_any_int_t);
+int purs_any_eq_number (const ANY *, double);
+
+const ANY * purs_any_concat(const ANY *, const ANY *);
 
 // -----------------------------------------------------------------------------
 // strings
@@ -171,7 +183,7 @@ const purs_vec_t * purs_vec_slice (const purs_vec_t *, int begin);
  * Insert the value val at index idx shifting the elements after the index to
  * make room for the new value.
  */
-const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, const purs_any_t * val);
+const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, const ANY * val);
 
 // -----------------------------------------------------------------------------
 // records
@@ -179,11 +191,11 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, const purs_any_t
 
 typedef struct purs_record {
 	const managed_utf8str_t * key;
-	const purs_any_t * value;
+	const ANY * value;
 	UT_hash_handle hh;
 } purs_record_t;
 
-const purs_any_t * purs_record_empty;
+const ANY * purs_record_empty;
 
 /**
  * Create a shallow copy of the given record.
@@ -236,13 +248,13 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
  */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
 	static const ANY * NAME ## __thunk_fn__ (const void * __unused__1, const ANY * __unused__2) { \
-		static const purs_any_t * NAME ## __thunk_val__ = NULL;\
+		static const ANY * NAME ## __thunk_val__ = NULL;\
 		if (NAME ## __thunk_val__ == NULL) {\
 			NAME ## __thunk_val__ = INIT;\
 		}\
 		return NAME ## __thunk_val__;\
 	}\
-	static const purs_any_t NAME ## __thunk__ = {\
+	static const ANY NAME ## __thunk__ = {\
 		.tag = PURS_ANY_TAG_THUNK,\
 		.value = {\
 			.cont = {\
@@ -251,12 +263,40 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 			}\
 		}\
 	};\
-	const purs_any_t * NAME = & NAME ## __thunk__;\
+	const ANY * NAME = & NAME ## __thunk__;\
 
 /* allocate a cons 'value' field large enough to fit 'n' amount of 'ANY *'
  */
 #define PURS_CONS_VALUES_NEW(n)\
 	purs_malloc(sizeof (const ANY *) * n)
+
+/* simply return the 'tag' of a 'purs_cons_t'.
+ */
+int purs_cons_get_tag (const purs_cons_t * cons);
+
+// -----------------------------------------------------------------------------
+// Any: initializers
+// -----------------------------------------------------------------------------
+
+#define PURS_ANY_INT(x)\
+	{ .tag = PURS_ANY_TAG_INT, .value = { .i = x } }
+
+#define PURS_ANY_NUMBER(x)\
+	{ .tag = PURS_ANY_TAG_NUM, .value = { .n = x } }
+
+#define PURS_ANY_CHAR(x)\
+	{ .tag = PURS_ANY_TAG_CHAR, .value = { chr = x } }
+
+#define PURS_ANY_FOREIGN(TAG, DATA)\
+	{\
+		.tag = PURS_ANY_TAG_FOREIGN,\
+		.value = {\
+			.foreign = {\
+				.tag = (TAG),\
+				.data = (DATA)\
+			}\
+		}\
+	}
 
 // -----------------------------------------------------------------------------
 // FFI helpers
@@ -264,27 +304,31 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_EXPORT(NAME)\
-	const purs_any_t * NAME ## $
+	const ANY * NAME ## $
 
 #define PURS_SCOPE_T(NAME, DECLS)\
 	typedef struct NAME {\
 		struct DECLS;\
 	} NAME
 
-#define PURS_FFI_FUNC_0(NAME, BODY)\
-	const ANY * NAME (void * super) BODY
+#define PURS_FFI_VALUE(NAME, INIT)\
+	static const purs_any_t _ ## NAME ## $ = INIT;\
+	const purs_any_t * NAME ## $ = & _ ## NAME ## $
 
 #define PURS_FFI_FUNC_1(NAME, A1, BODY)\
-	const ANY * NAME (const void * super, const ANY * A1) BODY
+	const ANY * NAME##__1 (const void * super, const ANY * A1) {\
+		BODY;\
+	}\
+	const ANY NAME##__1_ = {\
+		.tag = PURS_ANY_TAG_CONT,\
+		.value = { .cont = { .fn = NAME##__1, .ctx = NULL } }\
+	};\
+	const ANY * NAME ## $ = & NAME##__1_
 
 #define PURS_FFI_FUNC_2(NAME, A1, A2, BODY)\
 	PURS_SCOPE_T(NAME##__ctx__1, { const ANY * A1; });\
-	PURS_SCOPE_T(NAME##__ctx__2, { const ANY * A1; const ANY * A2; }); \
 	const ANY * NAME##__2 (const void * super, const ANY * A2) {\
-		NAME##__ctx__2 * ctx = purs_new(NAME##__ctx__2);\
-		ctx->A1 = ((const NAME##__ctx__1*)super)->A1;\
-		ctx->A2 = A2;\
-		const ANY * A1 = ctx->A1;\
+		const ANY * A1 = ((const NAME##__ctx__1*)super)->A1;\
 		BODY;\
 	}\
 	const ANY * NAME##__1 (const void * super, const ANY * A1) {\
@@ -296,19 +340,14 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 		.tag = PURS_ANY_TAG_CONT,\
 		.value = { .cont = { .fn = NAME##__1, .ctx = NULL } }\
 	};\
-	const ANY * NAME = & NAME##__1_
+	const ANY * NAME ## $ = & NAME##__1_
 
 #define PURS_FFI_FUNC_3(NAME, A1, A2, A3, BODY)\
 	PURS_SCOPE_T(NAME##__ctx__1, { const ANY * A1; });\
 	PURS_SCOPE_T(NAME##__ctx__2, { const ANY * A1; const ANY * A2; }); \
-	PURS_SCOPE_T(NAME##__ctx__3, { const ANY * A1; const ANY * A2; const ANY * A3; }); \
 	const ANY * NAME##__3 (const void * super, const ANY * A3) {\
-		NAME##__ctx__3 * ctx = purs_new(NAME##__ctx__3);\
-		ctx->A1 = ((const NAME##__ctx__2*)super)->A1;\
-		ctx->A2 = ((const NAME##__ctx__2*)super)->A2;\
-		ctx->A3 = A3;\
-		const ANY * A1 = ctx->A1;\
-		const ANY * A2 = ctx->A2;\
+		const ANY * A1 = ((const NAME##__ctx__2*)super)->A1;\
+		const ANY * A2 = ((const NAME##__ctx__2*)super)->A2;\
 		BODY;\
 	}\
 	const ANY * NAME##__2 (const void * super, const ANY * A2) {\
@@ -326,7 +365,93 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 		.tag = PURS_ANY_TAG_CONT,\
 		.value = { .cont = { .fn = NAME##__1, .ctx = NULL } }\
 	};\
-	const ANY * NAME = & NAME##__1_
+	const ANY * NAME ## $ = & NAME##__1_
+
+#define PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, BODY)\
+	PURS_SCOPE_T(NAME##__ctx__1, { const ANY * A1; });\
+	PURS_SCOPE_T(NAME##__ctx__2, { const ANY * A1; const ANY * A2; }); \
+	PURS_SCOPE_T(NAME##__ctx__3, { const ANY * A1; const ANY * A2; const ANY * A3; }); \
+	const ANY * NAME##__4 (const void * super, const ANY * A4) {\
+		const ANY * A1 = ((const NAME##__ctx__3*)super)->A1;\
+		const ANY * A2 = ((const NAME##__ctx__3*)super)->A2;\
+		const ANY * A3 = ((const NAME##__ctx__3*)super)->A3;\
+		BODY;\
+	}\
+	const ANY * NAME##__3 (const void * super, const ANY * A3) {\
+		NAME##__ctx__3 * ctx = purs_new(NAME##__ctx__3);\
+		ctx->A1 = ((const NAME##__ctx__2*)super)->A1;\
+		ctx->A2 = ((const NAME##__ctx__2*)super)->A2;\
+		ctx->A3 = A3;\
+		return purs_any_cont_new(ctx, NAME##__4);\
+	}\
+	const ANY * NAME##__2 (const void * super, const ANY * A2) {\
+		NAME##__ctx__2 * ctx = purs_new(NAME##__ctx__2);\
+		ctx->A1 = ((const NAME##__ctx__1*)super)->A1;\
+		ctx->A2 = A2;\
+		return purs_any_cont_new(ctx, NAME##__3);\
+	}\
+	const ANY * NAME##__1 (const void * super, const ANY * A1) {\
+		NAME##__ctx__1 * ctx = purs_new(NAME##__ctx__1);\
+		ctx->A1 = A1;\
+		return purs_any_cont_new(ctx, NAME##__2);\
+	}\
+	const ANY NAME##__1_ = {\
+		.tag = PURS_ANY_TAG_CONT,\
+		.value = { .cont = { .fn = NAME##__1, .ctx = NULL } }\
+	};\
+	const ANY * NAME ## $ = & NAME##__1_
+
+#define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5, BODY)\
+	PURS_SCOPE_T(NAME##__ctx__1, { const ANY * A1; });\
+	PURS_SCOPE_T(NAME##__ctx__2, { const ANY * A1; const ANY * A2; }); \
+	PURS_SCOPE_T(NAME##__ctx__3, { const ANY * A1; const ANY * A2; const ANY * A3; }); \
+	PURS_SCOPE_T(NAME##__ctx__4, { const ANY * A1; const ANY * A2; const ANY * A3; const ANY * A4; }); \
+	const ANY * NAME##__5 (const void * super, const ANY * A5) {\
+		const ANY * A1 = ((const NAME##__ctx__4*)super)->A1;\
+		const ANY * A2 = ((const NAME##__ctx__4*)super)->A2;\
+		const ANY * A3 = ((const NAME##__ctx__4*)super)->A3;\
+		const ANY * A4 = ((const NAME##__ctx__4*)super)->A4;\
+		BODY;\
+	}\
+	const ANY * NAME##__4 (const void * super, const ANY * A4) {\
+		NAME##__ctx__4 * ctx = purs_new(NAME##__ctx__4);\
+		ctx->A1 = ((const NAME##__ctx__2*)super)->A1;\
+		ctx->A2 = ((const NAME##__ctx__2*)super)->A2;\
+		ctx->A3 = ((const NAME##__ctx__3*)super)->A3;\
+		ctx->A4 = A4;\
+		return purs_any_cont_new(ctx, NAME##__5);\
+	}\
+	const ANY * NAME##__3 (const void * super, const ANY * A3) {\
+		NAME##__ctx__3 * ctx = purs_new(NAME##__ctx__3);\
+		ctx->A1 = ((const NAME##__ctx__2*)super)->A1;\
+		ctx->A2 = ((const NAME##__ctx__2*)super)->A2;\
+		ctx->A3 = A3;\
+		return purs_any_cont_new(ctx, NAME##__4);\
+	}\
+	const ANY * NAME##__2 (const void * super, const ANY * A2) {\
+		NAME##__ctx__2 * ctx = purs_new(NAME##__ctx__2);\
+		ctx->A1 = ((const NAME##__ctx__1*)super)->A1;\
+		ctx->A2 = A2;\
+		return purs_any_cont_new(ctx, NAME##__3);\
+	}\
+	const ANY * NAME##__1 (const void * super, const ANY * A1) {\
+		NAME##__ctx__1 * ctx = purs_new(NAME##__ctx__1);\
+		ctx->A1 = A1;\
+		return purs_any_cont_new(ctx, NAME##__2);\
+	}\
+	const ANY NAME##__1_ = {\
+		.tag = PURS_ANY_TAG_CONT,\
+		.value = { .cont = { .fn = NAME##__1, .ctx = NULL } }\
+	};\
+	const ANY * NAME ## $ = & NAME##__1_
+
+
+// -----------------------------------------------------------------------------
+// Legacy bridges
+// -----------------------------------------------------------------------------
+
+#define PURS_ANY_INT_NEW purs_any_int_new
+#define PURS_ANY_NUMBER_NEW purs_any_num_new
 
 // -----------------------------------------------------------------------------
 // Prim shims
@@ -338,9 +463,9 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 // Built-ins
 // -----------------------------------------------------------------------------
 
-const purs_any_t * purs_any_true;
-const purs_any_t * purs_any_false;
+const ANY * purs_any_true;
+const ANY * purs_any_false;
 
-const purs_any_t * purs_any_eq(const purs_any_t *, const purs_any_t *);
+const ANY * purs_any_eq(const ANY *, const ANY *);
 
 #endif // PURESCRIPT_RUNTIME_H

@@ -130,7 +130,7 @@ prettyPrintAst x@(AST.Function
   emit "("
   for_ (A.init arguments) $ traverse \arg -> do
     emit $ renderArg arg
-    emit ","
+    emit ", "
   for_ (A.last arguments) \arg ->
     emit $ renderArg arg
   emit ")"
