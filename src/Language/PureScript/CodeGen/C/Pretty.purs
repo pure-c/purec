@@ -114,11 +114,11 @@ prettyPrintAst (AST.Accessor field o)
   prettyPrintAst o
   emit $ "->"
   prettyPrintAst field
-prettyPrintAst (AST.Lambda _) =
+prettyPrintAst (AST.Function { name: Nothing }) =
   throwError $
-    InvalidStateError "`AST.Lambda`s should have been erased by now"
+    InvalidStateError "Anonymous functions should have been erased by now"
 prettyPrintAst x@(AST.Function
-  { name
+  { name: Just name
   , arguments
   , returnType
   , qualifiers
@@ -172,7 +172,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
   -- TODO move this logic out of the printer
   when (fnAst == R._PURS_SCOPE_T) do
     emit ";"
-prettyPrintAst (AST.Assignment l r) = do
+prettyPrintAst (AST.Assignment _ l r) = do
   prettyPrintAst l
   emit " ="
   lf

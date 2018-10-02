@@ -23,6 +23,13 @@ module Language.PureScript.CodeGen.Runtime
   , _PURS_SCOPE_T
   , _PURS_CONS_VALUES_NEW
 
+    -- code-gen helpers
+  , purs_indirect_thunk_new
+  , purs_indirect_value_new
+  , purs_indirect_value_assign
+
+    -- misc
+  , purs_any_fun_t
   , purs_cons_t
   , purs_cons_get_tag
   , purs_vec_new_from_array
@@ -60,6 +67,9 @@ any' = Type.Pointer (Type.Any [])
 
 any :: AST.Type
 any = Type.Pointer (Type.Any [ Type.Const ])
+
+purs_any_fun_t :: AST.Type
+purs_any_fun_t = Type.RawType "purs_any_fun_t" []
 
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
@@ -135,6 +145,15 @@ purs_any_cont_new = AST.Var "purs_any_cont_new"
 
 purs_any_string_new :: AST
 purs_any_string_new = AST.Var "purs_any_string_new"
+
+purs_indirect_thunk_new :: AST
+purs_indirect_thunk_new = AST.Var "purs_indirect_thunk_new"
+
+purs_indirect_value_new :: AST
+purs_indirect_value_new = AST.Var "purs_indirect_value_new"
+
+purs_indirect_value_assign :: AST
+purs_indirect_value_assign = AST.Var "purs_indirect_value_assign"
 
 _PURS_CONS_VALUES_NEW :: AST
 _PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"

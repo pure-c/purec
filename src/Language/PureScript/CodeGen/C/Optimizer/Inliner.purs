@@ -25,8 +25,8 @@ unThunk = everywhere convert
         { last:
              AST.Return
               (AST.App
-                (AST.Lambda
-                  { arguments: [], body: AST.Block body })
+                (AST.Function
+                  { arguments: [], body: Just (AST.Block body) })
                 [])
         , init
         } ->

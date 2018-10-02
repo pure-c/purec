@@ -117,7 +117,7 @@ isMain _ = false
 nativeMain :: AST -> AST
 nativeMain mainVar =
   AST.Function
-    { name: "main"
+    { name: Just "main"
     , arguments: []
     , returnType: Type.Primitive Type.Int []
     , qualifiers: []

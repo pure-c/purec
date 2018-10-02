@@ -48,10 +48,11 @@ inline const ANY * purs_any_cont_new(const void * ctx, purs_any_fun_t * fn) {
 	return v;
 }
 
-inline const ANY * purs_any_thunk_new(purs_any_thunk_t * thunk) {
+inline const ANY * purs_any_thunk_new(const void * ctx, purs_any_thunk_fun_t * fn) {
 	ANY * v = purs_new(ANY);
 	v->tag = PURS_ANY_TAG_THUNK;
-	v->value.thunk = thunk;
+	v->value.thunk.ctx = ctx;
+	v->value.thunk.fn = fn;
 	return v;
 }
 
@@ -184,7 +185,7 @@ inline const ANY * purs_any_unthunk (const ANY * x) {
 	const ANY * tmp;
 	const ANY * out = (ANY *) x;
 	while (out != NULL && out->tag == PURS_ANY_TAG_THUNK) {
-		tmp = out->value.thunk(NULL, NULL);
+		tmp = out->value.thunk.fn(out->value.thunk.ctx);
 		purs_assert(tmp != out, "infinite unthunk loop");
 		out = tmp;
 	}
@@ -196,15 +197,15 @@ inline const purs_any_tag_t purs_any_get_tag (const ANY * v) {
 }
 
 inline const ANY * purs_any_app(const ANY * f, const ANY * v, ...) {
+	assert(f != NULL);
 	f = purs_any_unthunk(f);
-	if (f->tag == PURS_ANY_TAG_CONT) {
-		va_list args;
-		va_start(args, v);
-		const ANY * r = f->value.cont.fn(f->value.cont.ctx, v, args);
-		va_end(args);
-		return r;
-	}
-	return NULL;
+	assert(f != NULL);
+	assert(f->tag == PURS_ANY_TAG_CONT);
+	va_list args;
+	va_start(args, v);
+	const ANY * r = f->value.cont.fn(f->value.cont.ctx, v, args);
+	va_end(args);
+	return r;
 }
 
 // -----------------------------------------------------------------------------
@@ -284,6 +285,9 @@ const ANY * purs_any_eq(const ANY * x, const ANY * y) {
 const ANY * purs_any_concat(const ANY * x, const ANY * y) {
 	x = purs_any_unthunk(x);
 	y = purs_any_unthunk(y);
+
+	assert(x != NULL);
+	assert(y != NULL);
 
 	if (x->tag != y->tag) {
 		purs_assert(
@@ -465,6 +469,23 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 // -----------------------------------------------------------------------------
 // Code-gen helpers
 // -----------------------------------------------------------------------------
+
+inline const ANY * purs_indirect_thunk_new(const ANY ** x) {
+	return purs_any_thunk_new(x, purs_thunked_deref);
+}
+
+inline void purs_indirect_value_assign(const ANY ** i, const ANY * v) {
+	*i = v;
+}
+
+inline const ANY ** purs_indirect_value_new() {
+	return purs_new(const ANY *);
+}
+
+inline const ANY * purs_thunked_deref(const void * data) {
+	const ANY ** _data = (const ANY **) data;
+	return *_data;
+}
 
 inline int purs_cons_get_tag (const purs_cons_t * cons) {
 	return cons->tag;

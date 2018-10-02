@@ -185,19 +185,12 @@ data AST
 
   -- | A function introduction
   | Function
-      { name :: String
+      { name :: Maybe String
       , arguments :: Array { name :: String, type :: Type }
       , returnType :: Type
       , qualifiers :: Array ValueQualifier
       , variadic :: Boolean
       , body :: Maybe AST
-      }
-
-  -- | A lambda introduction (virtual, to be elided)
-  | Lambda
-      { arguments :: Array { name :: String, type :: Type }
-      , returnType :: Type
-      , body :: AST
       }
 
   -- | Value type cast
@@ -226,7 +219,7 @@ data AST
       }
 
   -- | A variable assignment
-  | Assignment AST AST
+  | Assignment Boolean AST AST
 
   -- | While loop
   | While AST AST
@@ -315,10 +308,6 @@ everywhereM f = go
     f =<< do
       Function <<< x { body = _ }
         <$> traverse go body
-  go (Lambda (x@{ body })) =
-    f =<< do
-      Lambda <<< x { body = _ }
-        <$> go body
   go (Cast i b) =
     f =<< do
       Cast i <$> go b
@@ -332,9 +321,9 @@ everywhereM f = go
       VariableIntroduction <<<
         x { initialization = _
           } <$> traverse go initialization
-  go (Assignment a b) =
+  go (Assignment managed a b) =
     f =<< do
-      Assignment
+      Assignment managed
         <$> go a
         <*> go b
   go (While a b) =
@@ -418,10 +407,6 @@ everythingM combine toA = go
     combine
       <$> toA j
       <*> go body
-  go j@(Lambda (x@{ body })) =
-    combine
-      <$> toA j
-      <*> go body
   go j@(Cast _ b) =
     combine
       <$> toA j
@@ -436,7 +421,7 @@ everythingM combine toA = go
     combine
       <$> toA j
       <*> go i
-  go j@(Assignment a b) =
+  go j@(Assignment _ a b) =
     combine
       <$> toA j
       <*> do
@@ -513,9 +498,6 @@ everywhereTopDownM f = f'
   go (Function (x@{ body })) =
     Function <<< x { body = _ }
       <$> traverse f' body
-  go (Lambda (x@{ body })) =
-    Lambda <<< x { body = _ }
-      <$> f' body
   go (Cast i b) =
     Cast i <$> f' b
   go (App a xs) =
@@ -524,8 +506,8 @@ everywhereTopDownM f = f'
     VariableIntroduction <<<
       x { initialization = _
         } <$> traverse f' initialization
-  go (Assignment a b) =
-    Assignment <$> f' a <*> f' b
+  go (Assignment managed a b) =
+    Assignment managed <$> f' a <*> f' b
   go (While a b) =
     While <$> f' a <*> f' b
   go (IfElse a b mC) =

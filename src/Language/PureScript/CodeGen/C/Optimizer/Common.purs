@@ -46,7 +46,7 @@ isReassigned :: String -> AST -> Boolean
 isReassigned var1 = everything (||) go
   where
   go (AST.VariableIntroduction { name }) = var1 == name
-  go (AST.Assignment (AST.Var name) _) = var1 == name
+  go (AST.Assignment _ (AST.Var name) _) = var1 == name
   go _ = false
 
 isRebound
@@ -76,7 +76,7 @@ isUpdated
   -> m Boolean
 isUpdated var1 = everythingM (||) go
   where
-  go (AST.Assignment target _) = do
+  go (AST.Assignment _ target _) = do
     eq var1 <$>
       targetVariable target
   go _ =

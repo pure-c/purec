@@ -54,9 +54,10 @@ typedef struct purs_record purs_record_t;
 typedef struct purs_cons purs_cons_t;
 typedef struct purs_cont purs_cont_t;
 typedef struct purs_any_cont purs_any_cont_t;
+typedef struct purs_any_thunk purs_any_thunk_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
-typedef const ANY * (purs_any_thunk_t)();
+typedef const ANY * (purs_any_thunk_fun_t)(const void * ctx);
 typedef const ANY * (purs_any_fun_t)(const void * ctx, const ANY *, ...);
 typedef struct purs_foreign purs_foreign_t;
 
@@ -84,6 +85,11 @@ struct purs_any_cont {
 	const void * ctx;
 };
 
+struct purs_any_thunk {
+	purs_any_thunk_fun_t * fn;
+	const void * ctx;
+};
+
 struct purs_foreign {
 	void * tag;
 	void * data;
@@ -98,7 +104,7 @@ union purs_any_value {
 	purs_any_int_t i;
 	purs_any_num_t n;
 	purs_any_cont_t cont;
-	purs_any_thunk_t * thunk;
+	purs_any_thunk_t thunk;
 	purs_cons_t cons;
 	const purs_record_t * record;
 	const managed_t * str;
@@ -120,7 +126,7 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 const ANY * purs_any_int_new(const purs_any_int_t);
 const ANY * purs_any_num_new(const purs_any_num_t);
 const ANY * purs_any_cont_new(const void * ctx, purs_any_fun_t *);
-const ANY * purs_any_thunk_new(purs_any_thunk_t *);
+const ANY * purs_any_thunk_new(const void * ctx, purs_any_thunk_fun_t *);
 const ANY * purs_any_cons_new(int tag, const ANY ** values);
 const ANY * purs_any_record_new(const purs_record_t *);
 const ANY * purs_any_string_new(const char *);
@@ -240,6 +246,12 @@ purs_record_add_multi(NULL, count, __VA_ARGS__)
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
+/* thunked pointer dereference. useful for recursive bindings */
+const ANY ** purs_indirect_value_new();
+void purs_indirect_value_assign(const ANY **, const ANY *);
+const ANY * purs_indirect_thunk_new(const ANY **);
+const ANY * purs_thunked_deref(const void * data);
+
 /* code-gen helper to allocate and fill a scope.
  * assumes scope to consist only of (const ANY *) pointers, the count of which
  * is known.
@@ -250,7 +262,7 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 /* declare a thunked top-level value.
  */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
-	static const ANY * NAME ## __thunk_fn__ (const void * __unused__1, const ANY * __unused__2, ...) { \
+	static const ANY * NAME ## __thunk_fn__ (const void * __unused__1) { \
 		static const ANY * NAME ## __thunk_val__ = NULL;\
 		if (NAME ## __thunk_val__ == NULL) {\
 			NAME ## __thunk_val__ = INIT;\
@@ -260,7 +272,7 @@ const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 	static const ANY NAME ## __thunk__ = {\
 		.tag = PURS_ANY_TAG_THUNK,\
 		.value = {\
-			.cont = {\
+			.thunk = {\
 				.fn = NAME ## __thunk_fn__,\
 				.ctx = NULL\
 			}\

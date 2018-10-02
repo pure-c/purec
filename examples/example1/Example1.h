@@ -23,8 +23,7 @@ PURS_FFI_FUNC_UNCURRIED_2(Example1_getLineImpl, Just, Nothing, {
 	char * line = NULL;
 	if (getline(&line, &len, stdin) != -1) {
 		line[strlen(line) - 1] = 0; // remove trailing newline
-		const purs_any_t * o = purs_any_app(Just, purs_any_string_new(line));
-		return o;
+		return purs_any_app(Just, purs_any_string_new(line));
 	} else {
 		return Nothing;
 	}

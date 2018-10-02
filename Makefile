@@ -1,6 +1,7 @@
 .PHONY: clean deps deps/npm deps/bwdgc purec test test/build
 
 CLANG ?= clang
+CFLAGS ?=
 
 SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
