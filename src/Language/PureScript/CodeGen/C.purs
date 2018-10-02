@@ -897,6 +897,7 @@ eraseLambdas moduleName asts =
             ] <> arguments
         , returnType: R.any
         , qualifiers: []
+        , variadic: true
         , body:
             Just $
               AST.Block $

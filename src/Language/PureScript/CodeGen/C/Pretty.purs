@@ -122,6 +122,7 @@ prettyPrintAst x@(AST.Function
   , arguments
   , returnType
   , qualifiers
+  , variadic
   , body
   }) = do
   emit $ renderType returnType
@@ -133,6 +134,8 @@ prettyPrintAst x@(AST.Function
     emit ", "
   for_ (A.last arguments) \arg ->
     emit $ renderArg arg
+  when variadic do
+    emit ", ..."
   emit ")"
   case body of
     Just ast -> do

@@ -121,6 +121,7 @@ nativeMain mainVar =
     , arguments: []
     , returnType: Type.Primitive Type.Int []
     , qualifiers: []
+    , variadic: false
     , body: Just $
         AST.Block
           [ AST.App (AST.Var "GC_INIT") []

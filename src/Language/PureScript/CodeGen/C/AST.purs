@@ -189,6 +189,7 @@ data AST
       , arguments :: Array { name :: String, type :: Type }
       , returnType :: Type
       , qualifiers :: Array ValueQualifier
+      , variadic :: Boolean
       , body :: Maybe AST
       }
 

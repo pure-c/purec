@@ -195,10 +195,14 @@ inline const purs_any_tag_t purs_any_get_tag (const ANY * v) {
 	return v->tag;
 }
 
-inline const ANY * purs_any_app(const ANY * f, const ANY * v) {
+inline const ANY * purs_any_app(const ANY * f, const ANY * v, ...) {
 	f = purs_any_unthunk(f);
 	if (f->tag == PURS_ANY_TAG_CONT) {
-		return f->value.cont.fn(f->value.cont.ctx, v);
+		va_list args;
+		va_start(args, v);
+		const ANY * r = f->value.cont.fn(f->value.cont.ctx, v, args);
+		va_end(args);
+		return r;
 	}
 	return NULL;
 }
