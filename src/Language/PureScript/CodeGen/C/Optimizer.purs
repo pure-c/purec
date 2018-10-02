@@ -22,8 +22,7 @@ optimize
   => AST
   -> m AST
 optimize =
-  -- untilFixedPoint tidyUp
-  tidyUp
+  untilFixedPoint tidyUp
 
   where
   tidyUp :: AST -> m AST

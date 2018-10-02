@@ -10,6 +10,8 @@ module Language.PureScript.CodeGen.C.AST
   , everywhereM
   , everything
   , everythingM
+  , everywhereTopDown
+  , everywhereTopDownM
   ) where
 
 import Prelude
@@ -19,7 +21,9 @@ import Data.Either (Either)
 import Data.Generic.Rep as Rep
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
+import Data.Identity (Identity(..))
 import Data.Maybe (Maybe(..))
+import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
 import Foreign.Object (Object)
 
@@ -106,7 +110,6 @@ instance showValueQual :: Show ValueQualifier where
 
 data TypeQualifier
   = Const
-  | BlockStorage
 
 derive instance genericTypeQualifier :: Rep.Generic TypeQualifier _
 
@@ -182,18 +185,12 @@ data AST
 
   -- | A function introduction
   | Function
-      { name :: String
+      { name :: Maybe String
       , arguments :: Array { name :: String, type :: Type }
       , returnType :: Type
       , qualifiers :: Array ValueQualifier
+      , variadic :: Boolean
       , body :: Maybe AST
-      }
-
-  -- | A lambda introduction (via Blocks)
-  | Lambda
-      { arguments :: Array { name :: String, type :: Type }
-      , returnType :: Type
-      , body :: AST
       }
 
   -- | Value type cast
@@ -204,9 +201,6 @@ data AST
 
   -- | Variable
   | Var String
-
-  -- | Unique system-wide name/constant
-  | Symbol String
 
   -- | A block of expressions in braces
   | Block (Array AST)
@@ -222,11 +216,10 @@ data AST
       , type :: Type
       , qualifiers :: Array ValueQualifier
       , initialization :: Maybe AST
-      , managed :: Boolean
       }
 
   -- | A variable assignment
-  | Assignment AST AST
+  | Assignment Boolean AST AST
 
   -- | While loop
   | While AST AST
@@ -240,9 +233,6 @@ data AST
   -- | Continue statement
   | Continue
 
-  -- | Empty statement/expression
-  | NoOp
-
   -- | Marker for header/source split
   | EndOfHeader
 
@@ -253,7 +243,11 @@ data AST
   -- | XXX a more general #define AST would be desirable later.
   | DefineTag String Int
 
+  -- | NULL
   | Null
+
+  -- | Statement expression
+  | StatementExpression AST
 
 derive instance genericAST :: Rep.Generic AST _
 
@@ -265,52 +259,8 @@ instance showAST :: Show AST where
 
 -- TODO: make this stack safe
 everywhere :: (AST -> AST) -> AST -> AST
-everywhere f = go
-  where
-  go (Block xs) =
-    f $ Block $ go <$> xs
-  go (Binary i a b) =
-    f $ Binary i (go a) (go b)
-  go (ArrayLiteral xs) =
-    f $ ArrayLiteral $ go <$> xs
-  go (Indexer a b) =
-    f $ Indexer (go a) (go b)
-  go (StructLiteral x) =
-    f $
-      StructLiteral $
-        go <$> x
-  go (ObjectLiteral xs) =
-    f $
-      ObjectLiteral $
-        xs <#> \{ key, value } ->
-          { key: go key
-          , value: go value
-          }
-  go (Accessor a b) =
-    f $ Accessor (go a) (go b)
-  go (Function (x@{ body })) =
-    f $ Function $ x { body = go <$> body }
-  go (Lambda (x@{ body })) =
-    f $ Lambda $ x { body = go body }
-  go (Cast i b) =
-    f $ Cast i (go b)
-  go (App a xs) =
-    f $ App (go a) (go <$> xs)
-  go (VariableIntroduction x@{ initialization }) =
-    f $
-      VariableIntroduction $
-        x { initialization = go <$> initialization
-          }
-  go (Assignment a b) =
-    f $ Assignment (go a) (go b)
-  go (While a b) =
-    f $ While (go a) (go b)
-  go (IfElse a b mC) =
-    f $ IfElse (go a) (go b) (go <$> mC)
-  go (Return a) =
-    f $ Return (go a)
-  go x =
-    f x
+everywhere f =
+  unwrap <<< everywhereM (Identity <<< f)
 
 everywhereM
   :: ∀ m
@@ -325,7 +275,7 @@ everywhereM f = go
       Block
         <$> traverse go xs
   go (Binary i a b) =
-    f =<<  do
+    f =<< do
       Binary i
         <$> go a
         <*> go b
@@ -358,10 +308,6 @@ everywhereM f = go
     f =<< do
       Function <<< x { body = _ }
         <$> traverse go body
-  go (Lambda (x@{ body })) =
-    f =<< do
-      Lambda <<< x { body = _ }
-        <$> go body
   go (Cast i b) =
     f =<< do
       Cast i <$> go b
@@ -375,9 +321,9 @@ everywhereM f = go
       VariableIntroduction <<<
         x { initialization = _
           } <$> traverse go initialization
-  go (Assignment a b) =
+  go (Assignment managed a b) =
     f =<< do
-      Assignment
+      Assignment managed
         <$> go a
         <*> go b
   go (While a b) =
@@ -394,59 +340,16 @@ everywhereM f = go
   go (Return a) =
     f =<< do
       Return <$> go a
+  go (StatementExpression a) =
+    f =<< do
+      StatementExpression <$> go a
   go x =
     f x
 
--- TODO: make this stack safe
+-- -- TODO: make this stack safe
 everything :: ∀ a. (a -> a -> a) -> (AST -> a) -> AST -> a
-everything combine toA = go
-  where
-  go j@(Block xs) =
-    A.foldl combine (toA j) $
-      go <$> xs
-  go j@(Binary _ a b) =
-    toA j `combine` go a `combine` go b
-  go j@(ArrayLiteral xs) =
-    A.foldl combine (toA j) $
-      go <$> xs
-  go j@(Indexer a b) =
-    toA j `combine` go a `combine` go b
-  go j@(StructLiteral x) =
-    A.foldl combine (toA j) $
-      go <$> x
-  go j@(ObjectLiteral xs) =
-    A.foldl combine (toA j) $
-      xs <#> \{ key, value } ->
-        toA key `combine` toA value
-  go j@(Accessor a b) =
-    toA j `combine` go a `combine` go b
-  go j@(Function (x@{ body: Nothing })) =
-    toA j
-  go j@(Function (x@{ body: Just body })) =
-    toA j `combine` go body
-  go j@(Lambda (x@{ body })) =
-    toA j `combine` go body
-  go j@(Cast _ b) =
-    toA j `combine` go b
-  go j@(App a xs) =
-    A.foldl combine (toA j `combine` go a) $
-      go <$> xs
-  go j@(VariableIntroduction x@{ initialization: Nothing }) =
-    toA j
-  go j@(VariableIntroduction x@{ initialization: Just i }) =
-    toA j `combine` go i
-  go j@(Assignment a b) =
-    toA j `combine` go a `combine` go b
-  go j@(While a b) =
-    toA j `combine` go a `combine` go b
-  go j@(IfElse a b Nothing) =
-    toA j `combine` go a `combine` go b
-  go j@(IfElse a b (Just x)) =
-    toA j `combine` go a `combine` go b `combine` go x
-  go j@(Return a) =
-    toA j `combine` go a
-  go x =
-    toA x
+everything f toA =
+  unwrap <<< everythingM f (Identity <<< toA)
 
 everythingM
   :: ∀ a f
@@ -504,10 +407,6 @@ everythingM combine toA = go
     combine
       <$> toA j
       <*> go body
-  go j@(Lambda (x@{ body })) =
-    combine
-      <$> toA j
-      <*> go body
   go j@(Cast _ b) =
     combine
       <$> toA j
@@ -522,7 +421,7 @@ everythingM combine toA = go
     combine
       <$> toA j
       <*> go i
-  go j@(Assignment a b) =
+  go j@(Assignment _ a b) =
     combine
       <$> toA j
       <*> do
@@ -557,5 +456,65 @@ everythingM combine toA = go
     combine
       <$> toA j
       <*> go a
+  go j@(StatementExpression a) =
+    combine
+      <$> toA j
+      <*> go a
   go x =
     toA x
+
+everywhereTopDown :: (AST -> AST) -> AST -> AST
+everywhereTopDown f =
+  unwrap <<< everywhereTopDownM (Identity <<< f)
+
+everywhereTopDownM
+  :: ∀ m
+   . Monad m
+  => (AST -> m AST)
+  -> AST
+  -> m AST
+everywhereTopDownM f = f'
+  where
+  f' x =
+    f x >>= \y -> go y
+  go (Block xs) =
+    Block <$> traverse f' xs
+  go (Binary i a b) =
+    Binary i <$> f' a <*> f' b
+  go (ArrayLiteral xs) =
+    ArrayLiteral <$> traverse f' xs
+  go (Indexer a b) =
+    Indexer <$> f' a <*> f' b
+  go (StructLiteral x) =
+    StructLiteral <$> traverse f' x
+  go (ObjectLiteral xs) =
+    ObjectLiteral <$>
+      for xs \{ key, value } ->
+        { key: _, value: _ }
+          <$> f' key
+          <*> f' value
+  go (Accessor a b) =
+    Accessor <$> f' a <*> f' b
+  go (Function (x@{ body })) =
+    Function <<< x { body = _ }
+      <$> traverse f' body
+  go (Cast i b) =
+    Cast i <$> f' b
+  go (App a xs) =
+    App <$> f' a <*> traverse f' xs
+  go (VariableIntroduction x@{ initialization }) =
+    VariableIntroduction <<<
+      x { initialization = _
+        } <$> traverse f' initialization
+  go (Assignment managed a b) =
+    Assignment managed <$> f' a <*> f' b
+  go (While a b) =
+    While <$> f' a <*> f' b
+  go (IfElse a b mC) =
+    IfElse <$> f' a <*> f' b <*> traverse f' mC
+  go (StatementExpression a) =
+    StatementExpression <$> f' a
+  go (Return a) =
+    Return <$> f' a
+  go x =
+    f x

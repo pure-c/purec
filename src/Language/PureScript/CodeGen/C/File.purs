@@ -11,27 +11,14 @@ module Language.PureScript.CodeGen.C.File
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError)
-import Control.Monad.State (State, evalState, execState)
-import Control.Monad.State as State
-import CoreFn.Expr as C
-import CoreFn.Module as C
-import CoreFn.Names as C
+import CoreFn.Names (ModuleName(..), ProperName(..)) as C
 import Data.Array as A
 import Data.Either (Either(..))
-import Data.Foldable (elem)
-import Data.Map (Map)
-import Data.Map as Map
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
-import Data.Traversable (for_, traverse)
-import Data.Tuple.Nested ((/\))
-import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (safeName)
-import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 
 dottedModuleName
@@ -85,7 +72,6 @@ toHeader = A.catMaybes <<< map go
       AST.VariableIntroduction
         { name
         , type: Type.Pointer (Type.Any [ Type.Const ])
-        , managed: true -- XXX irrelevant here
         , qualifiers: []
         , initialization: Nothing
         }
@@ -96,20 +82,22 @@ toBody :: Array AST -> Array AST
 toBody = A.catMaybes <<< map go
   where
   go :: AST -> Maybe AST
+  go x@(AST.Function _) =
+    Just x
+  go x@(AST.App v _) | v == R._PURS_SCOPE_T =
+    Just x
   go (AST.VariableIntroduction { name, type: typ, initialization: Just initialization }) =
     go' initialization
     where
     go' = case _ of
       AST.Cast _ ast@(AST.App f _)
         | f `A.elem`
-            [ R._PURS_ANY_CONS_NEW
-            , R._PURS_ANY_CONS_NEW
-            , R._PURS_ANY_INT_NEW
-            , R._PURS_ANY_NUMBER_NEW
-            , R._PURS_ANY_STRING_NEW
-            , R._PURS_ANY_STRING_NEW_FROM_LIT
-            , R._PURS_ANY_RECORD_NEW
-            , R._PURS_ANY_ARRAY_NEW
+            [ R.purs_any_cons_new
+            , R.purs_any_int_new
+            , R.purs_any_num_new
+            , R.purs_any_string_new
+            , R.purs_any_record_new
+            , R.purs_any_array_new
             ]
         -> go' ast
       _ ->
@@ -129,10 +117,11 @@ isMain _ = false
 nativeMain :: AST -> AST
 nativeMain mainVar =
   AST.Function
-    { name: "main"
+    { name: Just "main"
     , arguments: []
     , returnType: Type.Primitive Type.Int []
     , qualifiers: []
+    , variadic: false
     , body: Just $
         AST.Block
           [ AST.App (AST.Var "GC_INIT") []

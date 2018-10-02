@@ -10,6 +10,7 @@ import Prelude
 import Control.Monad.Except (ExceptT(..))
 import Control.Monad.Reader (ReaderT(..), ask, runReaderT)
 import Control.Monad.Trans.Class (class MonadTrans, lift)
+import Control.Monad.Writer (WriterT(..))
 import Effect.Aff.Class (class MonadAff)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Ref (Ref)
@@ -32,6 +33,9 @@ instance monadSupplyExceptT :: (Monad m, MonadSupply m) => MonadSupply (ExceptT 
   freshId = lift freshId
 
 instance monadSupplyReaderT :: (Monad m, MonadSupply m) => MonadSupply (ReaderT e m) where
+  freshId = lift freshId
+
+instance monadSupplyWriterT :: (Monoid x, Monad m, MonadSupply m) => MonadSupply (WriterT x m) where
   freshId = lift freshId
 
 instance monadTransSupplyT :: MonadTrans SupplyT where

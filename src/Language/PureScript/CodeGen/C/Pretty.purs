@@ -6,31 +6,28 @@ module Language.PureScript.CodeGen.C.Pretty
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError, throwError)
-import Control.Monad.Except (ExceptT(..), runExceptT)
-import Control.Monad.Reader (ReaderT(..), ask, local, runReaderT)
-import Control.Monad.State (StateT(..), evalStateT)
-import Control.Monad.Writer (class MonadWriter, WriterT(..), execWriterT, mapWriterT, runWriterT, tell)
+import Control.Monad.Error.Class (throwError)
+import Control.Monad.Except (ExceptT, runExceptT)
+import Control.Monad.Reader (ReaderT, ask, local, runReaderT)
+import Control.Monad.Writer (WriterT, execWriterT, tell)
 import Data.Array as A
 import Data.Bifunctor (rmap)
 import Data.Either (Either(..))
-import Data.Foldable (all)
 import Data.FoldableWithIndex (traverseWithIndex_)
-import Data.Identity (Identity(..))
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Identity (Identity)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
-import Data.String as Str
 import Data.String.CodeUnits as CodeUnits
-import Data.Traversable (for_, traverse, traverse_)
-import Effect.Aff (bracket)
+import Data.Traversable (for_, traverse)
+import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST, PrimitiveType, Type, ValueQualifier)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (dotsTo, safeName)
-import Language.PureScript.CodeGen.C.Constants as C
+import Language.PureScript.CodeGen.Runtime as R
 
 data PrintError
   = NotImplementedError String
+  | InvalidStateError String
   | InternalError String
 
 empty :: AST
@@ -117,27 +114,15 @@ prettyPrintAst (AST.Accessor field o)
   prettyPrintAst o
   emit $ "->"
   prettyPrintAst field
-prettyPrintAst (AST.Lambda
-  { arguments
-  , returnType
-  , body
-  }) = do
-  -- TODO: Remove AST.Lambda and perform transformation in C.purs
-  -- XXXX: This really is an ugly hack (we don't use the type info, lambdas
-  --       in the runtime MUST only take one value, etc.)
-  emit "PURS_LAMBDA_1("
-  emit $ fromMaybe "____unused____" (_.name <$> A.head arguments)
-  emit ", "
-  prettyPrintAst body
-  emit ")"
-  where
-  renderArg { name } =
-    name
-prettyPrintAst (AST.Function
-  { name
+prettyPrintAst (AST.Function { name: Nothing }) =
+  throwError $
+    InvalidStateError "Anonymous functions should have been erased by now"
+prettyPrintAst x@(AST.Function
+  { name: Just name
   , arguments
   , returnType
   , qualifiers
+  , variadic
   , body
   }) = do
   emit $ renderType returnType
@@ -146,9 +131,11 @@ prettyPrintAst (AST.Function
   emit "("
   for_ (A.init arguments) $ traverse \arg -> do
     emit $ renderArg arg
-    emit ","
+    emit ", "
   for_ (A.last arguments) \arg ->
     emit $ renderArg arg
+  when variadic do
+    emit ", ..."
   emit ")"
   case body of
     Just ast -> do
@@ -182,16 +169,19 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         indent *> prettyPrintAst last
       lf
       indent *> emit ")"
-prettyPrintAst (AST.Assignment l r) = do
+  -- TODO move this logic out of the printer
+  when (fnAst == R._PURS_SCOPE_T) do
+    emit ";"
+prettyPrintAst (AST.Assignment _ l r) = do
   prettyPrintAst l
   emit " ="
   lf
   withNextIndent $
     indent *> prettyPrintAst r
-prettyPrintAst (AST.Indexer v k) = do
-  prettyPrintAst k
-  emit "["
+prettyPrintAst (AST.Indexer i v) = do
   prettyPrintAst v
+  emit "["
+  prettyPrintAst i
   emit "]"
 prettyPrintAst (AST.StructLiteral o) = do
   emit "{"
@@ -221,6 +211,10 @@ prettyPrintAst (AST.IfElse condAst thenAst mElseAst) = do
     withNextIndent do
       indent
       prettyPrintAst elseAst
+prettyPrintAst (AST.StatementExpression ast) = do
+  emit "("
+  prettyPrintAst ast
+  emit ")"
 prettyPrintAst (AST.Block asts) = do
   emit "{"
   lf
@@ -260,8 +254,6 @@ prettyPrintAst (AST.Binary op lhsAst rhsAst) = do
   emit " ("
   prettyPrintAst rhsAst
   emit ")"
-prettyPrintAst AST.NoOp =
-  pure unit
 prettyPrintAst AST.Null =
   emit "NULL"
 prettyPrintAst (AST.DefineTag name tag) =
@@ -337,7 +329,6 @@ renderType = case _ of
         then ""
         else " "
   renderTypeQualifier Type.Const = "const"
-  renderTypeQualifier Type.BlockStorage = "__block"
 
 renderPrimitiveType :: PrimitiveType -> String
 renderPrimitiveType Type.Int = "int"

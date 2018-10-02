@@ -38,6 +38,21 @@ main = do
   putStrLn $ "Hello, " <> name <> "!"
 
   where
+  getFoo = do
+    putStr "name> "
+    let
+      x =
+        let
+          getFoo = "1000"
+        in getFoo <> "."
+    getLine >>= case _ of
+      Nothing ->
+        exit 0
+      Just "" -> do
+        putStrLn $ "Please, hand me your name: " <> x
+        getName
+      Just line ->
+        pure line
   getName = do
     putStr "name> "
     getLine >>= case _ of
@@ -45,6 +60,6 @@ main = do
         exit 0
       Just "" -> do
         putStrLn "Don't be silly now, give us your name."
-        getName
+        getFoo
       Just line ->
         pure line

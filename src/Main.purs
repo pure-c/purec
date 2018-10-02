@@ -120,6 +120,8 @@ renderPipelineError (CompileError (CompileError.NotImplementedError msg)) =
   "Compilation failed: not implemented: " <> msg
 renderPipelineError (PrintError (PrintError.InternalError msg)) =
   "Compilation failed: internal error: " <> msg
+renderPipelineError (PrintError (PrintError.InvalidStateError msg)) =
+  "Compilation failed: invalid state: " <> msg
 renderPipelineError (PrintError (PrintError.NotImplementedError msg)) =
   "Compilation failed: not implemented: " <> msg
 

@@ -1,22 +1,35 @@
 module Language.PureScript.CodeGen.Runtime
   ( purs_any_app
+
   , purs_any_eq_int
+  , purs_any_eq_num
   , purs_any_eq_char
   , purs_any_eq_string
-  , purs_any_eq_float
   , purs_any_get_cons
   , purs_any_get_record
   , purs_any_get_array
-  , _PURS_ANY_CONS_NEW
-  , _PURS_ANY_INT_NEW
-  , _PURS_ANY_NUMBER_NEW
-  , _PURS_ANY_STRING_NEW
-  , _PURS_ANY_CHAR_NEW
-  , _PURS_ANY_STRING_NEW_FROM_LIT -- TODO: remove
-  , _PURS_ANY_RECORD_NEW
-  , _PURS_ANY_ARRAY_NEW
+
+  , purs_any_cont_new
+  , purs_any_array_new
+  , purs_any_cons_new
+  , purs_any_record_new
+  , purs_any_int_new
+  , purs_any_num_new
+  , purs_any_string_new
+  , purs_any_char_new
+
+  , _purs_scope_alloc
+  , _purs_scope_new
+  , _PURS_SCOPE_T
   , _PURS_CONS_VALUES_NEW
-  , _PURS_CONS_LIT
+
+    -- code-gen helpers
+  , purs_indirect_thunk_new
+  , purs_indirect_value_new
+  , purs_indirect_value_assign
+
+    -- misc
+  , purs_any_fun_t
   , purs_cons_t
   , purs_cons_get_tag
   , purs_vec_new_from_array
@@ -33,7 +46,7 @@ module Language.PureScript.CodeGen.Runtime
   , _NULL
   , purs_any_true
   , purs_any_false
-  , purs_scope_capture
+  , void
   ) where
 
 import Prelude
@@ -43,7 +56,10 @@ import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 
-any'' :: _ -> AST.Type
+void :: Array AST.TypeQualifier -> AST.Type
+void = Type.RawType "void"
+
+any'' :: Array AST.TypeQualifier -> AST.Type
 any'' xs = Type.Pointer (Type.Any xs)
 
 any' :: AST.Type
@@ -52,11 +68,11 @@ any' = Type.Pointer (Type.Any [])
 any :: AST.Type
 any = Type.Pointer (Type.Any [ Type.Const ])
 
+purs_any_fun_t :: AST.Type
+purs_any_fun_t = Type.RawType "purs_any_fun_t" []
+
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
-
-purs_any_eq_float :: AST
-purs_any_eq_float = AST.Var "purs_any_eq_float"
 
 purs_any_false :: AST
 purs_any_false = AST.Var "purs_any_false"
@@ -66,6 +82,9 @@ purs_any_true = AST.Var "purs_any_true"
 
 purs_any_eq_int :: AST
 purs_any_eq_int = AST.Var "purs_any_eq_int"
+
+purs_any_eq_num :: AST
+purs_any_eq_num = AST.Var "purs_any_eq_num"
 
 purs_any_eq_char :: AST
 purs_any_eq_char = AST.Var "purs_any_eq_char"
@@ -88,9 +107,6 @@ purs_cons_get_tag = AST.Var "purs_cons_get_tag"
 purs_any_app :: AST
 purs_any_app = AST.Var "purs_any_app"
 
-purs_scope_capture :: AST
-purs_scope_capture = AST.Var "purs_scope_capture"
-
 purs_record_new_from_kvps :: AST
 purs_record_new_from_kvps = AST.Var "purs_record_new_from_kvps"
 
@@ -106,35 +122,50 @@ _PURS_ANY_THUNK_DEF = AST.Var "PURS_ANY_THUNK_DEF"
 _PURS_ANY_THUNK_DECL :: AST
 _PURS_ANY_THUNK_DECL = AST.Var "PURS_ANY_THUNK_DECL"
 
-_PURS_ANY_CONS_NEW :: AST
-_PURS_ANY_CONS_NEW = AST.Var "PURS_ANY_CONS_NEW"
+purs_any_cons_new :: AST
+purs_any_cons_new = AST.Var "purs_any_cons_new"
 
-_PURS_ANY_INT_NEW :: AST
-_PURS_ANY_INT_NEW = AST.Var "PURS_ANY_INT_NEW"
+purs_any_int_new :: AST
+purs_any_int_new = AST.Var "purs_any_int_new"
 
-_PURS_ANY_STRING_NEW_FROM_LIT :: AST
-_PURS_ANY_STRING_NEW_FROM_LIT = AST.Var "PURS_ANY_STRING_NEW_FROM_LIT"
+purs_any_char_new :: AST
+purs_any_char_new = AST.Var "purs_any_char_new"
 
-_PURS_ANY_STRING_NEW :: AST
-_PURS_ANY_STRING_NEW = AST.Var "PURS_ANY_STRING_NEW"
+purs_any_num_new :: AST
+purs_any_num_new = AST.Var "purs_any_num_new"
 
-_PURS_ANY_CHAR_NEW :: AST
-_PURS_ANY_CHAR_NEW = AST.Var "PURS_ANY_CHAR_NEW"
+purs_any_array_new :: AST
+purs_any_array_new = AST.Var "purs_any_array_new"
 
-_PURS_ANY_NUMBER_NEW :: AST
-_PURS_ANY_NUMBER_NEW = AST.Var "PURS_ANY_NUMBER_NEW"
+purs_any_record_new :: AST
+purs_any_record_new = AST.Var "purs_any_record_new"
 
-_PURS_ANY_ARRAY_NEW :: AST
-_PURS_ANY_ARRAY_NEW = AST.Var "PURS_ANY_ARRAY_NEW"
+purs_any_cont_new :: AST
+purs_any_cont_new = AST.Var "purs_any_cont_new"
 
-_PURS_ANY_RECORD_NEW :: AST
-_PURS_ANY_RECORD_NEW = AST.Var "PURS_ANY_RECORD_NEW"
+purs_any_string_new :: AST
+purs_any_string_new = AST.Var "purs_any_string_new"
+
+purs_indirect_thunk_new :: AST
+purs_indirect_thunk_new = AST.Var "purs_indirect_thunk_new"
+
+purs_indirect_value_new :: AST
+purs_indirect_value_new = AST.Var "purs_indirect_value_new"
+
+purs_indirect_value_assign :: AST
+purs_indirect_value_assign = AST.Var "purs_indirect_value_assign"
 
 _PURS_CONS_VALUES_NEW :: AST
 _PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"
 
-_PURS_CONS_LIT :: AST
-_PURS_CONS_LIT = AST.Var "PURS_CONS_LIT"
+_purs_scope_alloc :: AST
+_purs_scope_alloc = AST.Var "_purs_scope_alloc"
+
+_purs_scope_new :: AST
+_purs_scope_new = AST.Var "_purs_scope_new"
+
+_PURS_SCOPE_T :: AST
+_PURS_SCOPE_T = AST.Var "PURS_SCOPE_T"
 
 _NULL :: AST
 _NULL = AST.Raw "NULL"
