@@ -296,7 +296,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 #define PURS_ANY_INT(x)\
 	{ .tag = PURS_ANY_TAG_INT, .value = { .i = x } }
 
-#define PURS_ANY_NUMBER(x)\
+#define PURS_ANY_NUM(x)\
 	{ .tag = PURS_ANY_TAG_NUM, .value = { .n = x } }
 
 #define PURS_ANY_CHAR(x)\
@@ -592,13 +592,6 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME)
-
-// -----------------------------------------------------------------------------
-// Legacy bridges
-// -----------------------------------------------------------------------------
-
-#define PURS_ANY_INT_NEW purs_any_int_new
-#define PURS_ANY_NUMBER_NEW purs_any_num_new
 
 // -----------------------------------------------------------------------------
 // Prim shims
