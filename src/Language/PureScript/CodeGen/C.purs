@@ -36,7 +36,7 @@ import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Debug.Trace (trace, traceM)
 import Foreign.Object as Object
-import Language.PureScript.CodeGen.C.AST (AST, everywhereTopDownM)
+import Language.PureScript.CodeGen.C.AST (AST, everywhere, everywhereTopDownM)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.Common (safeName)
@@ -160,9 +160,67 @@ bindToAst
 bindToAst isTopLevel (C.NonRec ann ident val) =
   A.singleton <$>
     declToAst isTopLevel (ann /\ ident) val
-bindToAst isTopLevel (C.Rec vals) =
-  for vals \((ann /\ ident) /\ val) ->
-    declToAst isTopLevel (ann /\ ident) val
+bindToAst isTopLevel (C.Rec vals) = ado
+  asts <-
+    for vals \((ann /\ ident) /\ val) ->
+      declToAst isTopLevel (ann /\ ident) val
+
+  -- convert recursive let bindings by adding one level of indirection and
+  -- hiding access to the real value in a thunk which by the time it's evaluated
+  -- will yield the real value.
+  in if isTopLevel
+    then asts
+    else
+      let
+        names =
+          Set.fromFoldable $
+            A.catMaybes $
+              asts <#>  case _ of
+                AST.VariableIntroduction { name } ->
+                  Just name
+                _ ->
+                  Nothing
+        asts' =
+          asts <#> case _ of
+            ast@AST.VariableIntroduction { name, type: typ, initialization: Just init }
+             | typ == R.any || typ == R.any' ->
+              { indirDecl:
+                  Just $
+                    AST.VariableIntroduction
+                      { name: "$indirect__" <> name
+                      , type: Type.Pointer R.any
+                      , qualifiers: []
+                      , initialization:
+                          Just $
+                            AST.App R.purs_indirect_value_new []
+                      }
+              , ast:
+                  AST.VariableIntroduction
+                    { name
+                    , type: R.any
+                    , qualifiers: []
+                    , initialization:
+                        Just $
+                          AST.App R.purs_indirect_thunk_new
+                            [ AST.Var $ "$indirect__" <> name ]
+                    }
+              , derefDecl:
+                  Just $
+                    AST.App R.purs_indirect_value_assign
+                      [ AST.Var $ "$indirect__" <> name
+                      , init
+                      ]
+              }
+            ast ->
+              { indirDecl: Nothing
+              , ast
+              , derefDecl: Nothing
+              }
+
+      in
+        (A.catMaybes $ _.indirDecl <$> asts') <>
+        (_.ast                     <$> asts') <>
+        (A.catMaybes $ _.derefDecl <$> asts')
 
 declToAst
   :: ∀ m
@@ -821,7 +879,9 @@ eraseLambdas moduleName asts =
       AST.Function x@{ name, arguments, body: Just body } ->
         withReaderT (_ { function = name, isTopLevel = false }) do
           eraseLambda { arguments, body }
-      ast@AST.VariableIntroduction x@{ name, initialization } -> do
+      ast@AST.VariableIntroduction x@{ name, initialization, type: typ }
+        | typ == R.any || typ == R.any'
+        -> do
         currentScope <- ask
         if currentScope.isTopLevel
           then ado
@@ -839,7 +899,9 @@ eraseLambdas moduleName asts =
         xs' <- A.reverse <<< snd <$>
           A.foldM (\(scope /\ asts') ->
             case _ of
-              ast@AST.VariableIntroduction { name } | not currentScope.isTopLevel ->
+              ast@AST.VariableIntroduction { name, type: typ }
+                | not currentScope.isTopLevel && (typ == R.any || typ == R.any')
+                ->
                 let
                   scope' =
                     scope { bindings = Set.insert name scope.bindings }
@@ -848,12 +910,6 @@ eraseLambdas moduleName asts =
                     withReaderT (const scope') $
                       go ast
                   pure (scope' /\ ast' A.: asts')
-              ast@AST.Var var | not currentScope.isTopLevel ->
-                let
-                  scope' =
-                    scope { bindings = Set.insert var scope.bindings }
-                in
-                  pure (scope' /\ ast A.: asts')
               ast -> ado
                 ast' <-
                   withReaderT (const scope) do
@@ -905,8 +961,6 @@ eraseLambdas moduleName asts =
         currentScope
           { bindings =
               currentScope.bindings
-                -- `Set.difference`
-                --   (Set.fromFoldable $ A.catMaybes [ currentScope.lhs ])
           }
 
     -- emit the struct to the top-level
@@ -937,10 +991,12 @@ eraseLambdas moduleName asts =
             [ { name: "$ctx"
               , type: Type.Pointer (Type.RawType scopeStruct.name [])
               }
-            ] <> arguments
+            ] <>
+            arguments <>
+            [ { name: "_", type: Type.RawType "va_list" [] } ]
         , returnType: R.any
         , qualifiers: []
-        , variadic: true
+        , variadic: false
         , body:
             Just $
               AST.Block $

@@ -58,7 +58,7 @@ typedef struct purs_any_thunk purs_any_thunk_t;
 typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef const ANY * (purs_any_thunk_fun_t)(const void * ctx);
-typedef const ANY * (purs_any_fun_t)(const void * ctx, const ANY *, ...);
+typedef const ANY * (purs_any_fun_t)(const void * ctx, const ANY *, va_list);
 typedef struct purs_foreign purs_foreign_t;
 
 struct managed { const void * data; };
@@ -342,7 +342,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	const ANY * NAME ## $ = & NAME##__1_
 
 #define _PURS_FFI_FUNC_CONT(NAME, CUR, NEXT)\
-	const ANY * NAME##__##CUR (const void * super, const ANY * a, ...) {\
+	const ANY * NAME##__##CUR (const void * super, const ANY * a, va_list $__unused__) {\
 		const ANY ** ctx = _purs_scope_alloc(CUR);\
 		if (super != NULL) {\
 			memcpy(ctx, super, CUR * sizeof (const ANY *));\
@@ -366,13 +366,13 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 #define _PURS_FFI_FUNC_CONT_11_TO_12(NAME) _PURS_FFI_FUNC_CONT(NAME, 11, 12)
 
 #define PURS_FFI_FUNC_1(NAME, A1, BODY)\
-	const ANY * NAME##__1 (const void * super, const ANY * A1, ...) {\
+	const ANY * NAME##__1 (const void * super, const ANY * A1, va_list $__unused__) {\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_2(NAME, A1, A2, BODY)\
-	const ANY * NAME##__2 (const void * super, const ANY * A2, ...) {\
+	const ANY * NAME##__2 (const void * super, const ANY * A2, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		BODY;\
 	}\
@@ -380,7 +380,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_3(NAME, A1, A2, A3, BODY)\
-	const ANY * NAME##__3 (const void * super, const ANY * A3, ...) {\
+	const ANY * NAME##__3 (const void * super, const ANY * A3, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		BODY;\
@@ -390,7 +390,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, BODY)\
-	const ANY * NAME##__4 (const void * super, const ANY * A4, ...) {\
+	const ANY * NAME##__4 (const void * super, const ANY * A4, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -402,7 +402,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5, BODY)\
-	const ANY * NAME##__5 (const void * super, const ANY * A5, ...) {\
+	const ANY * NAME##__5 (const void * super, const ANY * A5, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -416,7 +416,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_6(NAME, A1, A2, A3, A4, A5, A6, BODY)\
-	const ANY * NAME##__6 (const void * super, const ANY * A6, ...) {\
+	const ANY * NAME##__6 (const void * super, const ANY * A6, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -432,7 +432,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_7(NAME, A1, A2, A3, A4, A5, A6, A7, BODY)\
-	const ANY * NAME##__7 (const void * super, const ANY * A7, ...) {\
+	const ANY * NAME##__7 (const void * super, const ANY * A7, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -450,7 +450,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8, BODY)\
-	const ANY * NAME##__8 (const void * super, const ANY * A8, ...) {\
+	const ANY * NAME##__8 (const void * super, const ANY * A8, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -470,7 +470,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY)\
-	const ANY * NAME##__9 (const void * super, const ANY * A9, ...) {\
+	const ANY * NAME##__9 (const void * super, const ANY * A9, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -492,7 +492,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY)\
-	const ANY * NAME##__10 (const void * super, const ANY * A10, ...) {\
+	const ANY * NAME##__10 (const void * super, const ANY * A10, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -516,7 +516,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY)\
-	const ANY * NAME##__11 (const void * super, const ANY * A11, ...) {\
+	const ANY * NAME##__11 (const void * super, const ANY * A11, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -542,7 +542,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY)\
-	const ANY * NAME##__12 (const void * super, const ANY * A12, ...) {\
+	const ANY * NAME##__12 (const void * super, const ANY * A12, va_list $__unused__) {\
 		const ANY * A1 = ((const ANY **)super)[0];\
 		const ANY * A2 = ((const ANY **)super)[1];\
 		const ANY * A3 = ((const ANY **)super)[2];\
@@ -581,17 +581,14 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	const ANY * NAME ## $ = & NAME##__1_
 
 #define PURS_FFI_FUNC_UNCURRIED_1(NAME, A1, BODY)\
-	const ANY * NAME (const void * super, const ANY * A1, ...) {\
+	const ANY * NAME (const void * super, const ANY * A1, va_list $__unused__) {\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_UNCURRIED_2(NAME, A1, A2, BODY)\
-	const ANY * NAME (const void * super, const ANY * A1, ...) {\
-		va_list(vl);\
-		va_start(vl, A1);\
+	const ANY * NAME (const void * super, const ANY * A1, va_list vl) {\
 		const ANY * A2 = va_arg(vl, const ANY *);\
-		va_end(vl);\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME)
