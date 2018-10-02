@@ -1,12 +1,15 @@
 # Pure-C
 
-An alternative backend for the PureScript programming language that targets C
-using Clang.
+An alternative backend for the PureScript programming language that targets C.
 
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your
 local machine for development and testing purposes.
+
+For now, the default makefiles use the clang compiler toolchain. So either
+install clang (if not installed already), or open a PR adding support for other
+compilers.
 
 ### Prerequisites
 
