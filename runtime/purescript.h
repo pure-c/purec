@@ -129,7 +129,7 @@ const ANY * purs_any_cont_new(const void * ctx, purs_any_fun_t *);
 const ANY * purs_any_thunk_new(const void * ctx, purs_any_thunk_fun_t *);
 const ANY * purs_any_cons_new(int tag, const ANY ** values);
 const ANY * purs_any_record_new(const purs_record_t *);
-const ANY * purs_any_string_new(const char *);
+const ANY * purs_any_string_new(const char * fmt, ...);
 const ANY * purs_any_char_new(utf8_int32_t);
 const ANY * purs_any_array_new(const purs_vec_t *);
 const ANY * purs_any_foreign_new(void * tag, void * data);

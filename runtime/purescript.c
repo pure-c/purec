@@ -71,10 +71,15 @@ const ANY * purs_any_record_new(const purs_record_t * record) {
 	return v;
 }
 
-inline const ANY * purs_any_string_new(const char * s) {
+inline const ANY * purs_any_string_new(const char * fmt, ...) {
 	ANY * v = purs_new(ANY);
 	v->tag = PURS_ANY_TAG_STRING;
-	v->value.str = managed_new(afmt("%s", s), NULL);
+	va_list ap;
+	char *ptr;
+	va_start(ap, fmt);
+	assert (vasprintf(&ptr, fmt, ap) >= 0);
+	va_end(ap);
+	v->value.str = managed_new(ptr, NULL);
 	return v;
 }
 
@@ -299,9 +304,9 @@ const ANY * purs_any_concat(const ANY * x, const ANY * y) {
 		switch(x->tag) {
 		case PURS_ANY_TAG_STRING: {
 			return purs_any_string_new(
-				afmt("%s%s",
+				"%s%s",
 				     purs_any_get_string(x),
-				     purs_any_get_string(y)));
+				     purs_any_get_string(y));
 		}
 		case PURS_ANY_TAG_ARRAY: {
 			const purs_vec_t * x_vec = purs_any_get_array(x);
@@ -328,7 +333,7 @@ const ANY * purs_any_concat(const ANY * x, const ANY * y) {
 
 const void * purs_string_copy (const void * source) {
 	size_t sz = utf8size(source);
-	void * dest = purs_malloc(sz);
+	void * dest = malloc(sz);
 	memcpy(dest, source, sz);
 	return (const void*) dest;
 }
