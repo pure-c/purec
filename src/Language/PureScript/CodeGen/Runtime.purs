@@ -1,14 +1,13 @@
 module Language.PureScript.CodeGen.Runtime
   ( purs_any_app
+
   , purs_any_eq_int
+  , purs_any_eq_num
   , purs_any_eq_char
   , purs_any_eq_string
-  , purs_any_eq_float
   , purs_any_get_cons
   , purs_any_get_record
   , purs_any_get_array
-
-  , _PURS_CONS_VALUES_NEW
 
   , purs_any_cont_new
   , purs_any_array_new
@@ -19,8 +18,10 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_string_new
   , purs_any_char_new
 
+  , _purs_scope_alloc
   , _purs_scope_new
   , _PURS_SCOPE_T
+  , _PURS_CONS_VALUES_NEW
 
   , purs_cons_t
   , purs_cons_get_tag
@@ -63,9 +64,6 @@ any = Type.Pointer (Type.Any [ Type.Const ])
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
 
-purs_any_eq_float :: AST
-purs_any_eq_float = AST.Var "purs_any_eq_float"
-
 purs_any_false :: AST
 purs_any_false = AST.Var "purs_any_false"
 
@@ -74,6 +72,9 @@ purs_any_true = AST.Var "purs_any_true"
 
 purs_any_eq_int :: AST
 purs_any_eq_int = AST.Var "purs_any_eq_int"
+
+purs_any_eq_num :: AST
+purs_any_eq_num = AST.Var "purs_any_eq_num"
 
 purs_any_eq_char :: AST
 purs_any_eq_char = AST.Var "purs_any_eq_char"
@@ -137,6 +138,9 @@ purs_any_string_new = AST.Var "purs_any_string_new"
 
 _PURS_CONS_VALUES_NEW :: AST
 _PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"
+
+_purs_scope_alloc :: AST
+_purs_scope_alloc = AST.Var "_purs_scope_alloc"
 
 _purs_scope_new :: AST
 _purs_scope_new = AST.Var "_purs_scope_new"

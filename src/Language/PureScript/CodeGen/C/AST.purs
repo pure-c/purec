@@ -222,7 +222,6 @@ data AST
       , type :: Type
       , qualifiers :: Array ValueQualifier
       , initialization :: Maybe AST
-      , managed :: Boolean
       }
 
   -- | A variable assignment
@@ -252,6 +251,9 @@ data AST
 
   -- | NULL
   | Null
+
+  -- | Statement expression
+  | StatementExpression AST
 
 derive instance genericAST :: Rep.Generic AST _
 
@@ -348,6 +350,9 @@ everywhereM f = go
   go (Return a) =
     f =<< do
       Return <$> go a
+  go (StatementExpression a) =
+    f =<< do
+      StatementExpression <$> go a
   go x =
     f x
 
@@ -465,6 +470,10 @@ everythingM combine toA = go
     combine
       <$> toA j
       <*> go a
+  go j@(StatementExpression a) =
+    combine
+      <$> toA j
+      <*> go a
   go x =
     toA x
 
@@ -520,6 +529,8 @@ everywhereTopDownM f = f'
     While <$> f' a <*> f' b
   go (IfElse a b mC) =
     IfElse <$> f' a <*> f' b <*> traverse f' mC
+  go (StatementExpression a) =
+    StatementExpression <$> f' a
   go (Return a) =
     Return <$> f' a
   go x =

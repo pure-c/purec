@@ -466,6 +466,11 @@ inline int purs_cons_get_tag (const purs_cons_t * cons) {
 	return cons->tag;
 }
 
+inline const ANY ** _purs_scope_alloc(int num_bindings) {
+	if (num_bindings == 0) return NULL;
+	return purs_malloc(num_bindings * sizeof (const ANY *));
+}
+
 inline const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...) {
 	if (num_bindings == 0) return NULL;
 	const ANY ** mem = purs_malloc(num_bindings * sizeof (const ANY *));

@@ -244,6 +244,7 @@ purs_record_add_multi(NULL, count, __VA_ARGS__)
  * assumes scope to consist only of (const ANY *) pointers, the count of which
  * is known.
  */
+const ANY ** _purs_scope_alloc(int num_bindings);
 const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...);
 
 /* declare a thunked top-level value.

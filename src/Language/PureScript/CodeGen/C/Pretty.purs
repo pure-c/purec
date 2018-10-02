@@ -175,10 +175,10 @@ prettyPrintAst (AST.Assignment l r) = do
   lf
   withNextIndent $
     indent *> prettyPrintAst r
-prettyPrintAst (AST.Indexer v k) = do
-  prettyPrintAst k
-  emit "["
+prettyPrintAst (AST.Indexer i v) = do
   prettyPrintAst v
+  emit "["
+  prettyPrintAst i
   emit "]"
 prettyPrintAst (AST.StructLiteral o) = do
   emit "{"
@@ -208,6 +208,10 @@ prettyPrintAst (AST.IfElse condAst thenAst mElseAst) = do
     withNextIndent do
       indent
       prettyPrintAst elseAst
+prettyPrintAst (AST.StatementExpression ast) = do
+  emit "("
+  prettyPrintAst ast
+  emit ")"
 prettyPrintAst (AST.Block asts) = do
   emit "{"
   lf

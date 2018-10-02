@@ -182,7 +182,6 @@ declToAst isTopLevel (x /\ ident) val = do
   pure $
     AST.VariableIntroduction
       { name
-      , managed: true
       , type: R.any'' [ Type.Const ]
       , qualifiers: []
       , initialization: Just initAst
@@ -294,7 +293,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
             AST.VariableIntroduction
               { name
               , type: R.any
-              , managed: true
               , qualifiers: []
               , initialization: Just valueAst
               }
@@ -363,7 +361,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         pure
           [ AST.IfElse
               (AST.App
-                (either (const R.purs_any_eq_int) (const R.purs_any_eq_float) num)
+                (either (const R.purs_any_eq_int) (const R.purs_any_eq_num) num)
                 [ AST.Var varName, AST.NumericLiteral num ])
               (AST.Block next)
               Nothing
@@ -420,7 +418,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                     { name: elementVar
                     , type: R.any
                     , qualifiers: []
-                    , managed: true
                     , initialization:
                         Just $
                           AST.Cast R.any $
@@ -459,7 +456,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                     { name: propVar
                     , type: R.any
                     , qualifiers: []
-                    , managed: true
                     , initialization:
                         Just $
                           AST.Accessor
@@ -483,7 +479,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         { name
         , type: R.any
         , qualifiers: []
-        , managed: true
         , initialization: Just $ AST.Var varName
         } A.: next
 
@@ -512,7 +507,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
               AST.VariableIntroduction
                 { name: argVarName
                 , type: R.any
-                , managed: true
                 , qualifiers: []
                 , initialization:
                     Just $
@@ -569,7 +563,6 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
         { name
         , type: R.any
         , qualifiers: []
-        , managed: true
         , initialization: Just $ AST.Var varName
         } A.: ast
 
@@ -600,7 +593,6 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
                 { name: valuesName
                 , type: Type.Pointer R.any
                 , qualifiers: []
-                , managed: false
                 , initialization:
                     Just $
                       AST.App
@@ -781,114 +773,11 @@ eraseLambdas moduleName asts =
   where
   go =
     case _ of
-      AST.Lambda { body, arguments } -> do
-        currentScope <- ask
-
-        -- TODO: reduce this to what is know to actually being used.
-        --       objects are considered used if there's an (unshadowed)
-        --       reference from anywhere in the lambda's body AST.
-        let
-          capturedScope =
-            currentScope
-
-        -- emit the struct to the top-level
-        scopeStruct <- do
-          { name, members, ast } <- scopeToStruct capturedScope
-          { name, members } <$ tell [ ast ]
-
-        -- assemble a new top-level function that re-assembles the captured
-        contFuncName <- ado
-          id <- freshId
-          in
-            moduleName <> "_" <>
-              (fromMaybe "anon" currentScope.function) <>
-                "__cont_"  <> show id <> "__"
-
-        body' <-
-          withReaderT
-            (\scope ->
-              scope {
-                bindings =
-                  scope.bindings <> Set.fromFoldable (_.name <$> arguments)
-              }) $ go body
-
-        tell $ A.singleton $
-          AST.Function
-            { name: contFuncName
-            , arguments:
-                [ { name: "ctx"
-                  , type: Type.Pointer (Type.RawType scopeStruct.name [])
-                  }
-                ] <> arguments
-            , returnType: R.any
-            , qualifiers: []
-            , body:
-                Just $
-                  AST.Block $
-                    (A.fromFoldable
-                      (Set.difference capturedScope.bindings
-                      (Set.fromFoldable (_.name <$> arguments))) <#> \varName ->
-                        AST.VariableIntroduction
-                          { name: varName
-                          , type: R.any
-                          , qualifiers: []
-                          , managed: false
-                          , initialization:
-                              Just $
-                                AST.Accessor (AST.Var varName) $
-                                  AST.Var "ctx"
-                          }
-                    ) <> [ body' ]
-            }
-
-        -- build up the continuation context and return it.
-        -- since this lambda might have been inlined, we must be sure to operate
-        -- in the context of an expression also. This means that we must return
-        -- a single AST node that produces the continuation.
-        contCtxName <- ado
-          id <- freshId
-          in "__cont_"  <> show id <> "__"
-        pure $
-          AST.App
-            R.purs_any_cont_new
-            [ case A.length scopeStruct.members of
-                0 -> R._NULL
-                n ->
-                  AST.App
-                    R._purs_scope_new $
-                      (AST.NumericLiteral $ Left n)
-                      A.: map AST.Var scopeStruct.members
-            , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
-                AST.Var contFuncName
-            ]
-
-      AST.Block xs -> do
-        currentScope <- ask
-        xs' <- A.reverse <<< snd <$>
-          A.foldM (\(scope /\ asts') ->
-            case _ of
-              ast@AST.VariableIntroduction { name } ->
-                let
-                  scope' =
-                    scope { bindings = Set.insert name scope.bindings }
-                in do
-                  ast' <-
-                    withReaderT (const scope) $
-                      go ast
-                  pure (scope' /\ ast' A.: asts')
-              ast@AST.Var var ->
-                let
-                  scope' =
-                    scope { bindings = Set.insert var scope.bindings }
-                in
-                  pure (scope' /\ ast A.: asts')
-              ast -> ado
-                ast' <-
-                  withReaderT (const scope) do
-                    go ast
-                in scope /\ ast' A.: asts'
-          ) (currentScope /\ []) xs
-        pure $ AST.Block xs'
+      AST.Assignment (AST.Var v) lam@AST.Lambda { arguments, body } ->
+        AST.Assignment (AST.Var v) <$>
+          eraseLambda (Just v) { arguments, body }
+      lam@AST.Lambda { arguments, body } ->
+        eraseLambda Nothing { arguments, body }
       AST.VariableIntroduction x@{ name, initialization } -> ado
         initialization' <-
           for initialization \init ->
@@ -898,6 +787,8 @@ eraseLambdas moduleName asts =
         in AST.VariableIntroduction $ x { initialization = initialization' }
       AST.App a xs ->
         AST.App <$> go a <*> traverse go xs
+      AST.StatementExpression a ->
+        AST.StatementExpression <$> go a
       AST.Return a ->
         AST.Return <$> go a
       AST.Assignment a b ->
@@ -935,8 +826,145 @@ eraseLambdas moduleName asts =
                       scope.bindings <> Set.fromFoldable (_.name <$> arguments)
                   }) $ go body'
         in AST.Function $ x { body = body' }
+      AST.Block xs -> do
+        currentScope <- ask
+        xs' <- A.reverse <<< snd <$>
+          A.foldM (\(scope /\ asts') ->
+            case _ of
+              ast@AST.VariableIntroduction { name } ->
+                let
+                  scope' =
+                    scope { bindings = Set.insert name scope.bindings }
+                in do
+                  ast' <-
+                    withReaderT (const scope') $
+                      go ast
+                  pure (scope' /\ ast' A.: asts')
+              ast@AST.Var var ->
+                let
+                  scope' =
+                    scope { bindings = Set.insert var scope.bindings }
+                in
+                  pure (scope' /\ ast A.: asts')
+              ast -> ado
+                ast' <-
+                  withReaderT (const scope) do
+                    go ast
+                in scope /\ ast' A.: asts'
+          ) (currentScope /\ []) xs
+        pure $ AST.Block xs'
       x ->
         pure x
+
+  eraseLambda lhs { arguments, body } = do
+    currentScope <- ask
+
+    -- TODO: reduce this to what is know to actually being used.
+    --       objects are considered used if there's an (unshadowed)
+    --       reference from anywhere in the lambda's body AST.
+    let
+      capturedScope =
+        currentScope
+
+    -- emit the struct to the top-level
+    scopeStruct <- do
+      { name, members, ast } <- scopeToStruct capturedScope
+      { name, members } <$ tell [ ast ]
+
+    -- assemble a new top-level function that re-assembles the captured
+    contFuncName <- ado
+      id <- freshId
+      in
+        moduleName <> "_" <>
+          (fromMaybe "anon" currentScope.function) <>
+            "__cont_"  <> show id <> "__"
+
+    body' <-
+      withReaderT
+        (\scope ->
+          scope {
+            bindings =
+              scope.bindings <> Set.fromFoldable (_.name <$> arguments)
+          }) $ go body
+
+    tell $ A.singleton $
+      AST.Function
+        { name: contFuncName
+        , arguments:
+            [ { name: "ctx"
+              , type: Type.Pointer (Type.RawType scopeStruct.name [])
+              }
+            ] <> arguments
+        , returnType: R.any
+        , qualifiers: []
+        , body:
+            Just $
+              AST.Block $
+                (A.fromFoldable
+                  (Set.difference capturedScope.bindings
+                  (Set.fromFoldable (_.name <$> arguments))) <#> \varName ->
+                    AST.VariableIntroduction
+                      { name: varName
+                      , type: R.any
+                      , qualifiers: []
+                      , initialization:
+                          Just $
+                            AST.Accessor (AST.Var varName) $
+                              AST.Var "ctx"
+                      }
+                ) <> [ body' ]
+        }
+
+    -- build up the continuation context and return it.
+    -- since this lambda might have been inlined, we must be sure to operate
+    -- in the context of an expression also. This means that we must return
+    -- a single AST node that produces the continuation.
+    contCtxName <- ado
+      id <- freshId
+      in "__cont_"  <> show id <> "__"
+
+    pure $ AST.StatementExpression $
+      AST.Block $
+        [ AST.VariableIntroduction
+            { name: "scope"
+            , type: Type.Pointer R.any
+            , qualifiers: []
+            , initialization:
+                Just $
+                  AST.App
+                    R._purs_scope_alloc $
+                    [ AST.NumericLiteral $
+                        Left $ A.length scopeStruct.members
+                    ]
+            }
+        , AST.VariableIntroduction
+            { name: "cont"
+            , type: R.any
+            , qualifiers: []
+            , initialization:
+                Just $
+                  AST.App
+                    R.purs_any_cont_new
+                      [ AST.Var "scope"
+                      , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
+                          AST.Var contFuncName
+                      ]
+            }
+        ] <>
+          (A.mapWithIndex <@> scopeStruct.members $ \i v ->
+            AST.Assignment
+              (AST.Indexer (AST.NumericLiteral $ Left i) (AST.Var "scope"))
+              (AST.Var $
+                -- if we're assigning this continuation to a LHS, we cannot
+                -- reference the LHS before the assignment is complete. Thus,
+                -- since we're going to return and assign the 'cont', we can
+                -- refer to that instead.
+                if Just v == lhs
+                  then "cont"
+                  else v
+              )) <>
+        [ AST.Var "cont"
+        ]
 
   scopeToStruct
     :: ∀ n
@@ -969,7 +997,6 @@ eraseLambdas moduleName asts =
                       , type: R.any
                       , qualifiers: []
                       , initialization: Nothing
-                      , managed: false
                       }
               ]
         }
@@ -988,11 +1015,12 @@ hoistVarDecls = map go
               A.foldl
                 (\(decls /\ xs') x ->
                   case x of
-                    AST.VariableIntroduction x@{ name, managed: true, initialization: Just initialization } ->
+                    AST.VariableIntroduction x@{ name, initialization: Just initialization } ->
                       let
+                        -- TODO: init to 'NULL' only for pointer types.
                         decl =
                           AST.VariableIntroduction $
-                            x { initialization = Nothing }
+                            x { initialization = Just R._NULL }
                         x' =
                           AST.Assignment
                             (AST.Var x.name)

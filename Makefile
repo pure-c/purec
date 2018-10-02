@@ -1,4 +1,4 @@
-.PHONY: clean deps deps/npm deps/bwdgc deps/blocksruntime purec test test/build
+.PHONY: clean deps deps/npm deps/bwdgc purec test test/build
 
 CLANG ?= clang
 
@@ -12,13 +12,10 @@ PUREC := node $(PUREC_JS)
 PUREC_WORKDIR := .purec-work
 
 BWDGC_V := v8.0.0
-BLOCKSRUNTIME_REV := master
 
 PUREC_LIB := libpurec.a
 PUREC_INTERMEDIATE_LIB := libpurec.intermediate.a
 BWDGC_LIB := deps/bwdgc/.libs/libgc.a
-BLOCKSRUNTIME_LIB := \
-	deps/blocksruntime-$(BLOCKSRUNTIME_REV)/libBlocksRuntime.a
 
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
@@ -28,13 +25,9 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-CFLAGS := \
-	-fblocks \
+CFLAGS += \
 	-D 'uthash_malloc=GC_malloc' \
 	-D 'uthash_free(ptr, sz)=NULL' \
-	-D 'utf8_realloc=GC_realloc' \
-	-D 'utf8_free(x)=NULL' \
-	-D 'utf8_malloc=GC_malloc' \
 	-D 'vec_realloc=GC_realloc' \
 	-D 'vec_free(x)=NULL' \
 	-D 'vec_malloc=GC_malloc'
@@ -46,14 +39,10 @@ $(BWDGC_LIB):
 	    ./configure --enable-static && \
 	    $(MAKE)
 
-$(BLOCKSRUNTIME_LIB):
-	@$(MAKE) -s deps/blocksruntime
-	@cd 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' && ./buildlib
-
 $(PUREC_INTERMEDIATE_LIB): $(RUNTIME_OBJECTS)
 	@ar csr $@ $^
 
-$(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB) $(BLOCKSRUNTIME_LIB) $(BWDGC_LIB)
+$(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB) $(BWDGC_LIB)
 	@rm -rf .build
 	@mkdir -p .build
 	@cd .build &&\
@@ -75,7 +64,7 @@ clean:
 	@rm -f $$(find . -maxdepth 1 -name '*.a')
 	@rm -rf $$(find examples -type d -name $(PUREC_WORKDIR))
 
-%.o: %.c | $(BWDGC_LIB) $(BLOCKSRUNTIME_LIB)
+%.o: %.c | $(BWDGC_LIB)
 	@echo "Compile" $^
 	@$(CLANG) $^ -c -o $@ \
 		-Wall \
@@ -91,8 +80,7 @@ clean:
 
 deps:\
 	deps/npm\
-	deps/bwdgc\
-	deps/blocksruntime
+	deps/bwdgc
 
 deps/npm:
 	@npm install
@@ -107,18 +95,6 @@ deps/bwdgc:
 		fi && \
 		mkdir -p deps/bwdgc && \
 		tar -C deps/bwdgc -xzf gc.tar.gz --strip-components 1; \
-	fi
-
-deps/blocksruntime:
-	@if [ ! -d 'deps/blocksruntime-$(BLOCKSRUNTIME_REV)' ]; then\
-		if [ ! -f 'blocksruntime-$(BLOCKSRUNTIME_REV).zip' ]; then\
-			echo "downloading blocksruntime zip...";\
-			curl -sfLo 'blocksruntime-$(BLOCKSRUNTIME_REV).zip'\
-				'https://github.com/pure-c/blocksruntime/archive/$(BLOCKSRUNTIME_REV).zip';\
-		fi &&\
-		mkdir -p deps &&\
-		>/dev/null unzip -d deps 'blocksruntime-$(BLOCKSRUNTIME_REV).zip' &&\
-		ln -s "$$PWD/deps/blocksruntime-$(BLOCKSRUNTIME_REV)" "$$PWD/deps/blocksruntime";\
 	fi
 
 #-------------------------------------------------------------------------------
