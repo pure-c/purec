@@ -11,7 +11,13 @@ completed_ffi_for=(
 	purescript-console
 	purescript-effect
 	purescript-assert
+	purescript-lazy
+	purescript-partial
+	purescript-unsafe-coerce
+	purescript-control
 	purescript-math
+	purescript-foldable-traversable
+	purescript-refs
 )
 
 function has_completed_ffi {
