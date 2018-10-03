@@ -37,12 +37,6 @@ clean:
 	@echo 'removing working directory $(PUREC_WORKDIR)'
 	@rm -rf $(PUREC_WORKDIR)
 
-%.purs: %.h
-	@touch $@
-
-%.purs: %.c
-	@touch $@
-
 %.o: %.c
 	@echo "Compile" $^
 	@$(CLANG) $^ -c -o $@ \
@@ -90,11 +84,16 @@ $(1)_deps = \
 			-a -not -name '.\#*' \
 			-a -not -path '*/$$(PUREC_WORKDIR)/*')
 
+$(1)_c_srcs = $$(filter-out %.purs,$$($(1)_srcs) $$($(1)_deps))
+
+$($(1)_srcs): %.purs: %.c
+	touch $$@
+
 $$(PUREC_WORKDIR)/$(1)/.corefns: \
-	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$($(1)_srcs)))\
-	$$(patsubst %.c,%.purs,$$(patsubst %.h,%.purs,$$($(1)_deps)))
+	$$(patsubst %.h,%.purs,$$($(1)_srcs))\
+	$$(patsubst %.h,%.purs,$$($(1)_deps))
 	@mkdir -p $$(@D)
-	@$$(PURS) compile -g corefn -o $$(@D) $$^
+	@$$(PURS) compile -g corefn -o $$(@D) $$(filter %.purs,$$^)
 	@touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
