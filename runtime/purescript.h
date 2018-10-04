@@ -606,4 +606,8 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 const ANY * purs_any_true;
 const ANY * purs_any_false;
 
+#define purs_any_is_true(V) purs_any_eq(V, purs_any_true)
+#define purs_any_is_false(V) purs_any_eq(V, purs_any_false)
+#define purs_any_while(COND) while(purs_any_is_true(COND))
+
 #endif // PURESCRIPT_RUNTIME_H
