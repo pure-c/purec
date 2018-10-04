@@ -610,4 +610,9 @@ const ANY * purs_any_false;
 #define purs_any_is_false(V) purs_any_eq(V, purs_any_false)
 #define purs_any_while(COND) while(purs_any_is_true(COND))
 
+/* check for NaN: https://stackoverflow.com/a/570694 */
+#define purs_any_is_NaN(V) (purs_any_get_tag(V) == PURS_ANY_TAG_NUM && \
+			    purs_any_get_num(V) != purs_any_get_num(V))
+
+
 #endif // PURESCRIPT_RUNTIME_H

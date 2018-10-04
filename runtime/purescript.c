@@ -240,6 +240,16 @@ const ANY * purs_any_eq(const ANY * x, const ANY * y) {
 	x = purs_any_unthunk(x);
 	y = purs_any_unthunk(y);
 
+	if (purs_any_is_NaN(x) &&
+	    (y->tag == PURS_ANY_TAG_NUM || y->tag == PURS_ANY_TAG_INT)) {
+		return purs_any_false;
+	}
+
+	if (purs_any_is_NaN(y) &&
+	    (x->tag == PURS_ANY_TAG_NUM || x->tag == PURS_ANY_TAG_INT)) {
+		return purs_any_false;
+	}
+
 	purs_assert(x->tag == y->tag,
 		    "Cannot eq %s with %s",
 		    purs_any_tag_str(x->tag),
