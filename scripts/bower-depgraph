@@ -18,6 +18,8 @@ completed_ffi_for=(
 	purescript-math
 	purescript-foldable-traversable
 	purescript-refs
+	purescript-st
+	purescript-functions
 )
 
 function has_completed_ffi {
