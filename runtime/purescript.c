@@ -56,7 +56,7 @@ inline const ANY * purs_any_thunk_new(const void * ctx, purs_any_thunk_fun_t * f
 	return v;
 }
 
-const ANY * purs_any_cons_new(int tag, const ANY ** values) {
+inline const ANY * purs_any_cons_new(int tag, const ANY ** values) {
 	ANY * v = purs_new(ANY);
 	v->tag = PURS_ANY_TAG_CONS;
 	v->value.cons.tag = tag;
@@ -64,7 +64,7 @@ const ANY * purs_any_cons_new(int tag, const ANY ** values) {
 	return v;
 }
 
-const ANY * purs_any_record_new(const purs_record_t * record) {
+inline const ANY * purs_any_record_new(const purs_record_t * record) {
 	ANY * v = purs_new(ANY);
 	v->tag = PURS_ANY_TAG_RECORD;
 	v->value.record = record;
