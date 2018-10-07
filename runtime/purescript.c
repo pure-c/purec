@@ -219,6 +219,9 @@ inline const ANY * purs_any_app(const ANY * f, const ANY * v, ...) {
 
 PURS_ANY_THUNK_DEF(purs_any_true, purs_any_int_new(1));
 PURS_ANY_THUNK_DEF(purs_any_false, purs_any_int_new(0));
+PURS_ANY_THUNK_DEF(purs_any_NaN, purs_any_num_new(PURS_NAN));
+PURS_ANY_THUNK_DEF(purs_any_infinity, purs_any_num_new(PURS_INFINITY));
+PURS_ANY_THUNK_DEF(purs_any_neg_infinity, purs_any_num_new(-PURS_INFINITY));
 
 inline int purs_any_eq_char (const ANY * x, utf8_int32_t y) {
 	return purs_any_get_char(x) == y;

@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 #include "deps/bwdgc/include/gc.h"
 #include "ccan/asprintf/asprintf.h"
 #include "vendor/uthash.h"
@@ -605,6 +606,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 
 const ANY * purs_any_true;
 const ANY * purs_any_false;
+const ANY * purs_any_NaN;
 
 #define purs_any_is_true(V) purs_any_eq(V, purs_any_true)
 #define purs_any_is_false(V) purs_any_eq(V, purs_any_false)
@@ -614,5 +616,7 @@ const ANY * purs_any_false;
 #define purs_any_is_NaN(V) (purs_any_get_tag(V) == PURS_ANY_TAG_NUM && \
 			    purs_any_get_num(V) != purs_any_get_num(V))
 
+#define PURS_NAN NAN
+#define PURS_INFINITY INFINITY
 
 #endif // PURESCRIPT_RUNTIME_H
