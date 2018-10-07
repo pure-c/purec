@@ -5,14 +5,24 @@ module Language.PureScript.CodeGen.C.Common
 
 import Prelude
 
-import Data.String as Str
-import Data.String.CodeUnits as Str
+import Data.Either (fromRight)
+import Data.String.CodeUnits (fromCharArray, toCharArray) as Str
+import Data.String.Regex (regex)
+import Data.String.Regex (replace) as Regex
+import Data.String.Regex.Flags (global) as Regex
+import Partial.Unsafe (unsafePartial)
 
 -- TODO: Only append '$' if necessary
 safeName :: String -> String
 safeName name =
-  Str.replace (Str.Pattern "'") (Str.Replacement "$") $
-    name <> "$"
+  let
+    rex =
+      unsafePartial $
+        fromRight $
+          regex "'" Regex.global
+  in
+    Regex.replace rex "$" $
+      name <> "$"
 
 dotsTo :: Char -> String -> String
 dotsTo chr' str =
