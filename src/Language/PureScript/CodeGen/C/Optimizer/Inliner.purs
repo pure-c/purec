@@ -41,10 +41,13 @@ inlineVariables
   => MonadError CompileError m
   => AST
   -> m AST
-inlineVariables = everywhereM $ mapBlock (go [])
+inlineVariables = AST.everywhereTopDownM
+  case _ of
+    AST.Block xs ->
+      AST.Block <$> go [] xs
+    x ->
+      pure x
   where
-  mapBlock f (AST.Block sts) = AST.Block <$> f sts
-  mapBlock _  x = pure x
 
   go acc =
     A.uncons >>> case _ of
