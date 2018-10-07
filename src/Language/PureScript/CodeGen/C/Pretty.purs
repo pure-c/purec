@@ -94,11 +94,8 @@ prettyPrintAst (AST.VariableIntroduction { name, type: typ, qualifiers, initiali
   emit " "
   emit name
   for_ initialization \ast -> do
-    emit " ="
-    lf
-    withNextIndent do
-      indent
-      prettyPrintAst ast
+    emit " = "
+    prettyPrintAst ast
   emit ";"
 prettyPrintAst (AST.NumericLiteral (Left n)) =
   emit $ show n
@@ -174,10 +171,8 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
     emit ";"
 prettyPrintAst (AST.Assignment _ l r) = do
   prettyPrintAst l
-  emit " ="
-  lf
-  withNextIndent $
-    indent *> prettyPrintAst r
+  emit " = "
+  prettyPrintAst r
 prettyPrintAst (AST.Indexer i v) = do
   prettyPrintAst v
   emit "["
