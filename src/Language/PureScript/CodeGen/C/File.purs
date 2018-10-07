@@ -128,7 +128,7 @@ nativeMain mainVar =
           , AST.App
               R.purs_any_app
               [ mainVar
-              , R._NULL
+              , AST.Null
               ]
           , AST.Return (AST.NumericLiteral (Left 0))
           ]

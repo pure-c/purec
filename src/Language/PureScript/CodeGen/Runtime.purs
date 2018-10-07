@@ -43,7 +43,6 @@ module Language.PureScript.CodeGen.Runtime
   , assert'
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
-  , _NULL
   , purs_any_true
   , purs_any_false
   , void
@@ -166,9 +165,6 @@ _purs_scope_new = AST.Var "_purs_scope_new"
 
 _PURS_SCOPE_T :: AST
 _PURS_SCOPE_T = AST.Var "PURS_SCOPE_T"
-
-_NULL :: AST
-_NULL = AST.Raw "NULL"
 
 purs_record_empty :: AST
 purs_record_empty = AST.Var "purs_record_empty"

@@ -172,19 +172,11 @@ bindToAst isTopLevel (C.Rec vals) = ado
     then asts
     else
       let
-        names =
-          Set.fromFoldable $
-            A.catMaybes $
-              asts <#>  case _ of
-                AST.VariableIntroduction { name } ->
-                  Just name
-                _ ->
-                  Nothing
         asts' =
           asts <#> case _ of
             ast@AST.VariableIntroduction { name, type: typ, initialization: Just init }
              | typ == R.any || typ == R.any' ->
-              { indirDecl:
+              { indirInit:
                   Just $
                     AST.VariableIntroduction
                       { name: "$indirect__" <> name
@@ -204,7 +196,7 @@ bindToAst isTopLevel (C.Rec vals) = ado
                           AST.App R.purs_indirect_thunk_new
                             [ AST.Var $ "$indirect__" <> name ]
                     }
-              , derefDecl:
+              , indirAssign:
                   Just $
                     AST.App R.purs_indirect_value_assign
                       [ AST.Var $ "$indirect__" <> name
@@ -212,15 +204,15 @@ bindToAst isTopLevel (C.Rec vals) = ado
                       ]
               }
             ast ->
-              { indirDecl: Nothing
+              { indirInit: Nothing
               , ast
-              , derefDecl: Nothing
+              , indirAssign: Nothing
               }
 
-      in
-        (A.catMaybes $ _.indirDecl <$> asts') <>
-        (_.ast                     <$> asts') <>
-        (A.catMaybes $ _.derefDecl <$> asts')
+      in asts
+        -- (A.catMaybes $ _.indirInit   <$> asts') <>
+        -- (_.ast                       <$> asts') <>
+        -- (A.catMaybes $ _.indirAssign <$> asts')
 
 declToAst
   :: ∀ m
@@ -305,7 +297,7 @@ exprToAst (C.Literal _ (C.ArrayLiteral xs)) = ado
         [ AST.NumericLiteral $ Left $ A.length xs
         ] <>
           if A.null asts
-            then [ R._NULL ]
+            then [ AST.Null ]
             else asts
       ]
 exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
@@ -711,9 +703,9 @@ exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   f   <- exprToAst ident
   arg <- exprToAst expr
   pure $ AST.App R.purs_any_app [f, arg]
-exprToAst (C.Abs (C.Ann { type: typ }) indent expr) = do
+exprToAst (C.Abs (C.Ann { type: typ }) ident expr) = do
   bodyAst <- exprToAst expr
-  argName <- identToVarName indent
+  argName <- identToVarName ident
   pure $
     AST.Function
       { name: Nothing
@@ -841,6 +833,7 @@ eraseLambdas moduleName asts =
           { isTopLevel: true
           , function: Nothing
           , lhs: Nothing
+          , depth: 0
           , bindings: Set.empty
           }
     in toplevels <> asts'
@@ -877,12 +870,13 @@ eraseLambdas moduleName asts =
                   , AST.Var "$value"
                   ]
       AST.Function x@{ name, arguments, body: Just body } ->
-        withReaderT (_ { function = name, isTopLevel = false }) do
+        withReaderT (\s -> s { isTopLevel = false, depth = s.depth + 1 }) do
           eraseLambda { arguments, body }
       ast@AST.VariableIntroduction x@{ name, initialization, type: typ }
         | typ == R.any || typ == R.any'
         -> do
-        currentScope <- ask
+       currentScope <- ask
+       withReaderT (_ { function = Just name }) do
         if currentScope.isTopLevel
           then ado
             initialization' <- for initialization go
@@ -972,9 +966,11 @@ eraseLambdas moduleName asts =
     contFuncName <- ado
       id <- freshId
       in
-        moduleName <> "_" <>
-          (fromMaybe "anon" currentScope.function) <>
-            "__cont_"  <> show id <> "__"
+        -- XXX: beware that this assumes that `currentScope.function` - if set -
+        --      be already fully qualified by `moduleName` in order to avoid
+        --      name clashes.
+        fromMaybe (moduleName <> "_anon") currentScope.function <>
+          "__cont_" <> show currentScope.depth <> "_$"  <> show id
 
     body' <-
       withReaderT
@@ -1068,19 +1064,19 @@ eraseLambdas moduleName asts =
     :: ∀ n r
      . Applicative n
     => MonadSupply n
-    => { function :: Maybe String, bindings :: Set String | r }
+    => _
     -> n { name :: String, ast :: AST, members :: Array String }
-  scopeToStruct { function, bindings } =
+  scopeToStruct currentScope =
     let
       members =
-        A.fromFoldable bindings
+        A.fromFoldable currentScope.bindings
 
     in ado
       name <- ado
         id <- freshId
         in
-          (fromMaybe "anon" function) <>
-            "__scope_" <> show id <> "__"
+          fromMaybe (moduleName <> "_anon") currentScope.function <>
+            "__cont_" <> show currentScope.depth <> "_$"  <> show id
       in
         { name
         , members
@@ -1105,13 +1101,13 @@ hoistVarDecls :: Array AST -> Array AST
 hoistVarDecls = map go
   where
   go =
-    AST.everywhere case _ of
+    AST.everywhereTopDown case _ of
       AST.Block xs ->
         AST.Block $
           let
             (decls /\ xs') =
               A.foldl
-                (\(decls /\ xs') x ->
+                (\(decls /\ asts) x ->
                   case x of
                     AST.VariableIntroduction
                       x@{ name
@@ -1120,24 +1116,25 @@ hoistVarDecls = map go
                         } ->
                       let
                         -- TODO: init to 'NULL' only for pointer types.
-                        decl =
+                        declareVar =
                           AST.VariableIntroduction $
-                            x { initialization = Just R._NULL }
+                            x { initialization = Just AST.Null }
                         isManaged =
                           typ == R.any || typ == R.any'
-                        x' =
+                        assignVar =
                           AST.Assignment isManaged
                             (AST.Var x.name)
                             initialization
                       in
-                        (decls <> [ (name /\ decl) ]) /\ (xs' <> [ x' ])
+                        (decls <> [ (name /\ declareVar) ]) /\
+                          (asts <> [ assignVar ])
                     x ->
-                      decls /\ (xs' <> [ x ])
+                      decls /\ (asts <> [ x ])
                 ) ([] /\ []) xs
           in
             if A.null decls
               then xs
               else
                 map snd (A.nubBy (compare `on` fst) decls) <>
-                  hoistVarDecls xs'
+                  xs'
       x -> x
