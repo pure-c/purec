@@ -13,10 +13,12 @@
     "purescript-control": "pure-c/purescript-control#master",
     "purescript-effect": "pure-c/purescript-effect#master",
     "purescript-math": "pure-c/purescript-math#master",
-    "purescript-refs": "pure-c/purescript-refs#master"
+    "purescript-refs": "pure-c/purescript-refs#master",
+    "purescript-foldable-traversable": "pure-c/purescript-foldable-traversable#master"
   },
   "resolutions": {
     "purescript-effect": "master",
-    "purescript-prelude": "master"
+    "purescript-prelude": "master",
+    "purescript-control": "master"
   }
 }
