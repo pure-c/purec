@@ -41,7 +41,7 @@ inlineVariables
   => MonadError CompileError m
   => AST
   -> m AST
-inlineVariables = AST.everywhereTopDownM
+inlineVariables = AST.everywhereM
   case _ of
     AST.Block xs ->
       AST.Block <$> go [] xs
@@ -63,15 +63,18 @@ inlineVariables = AST.everywhereTopDownM
         }) -> do
           canBeInlined <-
             A.foldM (\canInline x ->
-              -- XXX: we could be lazier here
-              (canInline && _) <$> ado
-                isRebound' <- isRebound ast x
-                isUpdated' <- isUpdated name x
-                in
-                  not $
-                    isRebound' ||
-                    isUpdated' ||
-                    isReassigned name x
+              if not canInline
+                then pure false
+                else
+                  ado
+                  -- XXX: we could be lazier here
+                    isRebound' <- isRebound ast x
+                    isUpdated' <- isUpdated name x
+                  in
+                    not $
+                      isRebound' ||
+                      isUpdated' ||
+                      isReassigned name x
             ) (shouldInline ast) tail
           if canBeInlined
             then
