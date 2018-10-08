@@ -12,7 +12,8 @@
     "purescript-console": "pure-c/purescript-console#master",
     "purescript-control": "pure-c/purescript-control#master",
     "purescript-effect": "pure-c/purescript-effect#master",
-    "purescript-math": "pure-c/purescript-math#master"
+    "purescript-math": "pure-c/purescript-math#master",
+    "purescript-refs": "pure-c/purescript-refs#master"
   },
   "resolutions": {
     "purescript-effect": "master",
