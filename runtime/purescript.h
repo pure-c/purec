@@ -253,6 +253,8 @@ void purs_indirect_value_assign(const ANY **, const ANY *);
 const ANY * purs_indirect_thunk_new(const ANY **);
 const ANY * purs_thunked_deref(const void * data);
 
+#define purs_any_int_neg(x) purs_any_int_new(-purs_any_get_int(x))
+
 /* code-gen helper to allocate and fill a scope.
  * assumes scope to consist only of (const ANY *) pointers, the count of which
  * is known.

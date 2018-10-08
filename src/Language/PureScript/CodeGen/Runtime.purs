@@ -1,6 +1,13 @@
 module Language.PureScript.CodeGen.Runtime
-  ( purs_any_app
+  (
 
+    -- any: dynamic runtime types
+    any
+  , any'
+  , any''
+
+    -- any: built-ins
+  , purs_any_app
   , purs_any_eq_int
   , purs_any_eq_num
   , purs_any_eq_char
@@ -8,7 +15,14 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_get_cons
   , purs_any_get_record
   , purs_any_get_array
+  , purs_any_true
+  , purs_any_false
 
+    -- any: built-ins (added for code-gen)
+  , purs_any_app
+  , purs_any_int_neg
+
+    -- any: allocations
   , purs_any_cont_new
   , purs_any_array_new
   , purs_any_cons_new
@@ -18,15 +32,16 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_string_new
   , purs_any_char_new
 
+    -- code-gen helpers
   , _purs_scope_alloc
   , _purs_scope_new
   , _PURS_SCOPE_T
   , _PURS_CONS_VALUES_NEW
-
-    -- code-gen helpers
   , purs_indirect_thunk_new
   , purs_indirect_value_new
   , purs_indirect_value_assign
+  , _PURS_ANY_THUNK_DECL
+  , _PURS_ANY_THUNK_DEF
 
     -- misc
   , purs_any_fun_t
@@ -36,15 +51,10 @@ module Language.PureScript.CodeGen.Runtime
   , purs_record_empty
   , purs_record_find_by_key
   , purs_record_new_from_kvps
-  , any
-  , any'
-  , any''
-  , assert
-  , assert'
-  , _PURS_ANY_THUNK_DECL
-  , _PURS_ANY_THUNK_DEF
-  , purs_any_true
-  , purs_any_false
+  , purs_assert
+  , purs_assert'
+
+    -- ...
   , void
   ) where
 
@@ -169,13 +179,16 @@ _PURS_SCOPE_T = AST.Var "PURS_SCOPE_T"
 purs_record_empty :: AST
 purs_record_empty = AST.Var "purs_record_empty"
 
-assert :: AST -> String -> AST
-assert condAst message =
+purs_assert :: AST -> String -> AST
+purs_assert condAst message =
   AST.App (AST.Var "purs_assert")
     [ condAst
     , AST.StringLiteral "%s"
     , AST.StringLiteral message
     ]
 
-assert' :: String -> AST
-assert' = assert $ AST.NumericLiteral (Left 0)
+purs_assert' :: String -> AST
+purs_assert' = purs_assert $ AST.NumericLiteral (Left 0)
+
+purs_any_int_neg :: AST
+purs_any_int_neg = AST.Var "purs_any_int_neg"

@@ -6,6 +6,8 @@ module Language.PureScript.CodeGen.C.Optimizer.Common
   , shouldInline
   , replaceIdent
   , replaceIdents
+  , isDict
+  , isDict'
   ) where
 
 import Prelude
@@ -15,6 +17,7 @@ import Data.Array as A
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST, everything, everythingM, everywhere)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
@@ -76,7 +79,7 @@ isUpdated
   -> m Boolean
 isUpdated var1 = everythingM (||) go
   where
-  go (AST.Assignment _ target _) = do
+  go (AST.Assignment _ target _) =
     eq var1 <$>
       targetVariable target
   go _ =
@@ -88,3 +91,13 @@ isUpdated var1 = everythingM (||) go
   targetVariable _ =
     throwError $
       InternalError "Invalid argument to targetVariable"
+
+-- | check if the given AST is performing a (specific) dictionary lookup
+-- note: refer to `exprToAst` in 'Language.PureScript.CodeGen.C'
+isDict :: (String /\ String) -> AST -> Boolean
+isDict (moduleName /\ dictName) (AST.Var n) =
+  n == moduleName <> "_" <> dictName <> "$" -- XXX document '$' suffix
+isDict _ _ = false
+
+isDict' :: Array (String /\ String) -> AST -> Boolean
+isDict' xs ast = A.any (_ `isDict` ast) xs
