@@ -219,6 +219,10 @@ inline const ANY * purs_any_app(const ANY * f, const ANY * v, ...) {
 
 PURS_ANY_THUNK_DEF(purs_any_true, purs_any_int_new(1));
 PURS_ANY_THUNK_DEF(purs_any_false, purs_any_int_new(0));
+PURS_ANY_THUNK_DEF(purs_any_int_zero, purs_any_int_new(0));
+PURS_ANY_THUNK_DEF(purs_any_num_zero, purs_any_num_new(0.0));
+PURS_ANY_THUNK_DEF(purs_any_int_one, purs_any_int_new(1));
+PURS_ANY_THUNK_DEF(purs_any_num_one, purs_any_num_new(1.0));
 PURS_ANY_THUNK_DEF(purs_any_NaN, purs_any_num_new(PURS_NAN));
 PURS_ANY_THUNK_DEF(purs_any_infinity, purs_any_num_new(PURS_INFINITY));
 PURS_ANY_THUNK_DEF(purs_any_neg_infinity, purs_any_num_new(-PURS_INFINITY));

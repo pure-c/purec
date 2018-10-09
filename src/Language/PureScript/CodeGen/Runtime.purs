@@ -13,10 +13,15 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_eq_char
   , purs_any_eq_string
   , purs_any_get_cons
+  , purs_any_get_int
   , purs_any_get_record
   , purs_any_get_array
   , purs_any_true
   , purs_any_false
+  , purs_any_int_zero
+  , purs_any_num_zero
+  , purs_any_int_one
+  , purs_any_num_one
 
     -- any: built-ins (added for code-gen)
   , purs_any_app
@@ -83,6 +88,18 @@ purs_any_fun_t = Type.RawType "purs_any_fun_t" []
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
 
+purs_any_num_one :: AST
+purs_any_num_one = AST.Var "purs_any_num_one"
+
+purs_any_int_one :: AST
+purs_any_int_one = AST.Var "purs_any_int_one"
+
+purs_any_num_zero :: AST
+purs_any_num_zero = AST.Var "purs_any_num_zero"
+
+purs_any_int_zero :: AST
+purs_any_int_zero = AST.Var "purs_any_int_zero"
+
 purs_any_false :: AST
 purs_any_false = AST.Var "purs_any_false"
 
@@ -100,6 +117,9 @@ purs_any_eq_char = AST.Var "purs_any_eq_char"
 
 purs_any_eq_string :: AST
 purs_any_eq_string = AST.Var "purs_any_eq_string"
+
+purs_any_get_int :: AST
+purs_any_get_int = AST.Var "purs_any_get_int"
 
 purs_any_get_cons :: AST
 purs_any_get_cons = AST.Var "purs_any_get_cons"

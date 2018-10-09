@@ -253,21 +253,18 @@ exprToAst (C.Var ann ident) =
           identToVarName ident
 exprToAst (C.Literal _ (C.NumericLiteral n)) =
   pure $
-   AST.Cast R.any $
     AST.App
       (either (const R.purs_any_int_new) (const R.purs_any_num_new) n)
       [ AST.NumericLiteral n
       ]
 exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
-   AST.Cast R.any $
     AST.App
       R.purs_any_string_new
       [ AST.StringLiteral s
       ]
 exprToAst (C.Literal _ (C.CharLiteral c)) =
   pure $
-   AST.Cast R.any $
     AST.App
       R.purs_any_char_new
       [ AST.NumericLiteral $ Left $ Int.toCharCode c
@@ -280,7 +277,6 @@ exprToAst (C.Literal _ (C.BooleanLiteral b)) =
 exprToAst (C.Literal _ (C.ArrayLiteral xs)) = ado
   asts <- traverse exprToAst xs
   in
-   AST.Cast (R.any) $
     AST.App
       R.purs_any_array_new $
       [ AST.App
@@ -297,7 +293,6 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
       vAst <- exprToAst v
       in [ AST.StringLiteral k, vAst ]
   in
-   AST.Cast (R.any) $
     if A.null kvps
       then
         R.purs_record_empty
@@ -470,12 +465,11 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                     , qualifiers: []
                     , initialization:
                         Just $
-                          AST.Cast R.any $
-                            AST.Indexer
-                              (AST.NumericLiteral (Left ix))
-                              (AST.Accessor
-                                (AST.Raw "data")
-                                (AST.App R.purs_any_get_array [ AST.Var varName ]))
+                          AST.Indexer
+                            (AST.NumericLiteral (Left ix))
+                            (AST.Accessor
+                              (AST.Raw "data")
+                              (AST.App R.purs_any_get_array [ AST.Var varName ]))
                     } A.: ast
         in ado
           ast <- go next 0 binders
@@ -560,12 +554,11 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                 , qualifiers: []
                 , initialization:
                     Just $
-                      AST.Cast R.any $
-                        AST.Indexer
-                          (AST.NumericLiteral (Left index))
-                          (AST.Accessor
-                            (AST.Raw "values")
-                            (AST.App R.purs_any_get_cons [ AST.Var varName ]))
+                      AST.Indexer
+                        (AST.NumericLiteral (Left index))
+                        (AST.Accessor
+                          (AST.Raw "values")
+                          (AST.App R.purs_any_get_cons [ AST.Var varName ]))
                 } A.: ast
 
     in
@@ -632,7 +625,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
             (AST.Indexer
               (AST.NumericLiteral (Left i))
               (AST.Var valuesName))
-            (AST.Cast R.any $ AST.Var name)
+            (AST.Var name)
     pure $
      AST.Function
       { name: Nothing
@@ -654,10 +647,9 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
                 }
             ] <> assignments <> [
               AST.Return $
-               AST.Cast R.any $
                 AST.App R.purs_any_cons_new
                   [ AST.Var $ qualifiedVarName moduleName constructorName
-                  , AST.Cast (Type.Pointer R.any) $ AST.Var valuesName
+                  , AST.Var valuesName
                   ]
             ]
       }

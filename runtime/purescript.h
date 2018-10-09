@@ -204,6 +204,7 @@ typedef struct purs_record {
 	UT_hash_handle hh;
 } purs_record_t;
 
+// TODO: rename to 'purs_any_record_empty'
 const ANY * purs_record_empty;
 
 /**
@@ -609,6 +610,10 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 const ANY * purs_any_true;
 const ANY * purs_any_false;
 const ANY * purs_any_NaN;
+const ANY * purs_any_int_one;
+const ANY * purs_any_num_one;
+const ANY * purs_any_int_zero;
+const ANY * purs_any_num_zero;
 
 #define purs_any_bool(V) \
 	(V == 1) \

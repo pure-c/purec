@@ -1,9 +1,4 @@
-module Language.PureScript.Constants
-  ( undefined
-  , ringInt
-  , dataRing
-  , negate
-  ) where
+module Language.PureScript.Constants where
 
 -- Prim values
 
@@ -20,3 +15,39 @@ dataRing = "Data_Ring"
 
 negate :: String
 negate = "negate"
+
+dataSemiring :: String
+dataSemiring = "Data_Semiring"
+
+semiringNumber :: String
+semiringNumber = "semiringNumber"
+
+semiringInt :: String
+semiringInt = "semiringInt"
+
+sub :: String
+sub = "sub"
+
+mul :: String
+mul = "mul"
+
+add :: String
+add = "add"
+
+one :: String
+one = "one"
+
+zero :: String
+zero = "zero"
+
+dataBounded :: String
+dataBounded = "Data_Bounded"
+
+boundedBoolean :: String
+boundedBoolean = "boundedBoolean"
+
+top :: String
+top = "top"
+
+bottom :: String
+bottom = "bottom"
