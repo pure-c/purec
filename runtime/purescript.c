@@ -239,61 +239,43 @@ inline int purs_any_eq_num (const ANY * x, double y) {
 	return purs_any_get_num(x) == y;
 }
 
-const ANY * purs_any_eq(const ANY * x, const ANY * y) {
+int purs_any_eq(const ANY * x, const ANY * y) {
 	x = purs_any_unthunk(x);
 	y = purs_any_unthunk(y);
 
-	if (purs_any_is_NaN(x) &&
-	    (y->tag == PURS_ANY_TAG_NUM || y->tag == PURS_ANY_TAG_INT)) {
-		return purs_any_false;
-	}
-
-	if (purs_any_is_NaN(y) &&
-	    (x->tag == PURS_ANY_TAG_NUM || x->tag == PURS_ANY_TAG_INT)) {
-		return purs_any_false;
-	}
-
-	purs_assert(x->tag == y->tag,
-		    "Cannot eq %s with %s",
-		    purs_any_tag_str(x->tag),
-		    purs_any_tag_str(y->tag));
-
 	if (x == y) {
-		return purs_any_true;
+		return 1;
 	} else if (x == NULL || y == NULL) {
-		return purs_any_false;
-	} else if (x->tag == y->tag) {
+		return 0;
+	} else {
+		if (purs_any_is_NaN(x) &&
+			(y->tag == PURS_ANY_TAG_NUM || y->tag == PURS_ANY_TAG_INT)) {
+			return 0;
+		}
+
+		if (purs_any_is_NaN(y) &&
+			(x->tag == PURS_ANY_TAG_NUM || x->tag == PURS_ANY_TAG_INT)) {
+			return 0;
+		}
+
+		purs_assert(
+			x->tag == y->tag,
+			"Cannot eq %s with %s",
+			purs_any_tag_str(x->tag),
+			purs_any_tag_str(y->tag));
+
 		switch (x->tag) {
 		case PURS_ANY_TAG_INT:
-			if (purs_any_get_int(x) == purs_any_get_int(y)) {
-				return purs_any_true;
-			} else {
-				return purs_any_false;
-			}
+			return purs_any_get_int(x) == purs_any_get_int(y);
 		case PURS_ANY_TAG_NUM:
-			if (purs_any_get_num(x) == purs_any_get_num(y)) {
-				return purs_any_true;
-			} else {
-				return purs_any_false;
-			}
+			return purs_any_get_num(x) == purs_any_get_num(y);
 		case PURS_ANY_TAG_STRING:
-			if (utf8cmp(purs_any_get_string(x),
-				    purs_any_get_string(y)) == 0) {
-				return purs_any_true;
-			} else {
-				return purs_any_false;
-			}
+			return (utf8cmp(purs_any_get_string(x), purs_any_get_string(y)) == 0);
 		case PURS_ANY_TAG_CHAR:
-			if (purs_any_get_char(x) == purs_any_get_char(y)) {
-				return purs_any_true;
-			} else {
-				return purs_any_false;
-			}
+			return purs_any_get_char(x) == purs_any_get_char(y);
 		default:
-			return purs_any_false;
+			return 0;
 		}
-	} else {
-		return purs_any_false;
 	}
 }
 

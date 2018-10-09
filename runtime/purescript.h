@@ -154,7 +154,7 @@ int purs_any_eq_char   (const ANY *, utf8_int32_t);
 int purs_any_eq_int    (const ANY *, purs_any_int_t);
 int purs_any_eq_num    (const ANY *, double);
 
-const ANY * purs_any_eq(const ANY *, const ANY *);
+int purs_any_eq(const ANY *, const ANY *);
 const ANY * purs_any_concat(const ANY *, const ANY *);
 
 // -----------------------------------------------------------------------------
@@ -610,6 +610,14 @@ const ANY * purs_any_true;
 const ANY * purs_any_false;
 const ANY * purs_any_NaN;
 
+#define purs_any_bool(V) \
+	(V == 1) \
+		? purs_any_true \
+		: purs_any_false
+#define purs_any_not(V) \
+	purs_any_is_true(V) \
+		? purs_any_false \
+		: purs_any_false
 #define purs_any_is_true(V) purs_any_eq(V, purs_any_true)
 #define purs_any_is_false(V) purs_any_eq(V, purs_any_false)
 #define purs_any_while(COND) while(purs_any_is_true(COND))
