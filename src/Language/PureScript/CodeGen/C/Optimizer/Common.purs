@@ -8,6 +8,8 @@ module Language.PureScript.CodeGen.C.Optimizer.Common
   , replaceIdents
   , isDict
   , isDict'
+  , anyM
+  , allM
   ) where
 
 import Prelude
@@ -51,6 +53,24 @@ isReassigned var1 = everything (||) go
   go (AST.VariableIntroduction { name }) = var1 == name
   go (AST.Assignment _ (AST.Var name) _) = var1 == name
   go _ = false
+
+allM :: ∀ m a. Monad m => (a -> m Boolean) -> Array a -> m Boolean
+allM f =
+  A.foldM
+    (\a x ->
+      if not a
+         then pure false
+         else f x
+    ) true
+
+anyM :: ∀ m a. Monad m => (a -> m Boolean) -> Array a -> m Boolean
+anyM f =
+  A.foldM
+    (\a x ->
+      if a
+         then pure true
+         else f x
+    ) false
 
 isRebound
   :: ∀ m

@@ -2,28 +2,77 @@ module Language.PureScript.CodeGen.C.Optimizer.Inliner
   ( unThunk
   , inlineVariables
   , inlineCommonValues
+  , inlineFnComposition
+  , etaConvert
   ) where
 
 import Prelude
 
 import Control.Monad.Error.Class (class MonadError)
 import Data.Array as A
-import Data.Either (Either(..), either)
+import Data.Either (Either(..))
+import Data.Map as Map
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST, everywhere)
+import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
-import Language.PureScript.CodeGen.C.Optimizer.Common (isDict, isDict', isReassigned, isRebound, isUpdated, replaceIdent, shouldInline)
+import Language.PureScript.CodeGen.C.Common (freshName)
+import Language.PureScript.CodeGen.C.Optimizer.Common (anyM, isDict, isReassigned, isRebound, isUpdated, replaceIdent, replaceIdents, shouldInline)
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
+import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 import Language.PureScript.Constants as C
 
-unThunk :: AST -> AST
-unThunk = everywhere convert
+etaConvert
+  :: ∀ m
+   . Functor m
+  => Apply m
+  => Monad m
+  => MonadError CompileError m
+  => AST
+  -> m AST
+etaConvert = AST.everywhereM go
   where
-  convert :: AST -> AST
-  convert block@(AST.Block []) = block
-  convert block@(AST.Block asts) =
+  go
+    x@(AST.Block
+      [ AST.Return
+          (AST.App
+            (AST.Function
+              { arguments: args
+              , body: Just block@(AST.Block body)
+              }) passedArgs
+          )])
+    | A.all shouldInline passedArgs = ado
+      ok <- ado
+        y <- anyM (isRebound <@> block) $ map AST.Var (_.name <$> args)
+        z <- anyM (isRebound <@> block) passedArgs
+        in not y && not z
+      in if ok
+        then
+          AST.Block $
+            body <#> do
+              replaceIdents $
+                Map.fromFoldable $
+                  A.zip (_.name <$> args) passedArgs
+        else x
+  go
+    (AST.Function
+      { arguments: []
+      , body: Just
+          (AST.Block
+            [ AST.Return
+                (AST.App fn [])
+            ])
+      }) = pure fn
+  go x = pure x
+
+
+unThunk :: AST -> AST
+unThunk = AST.everywhere go
+  where
+  go :: AST -> AST
+  go block@(AST.Block []) = block
+  go block@(AST.Block asts) =
     case A.unsnoc asts of
       Just
         { last:
@@ -37,7 +86,7 @@ unThunk = everywhere convert
         AST.Block $ init <> body
       _ ->
         block
-  convert ast = ast
+  go ast = ast
 
 inlineVariables
   :: ∀ m
@@ -191,3 +240,88 @@ inlineCommonValues = AST.everywhere go
                 (AST.NumericLiteral <<< Left)
                 mLitY)
           ]
+
+-- (f <<< g $ x) = f (g x)
+-- (f <<< g)     = \x -> f (g x)
+inlineFnComposition
+  :: ∀ m
+   . Applicative m
+  => MonadSupply m
+  => Monad m
+  => AST
+  -> m AST
+inlineFnComposition = AST.everywhereTopDownM go
+  where
+  go
+    (AST.App (AST.Var "purs_any_app")
+      [ AST.App (AST.Var "purs_any_app")
+        [ AST.App (AST.Var "purs_any_app")
+          [ AST.App  (AST.Var "purs_any_app")[ fn, dict], x], y], z])
+    | isFnCompose dict fn =
+        pure $
+          AST.App R.purs_any_app
+            [ x
+            , AST.App R.purs_any_app [ y, z ]
+            ]
+    | isFnComposeFlipped dict fn =
+        pure $
+          AST.App R.purs_any_app
+            [ y
+            , AST.App R.purs_any_app [ x, z ]
+            ]
+
+  go
+    (AST.App (AST.Var "purs_any_app")
+     [ AST.App (AST.Var "purs_any_app")
+       [ AST.App (AST.Var "purs_any_app") [ fn, dict ], x ], y ])
+    | isFnCompose dict fn = ado
+        arg <- freshName
+        in
+          AST.Function
+            { name: Nothing
+            , arguments: [ { name: arg, type: R.any } ]
+            , returnType: R.any
+            , qualifiers: []
+            , variadic: false
+            , body: Just $
+                AST.Block
+                  [ AST.Return $
+                      AST.App R.purs_any_app
+                        [ x
+                        , AST.App R.purs_any_app
+                            [ y
+                            , AST.Var arg
+                            ]
+                        ]
+                  ]
+            }
+    | isFnComposeFlipped dict fn = ado
+        arg <- freshName
+        in
+          AST.Function
+            { name: Nothing
+            , arguments: [ { name: arg, type: R.any } ]
+            , returnType: R.any
+            , qualifiers: []
+            , variadic: false
+            , body: Just $
+                AST.Block
+                  [ AST.Return $
+                      AST.App R.purs_any_app
+                        [ y
+                        , AST.App R.purs_any_app
+                            [ x
+                            , AST.Var arg
+                            ]
+                        ]
+                  ]
+            }
+  go x = pure x
+
+  isFnCompose dict fn =
+    isDict (C.controlSemigroupoid /\ C.semigroupoidFn) dict &&
+    isDict (C.controlSemigroupoid /\ C.compose) fn
+
+  isFnComposeFlipped dict fn =
+    isDict (C.controlSemigroupoid /\ C.semigroupoidFn) dict &&
+    isDict (C.controlSemigroupoid /\ C.composeFlipped) fn

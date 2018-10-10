@@ -8,7 +8,7 @@ import Control.Monad.Error.Class (class MonadError)
 import Data.Foldable (foldl)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks, collapseNestedIfs)
-import Language.PureScript.CodeGen.C.Optimizer.Inliner (inlineCommonValues, inlineVariables, unThunk)
+import Language.PureScript.CodeGen.C.Optimizer.Inliner (etaConvert, inlineCommonValues, inlineFnComposition, inlineVariables, unThunk)
 import Language.PureScript.CodeGen.C.Optimizer.Unused (removeCodeAfterReturnStatements, removeUndefinedApp)
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
@@ -34,7 +34,9 @@ optimize =
           , pure <<< removeCodeAfterReturnStatements
           , pure <<< removeUndefinedApp
           , pure <<< unThunk
+          , etaConvert
           , inlineVariables
+          , inlineFnComposition
           ]
     ]
 

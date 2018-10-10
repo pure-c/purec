@@ -30,7 +30,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (safeName)
+import Language.PureScript.CodeGen.C.Common (freshName, safeName)
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Optimizer (optimize)
 import Language.PureScript.CodeGen.C.Pretty as P
@@ -46,15 +46,6 @@ type IsMain =
 type Env =
   { module :: C.Module C.Ann
   }
-
-freshName
-  :: ∀ m
-   . Functor m
-  => MonadSupply m
-  => m String
-freshName = ado
-  id <- freshId
-  in "$value" <> show id
 
 moduleToAST
   :: ∀ m

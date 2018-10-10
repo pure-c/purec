@@ -51,3 +51,15 @@ top = "top"
 
 bottom :: String
 bottom = "bottom"
+
+semigroupoidFn :: String
+semigroupoidFn = "semigroupoidFn"
+
+controlSemigroupoid :: String
+controlSemigroupoid = "Control_Semigroupoid"
+
+compose :: String
+compose = "compose"
+
+composeFlipped :: String
+composeFlipped = "composeFlipped"
