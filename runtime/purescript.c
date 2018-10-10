@@ -247,21 +247,23 @@ int purs_any_eq(const ANY * x, const ANY * y) {
 	x = purs_any_unthunk(x);
 	y = purs_any_unthunk(y);
 
+	/* special treatment for NaN on LHS */
+	if (x != NULL && purs_any_is_NaN(x) &&
+		(y->tag == PURS_ANY_TAG_NUM || y->tag == PURS_ANY_TAG_INT)) {
+		return 0;
+	}
+
+	/* special treatment for NaN on RHS */
+	if (y != NULL && purs_any_is_NaN(y) &&
+		(x->tag == PURS_ANY_TAG_NUM || x->tag == PURS_ANY_TAG_INT)) {
+		return 0;
+	}
+
 	if (x == y) {
 		return 1;
 	} else if (x == NULL || y == NULL) {
 		return 0;
 	} else {
-		if (purs_any_is_NaN(x) &&
-			(y->tag == PURS_ANY_TAG_NUM || y->tag == PURS_ANY_TAG_INT)) {
-			return 0;
-		}
-
-		if (purs_any_is_NaN(y) &&
-			(x->tag == PURS_ANY_TAG_NUM || x->tag == PURS_ANY_TAG_INT)) {
-			return 0;
-		}
-
 		purs_assert(
 			x->tag == y->tag,
 			"Cannot eq %s with %s",
