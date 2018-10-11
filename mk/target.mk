@@ -64,7 +64,7 @@ endif
 
 $(1)_srcs = \
 	$$(shell \
-		find $$($(1)_src_dir) \
+		2>/dev/null find $$($(1)_src_dir) $$($(1)_deps_dir) \
 			-type f \
 			-a '(' \
 				-name '*.purs' \
@@ -73,25 +73,13 @@ $(1)_srcs = \
 			-a -not -name '.\#*' \
 			-a -not -path '*/$$(PUREC_WORKDIR)/*')
 
-$(1)_deps = \
-	$$(shell \
-		2>/dev/null find $$($(1)_deps_dir) \
-			-type f \
-			-a '(' \
-				-name '*.purs' \
-				-o -name '*.c' \
-				-o -name '*.h' ')' \
-			-a -not -name '.\#*' \
-			-a -not -path '*/$$(PUREC_WORKDIR)/*')
-
-$(1)_c_srcs = $$(filter-out %.purs,$$($(1)_srcs) $$($(1)_deps))
+$(1)_c_srcs = $$(filter-out %.purs,$$($(1)_srcs)
 
 $($(1)_srcs): %.purs: %.c
 	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.corefns: \
-	$$(patsubst %.h,%.purs,$$($(1)_srcs))\
-	$$(patsubst %.h,%.purs,$$($(1)_deps))
+	$$(patsubst %.h,%.purs,$$($(1)_srcs))
 	@mkdir -p $$(@D)
 	@$$(PURS) compile -g corefn -o $$(@D) $$(filter %.purs,$$^)
 	@touch $$@
