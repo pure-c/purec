@@ -1,5 +1,6 @@
 module Language.PureScript.CodeGen.C.Common
   ( safeName
+  , safeConstructorName
   , dotsTo
   , freshName
   ) where
@@ -25,6 +26,9 @@ safeName name =
   in
     Regex.replace rex "$" $
       name <> "$"
+
+safeConstructorName :: String -> String
+safeConstructorName n = "$cons_" <> safeName n
 
 dotsTo :: Char -> String -> String
 dotsTo chr' str =

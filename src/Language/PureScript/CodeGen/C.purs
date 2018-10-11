@@ -30,7 +30,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (freshName, safeName)
+import Language.PureScript.CodeGen.C.Common (freshName, safeConstructorName, safeName)
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Optimizer (optimize)
 import Language.PureScript.CodeGen.C.Pretty as P
@@ -99,7 +99,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
             , buildConstructorDeclsWithTags mod <#>
                 \{ constructorName: C.ProperName constructorName, tag } ->
                   AST.DefineTag
-                    (qualifiedVarName moduleName constructorName)
+                    (safeConstructorName (qualifiedVarName moduleName constructorName))
                     tag
             , F.toHeader decls
             ]
@@ -565,7 +565,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                 Nothing -> ado
                   { module: C.Module { moduleName } } <- ask
                   in moduleName
-            in qualifiedVarName moduleName constructorName
+            in safeConstructorName $ qualifiedVarName moduleName constructorName
           asts <- go <@> next $ A.zip (A.mapWithIndex (/\) fields) binders
           pure
             [
@@ -639,7 +639,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
             ] <> assignments <> [
               AST.Return $
                 AST.App R.purs_any_cons_new
-                  [ AST.Var $ qualifiedVarName moduleName constructorName
+                  [ AST.Var $ safeConstructorName $ qualifiedVarName moduleName constructorName
                   , AST.Var valuesName
                   ]
             ]
@@ -666,7 +666,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
   { module: C.Module { moduleName } } <- ask
   let
     constructorName' =
-      qualifiedVarName moduleName constructorName
+      safeConstructorName $ qualifiedVarName moduleName constructorName
   pure $
     AST.App
       R.purs_any_cons_new
