@@ -51,10 +51,13 @@ module Language.PureScript.CodeGen.Runtime
     -- misc
   , purs_any_fun_t
   , purs_cons_t
+  , purs_record_t
   , purs_cons_get_tag
   , purs_vec_new_from_array
   , purs_record_empty
   , purs_record_find_by_key
+  , purs_record_copy_shallow
+  , purs_record_add_multi
   , purs_record_new_from_kvps
   , purs_assert
   , purs_assert'
@@ -84,6 +87,9 @@ any = Type.Pointer (Type.Any [ Type.Const ])
 
 purs_any_fun_t :: AST.Type
 purs_any_fun_t = Type.RawType "purs_any_fun_t" []
+
+purs_record_t :: String
+purs_record_t = "purs_record_t"
 
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
@@ -141,6 +147,12 @@ purs_record_new_from_kvps = AST.Var "purs_record_new_from_kvps"
 
 purs_record_find_by_key :: AST
 purs_record_find_by_key = AST.Var "purs_record_find_by_key"
+
+purs_record_copy_shallow :: AST
+purs_record_copy_shallow = AST.Var "purs_record_copy_shallow"
+
+purs_record_add_multi :: AST
+purs_record_add_multi = AST.Var "purs_record_add_multi"
 
 purs_vec_new_from_array :: AST
 purs_vec_new_from_array = AST.Var "purs_vec_new_from_array"

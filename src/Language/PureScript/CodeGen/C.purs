@@ -26,6 +26,7 @@ import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (unwrap)
 import Data.Traversable (for, for_, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
+import Data.Tuple (snd)
 import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
@@ -708,9 +709,19 @@ exprToAst (C.Accessor _ k exp) = ado
             [ valueAst ]
         , AST.StringLiteral k
         ])
-exprToAst (C.ObjectUpdate _ o ps) =
-  -- TODO: Implement this
-  throwError $ NotImplementedError $ "exprToAst: C.ObjectUpdate"
+exprToAst (C.ObjectUpdate _ o ps) = ado
+  valueAst <- exprToAst o
+  sts      <- traverse (\(n /\ exp) -> (n /\ _) <$> exprToAst exp) ps
+  temp     <- freshName
+  in
+    AST.App R.purs_any_record_new
+      [ AST.App R.purs_record_add_multi $
+          [ AST.App R.purs_any_get_record [ valueAst ]
+          , AST.NumericLiteral (Left $ A.length sts)
+          ] <> do
+            A.concat $ sts <#> \(n /\ v) ->
+              [ AST.StringLiteral n, v ]
+      ]
 
 qualifiedVarName :: C.ModuleName -> String -> String
 qualifiedVarName (C.ModuleName pieces) varName =
