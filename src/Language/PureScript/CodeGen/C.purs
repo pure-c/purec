@@ -220,7 +220,6 @@ declToAst isTopLevel (x /\ ident) val = do
       , qualifiers: []
       , initialization: Just initAst
       }
-declToAst _ _ _ = throwError $ NotImplementedError "declToAst"
 
 exprToAst
   :: ∀ m
@@ -229,20 +228,13 @@ exprToAst
   => MonadAsk Env m
   => C.Expr C.Ann
   -> m AST
-exprToAst (C.Var ann ident) =
-  case ann /\ ident of
-    _ ->
-      varToAst ident
-
-  where
-  varToAst :: C.Qualified C.Ident -> m AST
-  varToAst (C.Qualified mModuleName ident) = do
-    case mModuleName of
-      Nothing ->
-        AST.Var <$> identToVarName ident
-      Just moduleName ->
-        AST.Var <<< qualifiedVarName moduleName <$>
-          identToVarName ident
+exprToAst (C.Var ann (C.Qualified mModuleName ident)) =
+  case mModuleName of
+    Nothing ->
+      AST.Var <$> identToVarName ident
+    Just moduleName ->
+      AST.Var <<< qualifiedVarName moduleName <$>
+        identToVarName ident
 exprToAst (C.Literal _ (C.NumericLiteral n)) =
   pure $
     AST.App
