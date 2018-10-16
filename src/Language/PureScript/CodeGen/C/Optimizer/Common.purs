@@ -51,7 +51,7 @@ isReassigned :: String -> AST -> Boolean
 isReassigned var1 = everything (||) go
   where
   go (AST.VariableIntroduction { name }) = var1 == name
-  go (AST.Assignment _ (AST.Var name) _) = var1 == name
+  go (AST.Assignment (AST.Var name) _) = var1 == name
   go _ = false
 
 allM :: ∀ m a. Monad m => (a -> m Boolean) -> Array a -> m Boolean
@@ -99,7 +99,7 @@ isUpdated
   -> m Boolean
 isUpdated var1 = everythingM (||) go
   where
-  go (AST.Assignment _ target _) =
+  go (AST.Assignment target _) =
     eq var1 <$>
       targetVariable target
   go _ =

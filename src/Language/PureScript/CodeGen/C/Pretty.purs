@@ -169,7 +169,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
   -- TODO move this logic out of the printer
   when (fnAst == R._PURS_SCOPE_T) do
     emit ";"
-prettyPrintAst (AST.Assignment _ l r) = do
+prettyPrintAst (AST.Assignment l r) = do
   prettyPrintAst l
   emit " = "
   prettyPrintAst r

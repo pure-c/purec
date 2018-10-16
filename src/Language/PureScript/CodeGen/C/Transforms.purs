@@ -19,6 +19,7 @@ import Data.Tuple.Nested ((/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
+import Language.PureScript.CodeGen.C.Common (isInternalVariable)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 
@@ -49,10 +50,8 @@ hoistVarDecls = map go
                           AST.VariableIntroduction $
                             x { initialization = Nothing
                               }
-                        isManaged =
-                          typ == R.any || typ == R.any'
                         assignVar =
-                          AST.Assignment isManaged
+                          AST.Assignment
                             (AST.Var x.name)
                             initialization
                       in
@@ -105,8 +104,9 @@ eraseLambdas moduleName asts =
   where
   go =
     case _ of
-      AST.Assignment true (AST.Var v) b ->
-        AST.Assignment true (AST.Var v) <$> do
+      AST.Assignment (AST.Var v) b
+        | not (isInternalVariable v) ->
+        AST.Assignment (AST.Var v) <$> do
           withReaderT (_ { lhs = Just v }) ado
             b' <- go b
             in
@@ -114,7 +114,7 @@ eraseLambdas moduleName asts =
                 AST.Block
                   -- TODO: only do this dance if self-recursive binding
                   [ AST.VariableIntroduction
-                      { name: "$ivalue"
+                      { name: "$_ivalue"
                       , type: Type.Pointer R.any
                       , qualifiers: []
                       , initialization:
@@ -122,23 +122,21 @@ eraseLambdas moduleName asts =
                             AST.App R.purs_indirect_value_new []
                       }
                   , AST.VariableIntroduction
-                      { name: "$value"
+                      { name: "$_value"
                       , type: R.any
                       , qualifiers: []
                       , initialization: Just $ b'
                       }
                   , AST.App R.purs_indirect_value_assign
-                      [ AST.Var "$ivalue"
-                      , AST.Var "$value"
+                      [ AST.Var "$_ivalue"
+                      , AST.Var "$_value"
                       ]
-                  , AST.Var "$value"
+                  , AST.Var "$_value"
                   ]
       AST.Function x@{ name, arguments, body: Just body } ->
         withReaderT (\s -> s { isTopLevel = false, depth = s.depth + 1 }) do
           eraseLambda { arguments, body }
-      ast@AST.VariableIntroduction x@{ name, initialization, type: typ }
-        | typ == R.any || typ == R.any'
-        -> do
+      ast@AST.VariableIntroduction x@{ name, initialization, type: typ } -> do
        currentScope <- ask
        withReaderT (_ { function = Just name }) do
         if currentScope.isTopLevel
@@ -158,8 +156,7 @@ eraseLambdas moduleName asts =
           A.foldM (\(scope /\ asts') ->
             case _ of
               ast@AST.VariableIntroduction { name, type: typ }
-                | not currentScope.isTopLevel && (typ == R.any || typ == R.any')
-                ->
+                | not currentScope.isTopLevel && not (isInternalVariable name) ->
                 let
                   scope' =
                     scope { bindings = Set.insert name scope.bindings }
@@ -181,8 +178,8 @@ eraseLambdas moduleName asts =
         AST.StatementExpression <$> go a
       AST.Return a ->
         AST.Return <$> go a
-      AST.Assignment x a b ->
-        AST.Assignment x <$> go a <*> go b
+      AST.Assignment a b ->
+        AST.Assignment <$> go a <*> go b
       AST.Binary i a b ->
         AST.Binary i <$> go a <*> go b
       AST.ArrayLiteral xs ->
@@ -248,7 +245,7 @@ eraseLambdas moduleName asts =
       AST.Function
         { name: Just contFuncName
         , arguments:
-            [ { name: "$ctx"
+            [ { name: "$_ctx"
               , type: Type.Pointer (Type.RawType scopeStruct.name [])
               }
             ] <>
@@ -270,7 +267,7 @@ eraseLambdas moduleName asts =
                       , initialization:
                           Just $
                             AST.Accessor (AST.Var varName) $
-                              AST.Var "$ctx"
+                              AST.Var "$_ctx"
                       }
                 ) <> [ body' ]
         }
@@ -286,7 +283,7 @@ eraseLambdas moduleName asts =
     pure $ AST.StatementExpression $
       AST.Block $
         [ AST.VariableIntroduction
-            { name: "$scope"
+            { name: "$_scope"
             , type: Type.Pointer R.any
             , qualifiers: []
             , initialization:
@@ -298,30 +295,30 @@ eraseLambdas moduleName asts =
                     ]
             }
         , AST.VariableIntroduction
-            { name: "$cont"
+            { name: "$_cont"
             , type: R.any
             , qualifiers: []
             , initialization:
                 Just $
                   AST.App
                     R.purs_any_cont_new
-                      [ AST.Var "$scope"
+                      [ AST.Var "$_scope"
                       , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
                           AST.Var contFuncName
                       ]
             }
         ] <>
           (A.mapWithIndex <@> scopeStruct.members $ \i v ->
-            AST.Assignment true
-              (AST.Indexer (AST.NumericLiteral $ Left i) (AST.Var "$scope")) $
+            AST.Assignment
+              (AST.Indexer (AST.NumericLiteral $ Left i) (AST.Var "$_scope")) $
                 if Just v == capturedScope.lhs
                   then
                     AST.App R.purs_indirect_thunk_new
-                      [ AST.Var "$ivalue" ]
+                      [ AST.Var "$_ivalue" ]
                   else
                     AST.Var v
           ) <>
-        [ AST.Var "$cont"
+        [ AST.Var "$_cont"
         ]
 
   scopeToStruct

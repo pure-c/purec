@@ -219,7 +219,7 @@ data AST
       }
 
   -- | A variable assignment
-  | Assignment Boolean AST AST
+  | Assignment AST AST
 
   -- | While loop
   | While AST AST
@@ -321,9 +321,9 @@ everywhereM f = go
       VariableIntroduction <<<
         x { initialization = _
           } <$> traverse go initialization
-  go (Assignment managed a b) =
+  go (Assignment a b) =
     f =<< do
-      Assignment managed
+      Assignment
         <$> go a
         <*> go b
   go (While a b) =
@@ -421,7 +421,7 @@ everythingM combine toA = go
     combine
       <$> toA j
       <*> go i
-  go j@(Assignment _ a b) =
+  go j@(Assignment a b) =
     combine
       <$> toA j
       <*> do
@@ -506,8 +506,8 @@ everywhereTopDownM f = f'
     VariableIntroduction <<<
       x { initialization = _
         } <$> traverse f' initialization
-  go (Assignment managed a b) =
-    Assignment managed <$> f' a <*> f' b
+  go (Assignment a b) =
+    Assignment <$> f' a <*> f' b
   go (While a b) =
     While <$> f' a <*> f' b
   go (IfElse a b mC) =

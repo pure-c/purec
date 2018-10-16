@@ -23,7 +23,7 @@ import Data.Identity (Identity)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (unwrap)
+import Data.Newtype (wrap, unwrap)
 import Data.Traversable (for, for_, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (snd)
@@ -31,7 +31,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (freshName, safeConstructorName, safeName)
+import Language.PureScript.CodeGen.C.Common (freshName, safeConstructorName, safeName, isInternalVariable)
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Optimizer (optimize)
 import Language.PureScript.CodeGen.C.Pretty as P
@@ -158,11 +158,11 @@ bindToAst isTopLevel (C.Rec vals) = ado
         asts' =
           asts <#> case _ of
             ast@AST.VariableIntroduction { name, type: typ, initialization: Just init }
-             | typ == R.any || typ == R.any' ->
+             | not (isInternalVariable name) ->
               { indirInit:
                   Just $
                     AST.VariableIntroduction
-                      { name: "$indirect__" <> name
+                      { name: "$_indirect_" <> name
                       , type: Type.Pointer R.any
                       , qualifiers: []
                       , initialization:
@@ -177,12 +177,12 @@ bindToAst isTopLevel (C.Rec vals) = ado
                     , initialization:
                         Just $
                           AST.App R.purs_indirect_thunk_new
-                            [ AST.Var $ "$indirect__" <> name ]
+                            [ AST.Var $ "$_indirect_" <> name ]
                     }
               , indirAssign:
                   Just $
                     AST.App R.purs_indirect_value_assign
-                      [ AST.Var $ "$indirect__" <> name
+                      [ AST.Var $ "$_indirect_" <> name
                       , init
                       ]
               }
@@ -613,7 +613,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
       traverseWithIndex <@> fields $ \i v -> ado
         name <- identToVarName v
         in
-          AST.Assignment false
+          AST.Assignment
             (AST.Indexer
               (AST.NumericLiteral (Left i))
               (AST.Var valuesName))
