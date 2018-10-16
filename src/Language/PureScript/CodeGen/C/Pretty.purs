@@ -111,17 +111,30 @@ prettyPrintAst (AST.Accessor field o)
   prettyPrintAst o
   emit $ "->"
   prettyPrintAst field
-prettyPrintAst (AST.Function { name: Nothing }) =
-  throwError $
-    InvalidStateError "Anonymous functions should have been erased by now"
 prettyPrintAst x@(AST.Function
-  { name: Just name
+  { name: mName
   , arguments
   , returnType
   , qualifiers
   , variadic
   , body
-  }) = do
+  }) =
+  do
+
+  let
+    debugLambdas =
+      false
+
+  name <-
+    case debugLambdas, mName of
+      _, Just name' ->
+        pure name'
+      true, Nothing ->
+        pure "<anon>"
+      false, Nothing ->
+        throwError $
+          InvalidStateError "Anonymous functions should have been erased by now"
+
   emit $ renderType returnType
   emit " "
   emit name
