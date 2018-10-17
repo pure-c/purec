@@ -8,8 +8,6 @@ module Language.PureScript.CodeGen.C.Optimizer.Common
   , replaceIdents
   , isDict
   , isDict'
-  , anyM
-  , allM
   ) where
 
 import Prelude

@@ -17,8 +17,8 @@ import Data.Tuple.Nested ((/\))
 import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
-import Language.PureScript.CodeGen.C.Common (freshName)
-import Language.PureScript.CodeGen.C.Optimizer.Common (anyM, isDict, isReassigned, isRebound, isUpdated, replaceIdent, replaceIdents, shouldInline)
+import Language.PureScript.CodeGen.C.Common (anyM, freshName)
+import Language.PureScript.CodeGen.C.Optimizer.Common (isDict, isReassigned, isRebound, isUpdated, replaceIdent, replaceIdents, shouldInline)
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
