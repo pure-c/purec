@@ -11,7 +11,7 @@ import Control.MonadPlus (guard)
 import Data.Array as A
 import Data.Either (Either(..))
 import Data.Function (on)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
@@ -19,7 +19,7 @@ import Data.Tuple.Nested ((/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshName, isInternalVariable)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 
@@ -134,7 +134,7 @@ eraseLambdas moduleName asts =
                   , AST.Var "$_value"
                   ]
       AST.Function x@{ name, arguments, body: Just body } ->
-        withReaderT (\s -> s { isTopLevel = false, depth = s.depth + 1 }) do
+        withReaderT (\s -> s { isTopLevel = false, depth = s.depth + 1 }) $
           eraseLambda { arguments, body }
       ast@AST.VariableIntroduction x@{ name, initialization, type: typ } -> do
        currentScope <- ask
@@ -180,6 +180,8 @@ eraseLambdas moduleName asts =
         AST.Return <$> go a
       AST.Assignment a b ->
         AST.Assignment <$> go a <*> go b
+      AST.Unary i a ->
+        AST.Unary i <$> go a
       AST.Binary i a b ->
         AST.Binary i <$> go a <*> go b
       AST.ArrayLiteral xs ->
@@ -215,7 +217,10 @@ eraseLambdas moduleName asts =
       capturedScope =
         currentScope
           { bindings =
-              currentScope.bindings
+              Set.fromFoldable $
+                A.filter (not <<< isInternalVariable) $
+                  A.fromFoldable $
+                    currentScope.bindings
           }
 
     -- emit the struct to the top-level
@@ -250,7 +255,10 @@ eraseLambdas moduleName asts =
               }
             ] <>
             arguments <>
-            [ { name: "_", type: Type.RawType "va_list" [] } ]
+            [ { name: "$_va_args"
+              , type: Type.RawType "va_list" []
+              }
+            ]
         , returnType: R.any
         , qualifiers: []
         , variadic: false

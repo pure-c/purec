@@ -9,6 +9,7 @@ import Data.Foldable (foldl)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks, collapseNestedIfs)
 import Language.PureScript.CodeGen.C.Optimizer.Inliner (etaConvert, inlineCommonValues, inlineFnComposition, inlineVariables, unThunk)
+import Language.PureScript.CodeGen.C.Optimizer.TCO (tco)
 import Language.PureScript.CodeGen.C.Optimizer.Unused (removeCodeAfterReturnStatements, removeUndefinedApp)
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
@@ -29,7 +30,8 @@ optimize =
           ]
     , untilFixedPoint $
         applyAll
-          [ pure <<< collapseNestedBlocks
+          [ pure <<< tco
+          , pure <<< collapseNestedBlocks
           , pure <<< collapseNestedIfs
           , pure <<< removeCodeAfterReturnStatements
           , pure <<< removeUndefinedApp

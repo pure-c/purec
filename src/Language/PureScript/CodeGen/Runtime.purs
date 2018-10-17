@@ -3,7 +3,7 @@ module Language.PureScript.CodeGen.Runtime
 
     -- any: dynamic runtime types
     any
-  , any'
+  , any', anyMut
   , any''
 
     -- any: built-ins
@@ -45,6 +45,8 @@ module Language.PureScript.CodeGen.Runtime
   , purs_indirect_thunk_new
   , purs_indirect_value_new
   , purs_indirect_value_assign
+  , purs_any_int_set_mut
+  , purs_any_assign_mut
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
 
@@ -79,8 +81,12 @@ void = Type.RawType "void"
 any'' :: Array AST.TypeQualifier -> AST.Type
 any'' xs = Type.Pointer (Type.Any xs)
 
+anyMut :: AST.Type
+anyMut = Type.Pointer (Type.Any [])
+
+-- TODO remove this alias
 any' :: AST.Type
-any' = Type.Pointer (Type.Any [])
+any' = anyMut
 
 any :: AST.Type
 any = Type.Pointer (Type.Any [ Type.Const ])
@@ -195,6 +201,12 @@ purs_indirect_value_new = AST.Var "purs_indirect_value_new"
 
 purs_indirect_value_assign :: AST
 purs_indirect_value_assign = AST.Var "purs_indirect_value_assign"
+
+purs_any_int_set_mut :: AST
+purs_any_int_set_mut = AST.Var "purs_any_int_set_mut"
+
+purs_any_assign_mut :: AST
+purs_any_assign_mut = AST.Var "purs_any_assign_mut"
 
 _PURS_CONS_VALUES_NEW :: AST
 _PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"

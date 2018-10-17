@@ -254,7 +254,9 @@ void purs_indirect_value_assign(const ANY **, const ANY *);
 const ANY * purs_indirect_thunk_new(const ANY **);
 const ANY * purs_thunked_deref(const void * data);
 
-#define purs_any_int_neg(x) purs_any_int_new(-purs_any_get_int(x))
+#define purs_any_int_neg(X) purs_any_int_new(-purs_any_get_int(X))
+#define purs_any_int_set_mut(X, V) do { X->value.i = V; } while (0)
+#define purs_any_assign_mut(V1, V2) do { ((ANY*) V1)->tag = V2->tag; ((ANY*)V1)->value = V2->value; } while (0)
 
 /* code-gen helper to allocate and fill a scope.
  * assumes scope to consist only of (const ANY *) pointers, the count of which

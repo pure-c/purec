@@ -50,6 +50,7 @@ replaceIdents vars = everywhere replace
 isReassigned :: String -> AST -> Boolean
 isReassigned var1 = everything (||) go
   where
+  go (AST.Function { arguments }) = var1 `A.elem` (map _.name arguments)
   go (AST.VariableIntroduction { name }) = var1 == name
   go (AST.Assignment (AST.Var name) _) = var1 == name
   go _ = false

@@ -33,14 +33,6 @@ data UnaryOperator
   = Negate
   -- | Boolean negation
   | Not
-  -- | Bitwise negation
-  | BitwiseNot
-  -- | Numeric unary 'plus'
-  | Positive
-  -- | Get size
-  | Size
-  -- | Check if empty
-  | Empty
 
 derive instance genericUnaryOperator :: Rep.Generic UnaryOperator _
 
@@ -274,6 +266,10 @@ everywhereM f = go
     f =<< do
       Block
         <$> traverse go xs
+  go (Unary i a) =
+    f =<< do
+      Unary i
+        <$> go a
   go (Binary i a b) =
     f =<< do
       Binary i
@@ -364,6 +360,10 @@ everythingM combine toA = go
     A.foldl combine
       <$> toA j
       <*> traverse go xs
+  go j@(Unary _ a) =
+    combine
+      <$> toA j
+      <*> go a
   go j@(Binary _ a b) =
     combine
       <$> toA j
@@ -479,6 +479,8 @@ everywhereTopDownM f = f'
     f x >>= \y -> go y
   go (Block xs) =
     Block <$> traverse f' xs
+  go (Unary i a) =
+    Unary i <$> f' a
   go (Binary i a b) =
     Binary i <$> f' a <*> f' b
   go (ArrayLiteral xs) =

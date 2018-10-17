@@ -14,6 +14,7 @@ import Data.Either (Either(..))
 import Data.Map as Map
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple.Nested ((/\))
+import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.Common (freshName)
@@ -77,10 +78,11 @@ unThunk = AST.everywhere go
       Just
         { last:
              AST.Return
-              (AST.App
-                (AST.Function
-                  { arguments: [], body: Just (AST.Block body) })
-                [])
+              (AST.App (AST.Var "purs_any_app")
+                [ AST.Function
+                    { arguments: [], body: Just (AST.Block body) }
+                , AST.Null
+                ])
         , init
         } ->
         AST.Block $ init <> body

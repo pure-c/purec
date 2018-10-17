@@ -235,6 +235,14 @@ prettyPrintAst (AST.Return ast) = do
   prettyPrintAst ast
 prettyPrintAst (AST.Var name) = do
   emit $ renderName name
+prettyPrintAst (AST.Unary op rhsAst) = do
+  emit
+    case op of
+      AST.Negate -> "-"
+      AST.Not -> "!"
+  emit " ("
+  prettyPrintAst rhsAst
+  emit ")"
 prettyPrintAst (AST.Binary op lhsAst rhsAst) = do
   emit "("
   prettyPrintAst lhsAst
@@ -266,6 +274,11 @@ prettyPrintAst AST.Null =
   emit "NULL"
 prettyPrintAst (AST.DefineTag name tag) =
   emit $ "#define " <> name <> " " <> show tag
+prettyPrintAst (AST.While cond loop) = do
+  emit "while ("
+  prettyPrintAst cond
+  emit ")"
+  prettyPrintAst loop
 prettyPrintAst x = do
   lf
   emit ("xTODO: " <> show x)
