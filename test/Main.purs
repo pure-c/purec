@@ -36,6 +36,7 @@ main =
     outputDir =
       ".tmp/output"
   in launchAff_ do
+    mkdirp outputDir
     FS.writeTextFile UTF8 (outputDir <> "/Makefile") makefileContents
     tests <-
       A.take 1 <$>
@@ -52,7 +53,6 @@ main =
         describe "PureScript's 'passing' tests" $
           for_ tests \test ->
             it test.name do
-              mkdirp outputDir
               FS.writeTextFile UTF8 (outputDir <> "/sources") $
                 A.intercalate "\n" test.files
               runProc "make" [ "-s", "-j", "16", "-C", outputDir ]
