@@ -16,16 +16,21 @@ module Language.PureScript.CodeGen.C.AST
 
 import Prelude
 
+import Control.Monad.Trampoline (runTrampoline)
 import Data.Array as A
 import Data.Either (Either)
 import Data.Generic.Rep as Rep
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Identity (Identity(..))
+import Data.Map as Map
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
+import Data.Tuple.Nested ((/\))
 import Foreign.Object (Object)
+import Foreign.Object as Object
+import Language.PureScript.CodeGen.C.Common (allM')
 
 -- | Built-in unary operators
 data UnaryOperator
@@ -241,18 +246,165 @@ data AST
   -- | Statement expression
   | StatementExpression AST
 
+instance eqAST :: Eq AST where
+  eq u v = runTrampoline $ go u v
+    where
+    go (NumericLiteral a) (NumericLiteral a') = pure $ a == a'
+    go (StringLiteral a) (StringLiteral a') = pure $ a == a'
+    go (CharLiteral a) (CharLiteral a') = pure $ a == a'
+    go (StructLiteral as) (StructLiteral as') =
+      goArr'
+        (\(key /\ value) (key' /\ value') ->
+          allM'
+            [ pure $ key == key'
+            , go value value'
+            ])
+        (Object.toUnfoldable as) (Object.toUnfoldable as')
+    go (Unary a b) (Unary a' b') =
+      allM'
+        [ pure $ a == a'
+        , go b b'
+        ]
+    go (Binary a b c) (Binary a' b' c') =
+      allM'
+        [ pure $ a == a'
+        , go b b'
+        , go c c'
+        ]
+    go (ArrayLiteral as) (ArrayLiteral as') =
+      goArr as as'
+    go (Enum
+          { name: a
+          , members: b
+          })
+       (Enum
+          { name: a'
+          , members: b'
+          }) = pure $ a == a' && b == b'
+    go (Indexer a b) (Indexer a' b') =
+      allM'
+        [ go a a'
+        , go b b'
+        ]
+    go (ObjectLiteral as) (ObjectLiteral as') =
+      goArr'
+        (\{ key, value } { key: key', value: value' } ->
+          allM'
+            [ go key key'
+            , go value value'
+            ])
+        as as'
+    go (Accessor a b) (Accessor a' b') =
+      allM'
+        [ go a a'
+        , go b b'
+        ]
+    go (Function
+          { name: a
+          , arguments: bs
+          , returnType: c
+          , qualifiers: ds
+          , variadic: e
+          , body: mF
+          })
+       (Function
+          { name: a'
+          , arguments: bs'
+          , returnType: c'
+          , qualifiers: ds'
+          , variadic: e'
+          , body: mF'
+          }) =
+      allM'
+        [ pure $ a == a' && bs == bs' && c == c' && ds == ds' && e == e'
+        , goMay mF mF'
+        ]
+    go (Cast t a) (Cast t' a') =
+      allM'
+        [ pure $ t == t'
+        , go a a'
+        ]
+    go (App a bs) (App a' bs') =
+      allM'
+        [ go a a'
+        , goArr bs bs'
+        ]
+    go (Var a) (Var a') = pure $ a == a'
+    go (Block as) (Block as') =
+      goArr as as'
+    go (Include { path: a }) (Include { path: a' }) = pure $ a == a'
+    go (VariableIntroduction
+          { name: a
+          , type: b
+          , qualifiers: cs
+          , initialization: mD
+          })
+       (VariableIntroduction
+          { name: a'
+          , type: b'
+          , qualifiers: cs'
+          , initialization: mD'
+          }) =
+      allM'
+        [ pure $ a == a' && b == b' && cs == cs'
+        , goMay mD mD'
+        ]
+    go (Assignment a b) (Assignment a' b') =
+      allM'
+        [ go a a'
+        , go b b'
+        ]
+    go (While a b) (While a' b') =
+      allM'
+        [ go a a'
+        , go b b'
+        ]
+    go (IfElse a b mC) (IfElse a' b' mC') =
+      allM'
+        [ go a a'
+        , go b b'
+        , goMay mC mC'
+        ]
+    go (Return a) (Return a') = go a a'
+    go Continue Continue = pure true
+    go EndOfHeader EndOfHeader = pure true
+    go (Raw a) (Raw a') = pure $ a == a'
+    go (DefineTag a b) (DefineTag a' b') = pure $ a == a' && b == b'
+    go Null Null = pure true
+    go (StatementExpression x) (StatementExpression x') = go x x'
+    go _ _ = pure false
+
+    goMay mX mX' =
+      case mX, mX' of
+        Just x, Just x' ->
+          go x x'
+        Nothing, Nothing ->
+          pure true
+        _, _ ->
+          pure false
+
+    goArr' :: ∀ a. (a -> a -> _ Boolean) -> Array a -> Array a -> _
+    goArr' f xs ys =
+      allM' $
+        [ pure $ A.length xs == A.length ys
+        ] <> A.zipWith f xs ys
+
+    goArr xs ys =
+      goArr' go xs ys
+
 derive instance genericAST :: Rep.Generic AST _
 
-instance eqAST :: Eq AST where
-  eq x = genericEq x
+-- instance eqAST :: Eq AST where
+--   eq x y = genericEq x y
 
 instance showAST :: Show AST where
   show x = genericShow x
 
 -- TODO: make this stack safe
 everywhere :: (AST -> AST) -> AST -> AST
-everywhere f =
-  unwrap <<< everywhereM (Identity <<< f)
+everywhere f ast =
+  runTrampoline $
+    everywhereM (pure <<< f) ast
 
 everywhereM
   :: ∀ m
@@ -344,8 +496,9 @@ everywhereM f = go
 
 -- -- TODO: make this stack safe
 everything :: ∀ a. (a -> a -> a) -> (AST -> a) -> AST -> a
-everything f toA =
-  unwrap <<< everythingM f (Identity <<< toA)
+everything f toA ast =
+  runTrampoline $
+    everythingM f (pure <<< toA) ast
 
 everythingM
   :: ∀ a f
@@ -464,8 +617,9 @@ everythingM combine toA = go
     toA x
 
 everywhereTopDown :: (AST -> AST) -> AST -> AST
-everywhereTopDown f =
-  unwrap <<< everywhereTopDownM (Identity <<< f)
+everywhereTopDown f ast =
+  runTrampoline $
+    everywhereTopDownM (pure <<< f) ast
 
 everywhereTopDownM
   :: ∀ m

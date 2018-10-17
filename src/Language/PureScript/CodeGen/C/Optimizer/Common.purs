@@ -55,24 +55,6 @@ isReassigned var1 = everything (||) go
   go (AST.Assignment (AST.Var name) _) = var1 == name
   go _ = false
 
-allM :: ∀ m a. Monad m => (a -> m Boolean) -> Array a -> m Boolean
-allM f =
-  A.foldM
-    (\a x ->
-      if not a
-         then pure false
-         else f x
-    ) true
-
-anyM :: ∀ m a. Monad m => (a -> m Boolean) -> Array a -> m Boolean
-anyM f =
-  A.foldM
-    (\a x ->
-      if a
-         then pure true
-         else f x
-    ) false
-
 isRebound
   :: ∀ m
    . Monad m
