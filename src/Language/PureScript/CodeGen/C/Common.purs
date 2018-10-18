@@ -3,6 +3,7 @@ module Language.PureScript.CodeGen.C.Common
   , safeConstructorName
   , dotsTo
   , freshName
+  , freshInternalName
   , isInternalVariable
   , allM
   , allM'
@@ -57,6 +58,15 @@ freshName
 freshName = ado
   id <- freshId
   in "$value" <> show id
+
+freshInternalName
+  :: ∀ m
+   . Functor m
+  => MonadSupply m
+  => m String
+freshInternalName = ado
+  id <- freshId
+  in "$_value" <> show id
 
 allM :: ∀ f m a. Foldable f => Monad m => (a -> m Boolean) -> f a -> m Boolean
 allM f =

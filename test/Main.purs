@@ -69,7 +69,7 @@ SHELL := /bin/bash
 
 srcs := $(addprefix ../../,$(shell cat sources))
 deps := $(shell\
-	find "$(PUREC_DIR)"/upstream/tests/support/bower_components/purescript-{control,assert,effect,prelude,console,functions,identity,either,integers,bifunctors,orders,newtype,type-equality,math,distributive,refs,unsafe-coerce,st,lazy,foldable-traversable,unfoldable,partial,tuples,maybe,newtype,invariant,tailrec}/src/\
+	find "$(PUREC_DIR)"/upstream/tests/support/bower_components/purescript-{proxy,typelevel-prelude,arrays,control,assert,effect,prelude,console,functions,identity,either,integers,bifunctors,orders,newtype,type-equality,math,distributive,refs,unsafe-coerce,st,lazy,foldable-traversable,unfoldable,partial,tuples,maybe,newtype,invariant,tailrec,nonempty}/src/\
 	    -type f\
 	    -name '*.purs')
 

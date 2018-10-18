@@ -31,7 +31,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (freshName, safeConstructorName, safeName, isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshInternalName, freshName, isInternalVariable, safeConstructorName, safeName)
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Optimizer (optimize)
 import Language.PureScript.CodeGen.C.Pretty as P
@@ -600,7 +600,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
 
   finalLambda <- do
     argName     <- identToVarName lastArg
-    valuesName  <- freshName
+    valuesName  <- freshInternalName
     assignments <-
       traverseWithIndex <@> fields $ \i v -> ado
         name <- identToVarName v
