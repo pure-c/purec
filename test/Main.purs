@@ -4,12 +4,14 @@ import Prelude
 
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (catchError)
+import Control.Parallel (parSequence_, parTraverse_, parallel, sequential)
 import Data.Array as A
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (wrap)
 import Data.String (Pattern(..))
 import Data.String as Str
 import Data.Traversable (for, for_)
+import Debug.Trace (traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
@@ -20,7 +22,7 @@ import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
 import Node.Path (FilePath)
 import Test.Spec (describe, it)
-import Test.Spec.Reporter.Console (consoleReporter) as Spec
+import Test.Spec.Reporter  as Spec
 import Test.Spec.Runner (defaultConfig, run') as Spec
 import Test.Utils (runProc)
 
@@ -35,28 +37,43 @@ main =
       "upstream/tests/purs/passing"
     outputDir =
       ".tmp/output"
+    outputDirCache =
+      outputDir <> ".cache"
   in launchAff_ do
-    mkdirp outputDir
-    FS.writeTextFile UTF8 (outputDir <> "/Makefile") makefileContents
-    tests <-
-      A.take 1 <$>
-      A.dropWhile (\test -> test.name /= "2609") <$>
+
+    tests <- sequential ado
+      parallel do
+        mkdirp outputDirCache
+        FS.writeTextFile UTF8 (outputDirCache <> "/Makefile") makefileContents
+        FS.writeTextFile UTF8 (outputDirCache <> "/Main.purs") """
+module Main where
+data Unit = Unit
+main :: Unit -> Unit
+main _ = Unit
+"""
+        void $ make outputDirCache [outputDirCache <> "/Main.purs"]
+        void $ runProc "rm" [ "-f", outputDirCache <> "/Main.purs"]
+      tests <- parallel $
         discoverPureScriptTests testsDirectory
-    runProc "make" [ "clean", "-C", outputDir ]
-    -- TODO: build the dependencies once before starting the actual test suites.
-    --       otherwise the first test will likely time out and give skewed
-    --       results in terms of timing. probably the easiest is to write a
-    --       dummy 'Main' module somewhere, write it to the "<outputDir>/sources"
-    --       file and compile it like any other module.
+          -- <#> A.filter (eq "Where" <<< _.name)
+      in tests
+
     liftEffect $
-      Spec.run' (Spec.defaultConfig { timeout = Just 30000 }) [Spec.consoleReporter] $
+      Spec.run' (Spec.defaultConfig { timeout = Just 10000 }) [Spec.specReporter] $
         describe "PureScript's 'passing' tests" $
           for_ tests \test ->
             it test.name do
-              FS.writeTextFile UTF8 (outputDir <> "/sources") $
-                A.intercalate "\n" test.files
-              runProc "make" [ "-s", "-j", "16", "-C", outputDir ]
-              runProc (outputDir <> "/main.out") []
+              runProc "rm" [ "-rf", outputDir ]
+              runProc "rsync" [ "-a", outputDirCache <> "/", outputDir <> "/" ]
+              make outputDir test.files >>=
+                runProc <@> []
+
+    where
+    make outputDir sources =
+      outputDir <> "/main.out" <$ do
+        FS.writeTextFile UTF8 (outputDir <> "/sources") $
+          A.intercalate "\n" sources
+        runProc "make" [ "-s", "-j", "16", "-C", outputDir ]
 
 makefileContents :: String
 makefileContents = """
@@ -74,7 +91,7 @@ deps := $(shell\
 	    -name '*.purs')
 
 premain: $(srcs)
-	@touch $^
+	@touch $^ || { :; }
 	@$(MAKE) -s main
 
 .PHONY: default
