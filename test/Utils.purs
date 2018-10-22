@@ -40,7 +40,7 @@ runProc cmd args = do
       ChildProcess.Exit.Normally 0 ->
         launchAff_ $ AVar.tryPut unit v
       ChildProcess.Exit.Normally n -> do
-        launchAff_ $ AVar.kill (error $ show n) v
+        launchAff_ $ AVar.kill (error $ "Subcommand exited with: " <> show n) v
       ChildProcess.Exit.BySignal signal ->
         launchAff_ $ AVar.kill (error $ "Received Signal: " <> show signal) v
   AVar.take v
