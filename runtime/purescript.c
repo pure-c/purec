@@ -328,6 +328,12 @@ const ANY * purs_any_concat(const ANY * x, const ANY * y) {
 	}
 }
 
+inline const ANY * purs_any_copy(const ANY * src) {
+	ANY * copy = purs_new(const ANY);
+	memcpy(copy, src, sizeof (const ANY));
+	return copy;
+}
+
 // -----------------------------------------------------------------------------
 // strings
 // -----------------------------------------------------------------------------

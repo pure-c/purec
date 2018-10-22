@@ -76,14 +76,14 @@ unThunk = AST.everywhere go
   go block@(AST.Block asts) =
     case A.unsnoc asts of
       Just
-        { last:
+        { init
+        , last:
              AST.Return
               (AST.App (AST.Var "purs_any_app")
                 [ AST.Function
                     { arguments: [], body: Just (AST.Block body) }
                 , AST.Null
                 ])
-        , init
         } ->
         AST.Block $ init <> body
       _ ->

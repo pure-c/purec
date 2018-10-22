@@ -9,27 +9,27 @@ import Prelude
 import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except (except, runExcept, runExceptT, withExceptT)
-import CoreFn.FromJSON as C
-import CoreFn.Module as C
+import CoreFn.FromJSON (moduleFromJSON) as C
+import CoreFn.Module (FilePath(..), Module(..)) as C
 import Data.Array as A
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Newtype (wrap)
 import Data.String as Str
-import Data.Traversable (for_, sequence, sequence_)
+import Data.Traversable (for_, sequence_)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console as Console
 import Effect.Exception (Error)
 import Effect.Exception as Error
-import Language.PureScript.CodeGen.C as C
+import Language.PureScript.CodeGen.C (moduleToAST) as C
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.File (dottedModuleName)
 import Language.PureScript.CodeGen.C.File as F
-import Language.PureScript.CodeGen.C.Pretty as C
+import Language.PureScript.CodeGen.C.Pretty (PrintError, prettyPrint) as C
 import Language.PureScript.CodeGen.C.Pretty as PrintError
-import Language.PureScript.CodeGen.CompileError as C
+import Language.PureScript.CodeGen.CompileError (CompileError) as C
 import Language.PureScript.CodeGen.CompileError as CompileError
 import Language.PureScript.CodeGen.SupplyT (runSupplyT)
 import Node.Encoding (Encoding(..))

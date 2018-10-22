@@ -11,6 +11,7 @@ import Control.MonadPlus (guard)
 import Data.Array as A
 import Data.Either (Either(..))
 import Data.Function (on)
+import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Set as Set
 import Data.Traversable (for, traverse)
@@ -20,8 +21,10 @@ import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.Common (freshName, isInternalVariable)
+import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
+import Math as Math
 
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
@@ -253,9 +256,10 @@ eraseLambdas moduleName asts =
             [ { name: "$_ctx"
               , type: Type.Pointer (Type.RawType scopeStruct.name [])
               }
-            ] <>
-            arguments <>
-            [ { name: "$_va_args"
+            , { name: fromMaybe "$_unused" $ _.name <$> A.head arguments
+              , type: R.any
+              }
+            , { name: "$_va_args"
               , type: Type.RawType "va_list" []
               }
             ]
@@ -265,19 +269,50 @@ eraseLambdas moduleName asts =
         , body:
             Just $
               AST.Block $
-                (A.catMaybes $
-                  A.mapWithIndex <@> scopeStruct.members $ \i varName -> ado
-                    guard $ not (A.elem varName $ _.name <$> arguments)
-                    in AST.VariableIntroduction
-                      { name: varName
-                      , type: R.any
-                      , qualifiers: []
-                      , initialization:
-                          Just $
-                            AST.Accessor (AST.Var varName) $
-                              AST.Var "$_ctx"
-                      }
-                ) <> [ body' ]
+                let
+                  bindings =
+                    Map.fromFoldable $
+                      A.filter
+                        (maybe
+                          (const true)
+                          (\x -> \v -> notEq (fst v) x)
+                          (_.name <$> A.head arguments)
+                        ) $
+                          A.concat $
+                            [ A.mapWithIndex <@> scopeStruct.members $
+                                \offset name ->
+                                  name /\ Just offset
+                            , (_ /\ Nothing) <<< _.name <$> do
+                                fromMaybe [] $ A.tail arguments
+                            ]
+                in
+                 A.concat
+                  [ Map.toUnfoldable bindings <#> \(name /\ mOffset) ->
+                      case mOffset of
+                        Nothing ->
+                          AST.VariableIntroduction
+                            { name
+                            , type: R.any
+                            , qualifiers: []
+                            , initialization:
+                                Just $
+                                  AST.App (AST.Var "va_arg")
+                                    [ AST.Var "$_va_args"
+                                    , AST.Raw $ PP.renderType R.any
+                                    ]
+                            }
+                        Just _ ->
+                          AST.VariableIntroduction
+                            { name
+                            , type: R.any
+                            , qualifiers: []
+                            , initialization:
+                                Just $
+                                  AST.Accessor (AST.Var name) $
+                                    AST.Var "$_ctx"
+                            }
+                  , [ body' ]
+                  ]
         }
 
     -- build up the continuation context and return it.

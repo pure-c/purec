@@ -1,6 +1,7 @@
 module Language.PureScript.CodeGen.C.Pretty
   ( empty
   , prettyPrint
+  , renderType
   , PrintError(..)
   ) where
 
@@ -19,7 +20,6 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.String.CodeUnits as CodeUnits
 import Data.Traversable (for_, traverse)
-import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST, PrimitiveType, Type, ValueQualifier)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
@@ -123,7 +123,7 @@ prettyPrintAst x@(AST.Function
 
   let
     debugLambdas =
-      false
+      true
 
   name <-
     case debugLambdas, mName of

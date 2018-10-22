@@ -36,6 +36,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_num_new
   , purs_any_string_new
   , purs_any_char_new
+  , purs_any_copy
 
     -- code-gen helpers
   , _purs_scope_alloc
@@ -192,6 +193,9 @@ purs_any_cont_new = AST.Var "purs_any_cont_new"
 
 purs_any_string_new :: AST
 purs_any_string_new = AST.Var "purs_any_string_new"
+
+purs_any_copy :: AST
+purs_any_copy = AST.Var "purs_any_copy"
 
 purs_indirect_thunk_new :: AST
 purs_indirect_thunk_new = AST.Var "purs_indirect_thunk_new"

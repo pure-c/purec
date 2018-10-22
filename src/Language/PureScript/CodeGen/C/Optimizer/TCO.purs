@@ -8,13 +8,12 @@ import Data.Array ((:))
 import Data.Array as A
 import Data.Either (Either(..))
 import Data.Foldable (all)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
 import Data.String as Str
 import Data.Tuple.Nested ((/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
-import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.Runtime as R
 
 -- | Eliminate tail calls
@@ -46,9 +45,12 @@ tco = AST.everywhere convert
       else x
   convert x = x
 
-  tcoDone = "$tco_done"
+  tcoDone = "$_tco_done"
   tcoLoop = "$_tco_loop"
   tcoResult = "$_tco_result"
+
+  copyVar n = "$_copy_" <> n
+  copyFnArg a = a { name = copyVar a.name }
 
   collectFnArgs = go [] identity
     where
@@ -70,9 +72,10 @@ tco = AST.everywhere convert
     go acc f (AST.Return (AST.Function fn@{ arguments, body: Just (AST.Block [ body ]) })) =
       go (map _.name arguments : acc) <@> body $ \b ->
         f $
-          AST.Function $ fn
-            { body = Just $ AST.Block [ b ]
-            }
+          AST.Return $
+            AST.Function $ fn
+              { body = Just $ AST.Block [ b ]
+              }
 
     go acc f (AST.Return (AST.Function fn@{ arguments, body: Just body@(AST.Block _) })) =
       (map _.name arguments : acc) /\ body /\ \b ->
@@ -121,6 +124,17 @@ tco = AST.everywhere convert
   toLoop :: String -> Array String -> AST -> AST
   toLoop ident args ast =
     AST.Block $
+      (args <#> \arg ->
+          AST.VariableIntroduction
+            { name: copyVar arg
+            , type: R.any
+            , qualifiers: []
+            , initialization:
+                Just $
+                  AST.App R.purs_any_copy
+                    [ AST.Var arg ]
+            })
+      <>
       [ AST.VariableIntroduction
           { name: tcoDone
           , type: R.any
@@ -145,13 +159,27 @@ tco = AST.everywhere convert
               Just $
                 AST.Function
                   { name: Just tcoLoop
-                  , arguments: []
+                  , arguments:
+                      [ { name: tcoDone
+                        , type: R.any
+                        }
+                      ] <> do
+                        args <#> \name ->
+                          { name: copyVar name
+                          , type: R.any
+                          }
                   , qualifiers: []
                   , returnType: R.any
                   , variadic:  false
                   , body:
                       Just $
-                        AST.Block
+                        AST.Block $
+                          (args <#> \arg ->
+                              AST.Assignment
+                                (AST.Var arg)
+                                (AST.App R.purs_any_copy
+                                  [ AST.Var $ copyVar arg ]))
+                          <>
                           [ loopify ast ]
                   }
           }
@@ -159,9 +187,11 @@ tco = AST.everywhere convert
           AST.Block
             [ AST.Assignment (AST.Var tcoResult) $
                 AST.App R.purs_any_app $
-                  [ AST.Var tcoLoop
-                  , AST.Null
-                  ]
+                  A.concat $
+                    [ [ AST.Var tcoLoop, AST.Var tcoDone ]
+                    , AST.Var <<< copyVar <$> args
+                    , [ AST.Null ]
+                    ]
             ]
       , AST.Return $ AST.Var tcoResult
       ]
@@ -177,7 +207,7 @@ tco = AST.everywhere convert
           AST.Block $
             A.zipWith
               (\val arg ->
-                AST.App R.purs_any_assign_mut [ AST.Var arg, val ])
+                AST.App R.purs_any_assign_mut [ AST.Var $ copyVar arg, val ])
               allArgumentValues
               args
             <>
