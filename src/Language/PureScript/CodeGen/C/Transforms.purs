@@ -270,6 +270,13 @@ eraseLambdas moduleName asts =
             Just $
               AST.Block $
                 let
+                  -- TODO refactor this code to make it easier to follow.
+                  --      we essentially recover in-scope bindings and function
+                  --      argument bindings by introducing function-local
+                  --      bindings. We must ensure that function argument
+                  --      bindings shadow in-scope bindings, and that arguments
+                  --      recovered from the va_list are recovered in correct
+                  --      order.
                   bindings =
                     Map.fromFoldable $
                       A.filter
@@ -281,14 +288,16 @@ eraseLambdas moduleName asts =
                           A.concat $
                             [ A.mapWithIndex <@> scopeStruct.members $
                                 \offset name ->
-                                  name /\ Just offset
-                            , (_ /\ Nothing) <<< _.name <$> do
-                                fromMaybe [] $ A.tail arguments
+                                  name /\ offset /\ Just offset
+                            , A.mapWithIndex <@> (fromMaybe [] $ A.tail arguments) $
+                                \i { name } ->
+                                  name /\ i /\ Nothing
                             ]
                 in
                  A.concat
-                  [ Map.toUnfoldable bindings <#> \(name /\ mOffset) ->
-                      case mOffset of
+                  [ map snd $ A.sortBy (compare `on` fst) $
+                     Map.toUnfoldable bindings <#> \(name /\ i /\ mOffset) ->
+                      i /\ case mOffset of
                         Nothing ->
                           AST.VariableIntroduction
                             { name
