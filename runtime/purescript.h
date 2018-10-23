@@ -324,6 +324,9 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 		}\
 	}
 
+#define PURS_ANY_ARRAY(ARR)\
+	{ .tag = PURS_ANY_TAG_ARRAY, .value = { .array = ARR } }
+
 // -----------------------------------------------------------------------------
 // FFI helpers
 // -----------------------------------------------------------------------------
