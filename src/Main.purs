@@ -23,6 +23,7 @@ import Effect.Class (class MonadEffect, liftEffect)
 import Effect.Class.Console as Console
 import Effect.Exception (Error)
 import Effect.Exception as Error
+import Foreign (renderForeignError)
 import Language.PureScript.CodeGen.C (moduleToAST) as C
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.File (dottedModuleName)
@@ -139,8 +140,9 @@ compileModule isMain corefn = do
   core  <- case runExcept $ C.moduleFromJSON input of
     Right v ->
       pure v
-    Left _ ->
-      throwError $ Error.error "Failed to parse Corefn"
+    Left e ->
+      throwError $ Error.error $ "Failed to parse Corefn: " <> do
+        A.intercalate ", " $ map renderForeignError $ A.fromFoldable e
 
   let
 
