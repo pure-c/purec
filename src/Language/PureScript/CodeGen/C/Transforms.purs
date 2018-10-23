@@ -20,6 +20,7 @@ import Data.Tuple.Nested ((/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
+import Language.PureScript.CodeGen.C.AST.Common as AST
 import Language.PureScript.CodeGen.C.Common (freshName, isInternalVariable)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.Runtime as R
@@ -113,29 +114,31 @@ eraseLambdas moduleName asts =
           withReaderT (_ { lhs = Just v }) ado
             b' <- go b
             in
-              AST.StatementExpression $
-                AST.Block
-                  -- TODO: only do this dance if self-recursive binding
-                  [ AST.VariableIntroduction
-                      { name: "$_ivalue"
-                      , type: Type.Pointer R.any
-                      , qualifiers: []
-                      , initialization:
-                          Just $
-                            AST.App R.purs_indirect_value_new []
-                      }
-                  , AST.VariableIntroduction
-                      { name: "$_value"
-                      , type: R.any
-                      , qualifiers: []
-                      , initialization: Just $ b'
-                      }
-                  , AST.App R.purs_indirect_value_assign
-                      [ AST.Var "$_ivalue"
+              if AST.isRerefenced v b'
+                then do
+                  AST.StatementExpression $
+                    AST.Block
+                      [ AST.VariableIntroduction
+                          { name: "$_ivalue"
+                          , type: Type.Pointer R.any
+                          , qualifiers: []
+                          , initialization:
+                              Just $
+                                AST.App R.purs_indirect_value_new []
+                          }
+                      , AST.VariableIntroduction
+                          { name: "$_value"
+                          , type: R.any
+                          , qualifiers: []
+                          , initialization: Just $ b'
+                          }
+                      , AST.App R.purs_indirect_value_assign
+                          [ AST.Var "$_ivalue"
+                          , AST.Var "$_value"
+                          ]
                       , AST.Var "$_value"
                       ]
-                  , AST.Var "$_value"
-                  ]
+                else b'
       AST.Function x@{ name, arguments, body: Just body } ->
         withReaderT (\s -> s { isTopLevel = false, depth = s.depth + 1 }) $
           eraseLambda { arguments, body }

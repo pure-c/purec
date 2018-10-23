@@ -22,10 +22,7 @@ import Data.Either (Either)
 import Data.Generic.Rep as Rep
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
-import Data.Identity (Identity(..))
-import Data.Map as Map
 import Data.Maybe (Maybe(..))
-import Data.Newtype (unwrap)
 import Data.Traversable (for, traverse)
 import Data.Tuple.Nested ((/\))
 import Foreign.Object (Object)
