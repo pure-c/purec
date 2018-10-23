@@ -222,6 +222,13 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
 					    ...);
 
 /**
+ * Merge two records. The right record overwrites any labels in the left record.
+ */
+const purs_record_t * purs_record_merge(const purs_record_t *,
+					const purs_record_t *);
+
+
+/**
  * Add a given key/value pair to the given record.
  */
 #define purs_record_add(record, k, v) purs_record_add_multi(record, 1, k, v)

@@ -460,6 +460,25 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t
 	return (const purs_record_t *) copy;
 }
 
+const purs_record_t * purs_record_merge(const purs_record_t * l,
+					const purs_record_t * r) {
+	const purs_record_t *rec, *tmp = NULL;
+	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(l);
+	HASH_ITER(hh, r, rec, tmp) {
+		purs_record_t * entry = purs_new(purs_record_t);
+		entry->key = rec->key;
+		entry->value = rec->value;
+		HASH_ADD_KEYPTR(
+			hh,
+			copy,
+			entry->key->data,
+			utf8size(entry->key->data),
+			entry
+		);
+	}
+	return (const purs_record_t *) copy;
+}
+
 const purs_record_t * purs_record_remove(const purs_record_t * source,
 					 const void * key) {
 	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
