@@ -7,6 +7,9 @@ sudo: required
 node_js: stable
 install:
   - make deps
+env:
+  global:
+    - PATH=node_modules/.bin:$PATH
 script:
   - make purec
   - make test

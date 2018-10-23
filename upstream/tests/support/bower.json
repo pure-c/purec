@@ -1,7 +1,7 @@
 {
   "name": "purescript-test-suite-support",
   "dependencies": {
-    "purescript-arrays": "5.0.0",
+    "purescript-arrays": "Lupino/purescript-arrays#5eabed2fd0c7105d78d47051ea9b110c8024ccca",
     "purescript-assert": "pure-c/purescript-assert#master",
     "purescript-bifunctors": "4.0.0",
     "purescript-console": "pure-c/purescript-console#master",
@@ -38,6 +38,7 @@
     "purescript-unsafe-coerce": "pure-c/purescript-unsafe-coerce#master"
   },
   "resolutions": {
+    "purescript-arrays": "5eabed2fd0c7105d78d47051ea9b110c8024ccca",
     "purescript-assert": "master",
     "purescript-console": "master",
     "purescript-control": "master",
