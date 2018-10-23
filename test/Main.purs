@@ -6,6 +6,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (catchError)
 import Control.Parallel (parSequence_, parTraverse_, parallel, sequential)
 import Data.Array as A
+import Data.Either (Either(..))
 import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (wrap)
 import Data.String (Pattern(..))
@@ -21,14 +22,33 @@ import Language.PureScript.CodeGen.CompileError (CompileError) as C
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff as FS
 import Node.Path (FilePath)
-import Test.Spec (describe, it)
-import Test.Spec.Reporter  as Spec
+import Test.Spec (describe, it, pending)
+import Test.Spec.Reporter as Spec
 import Test.Spec.Runner (defaultConfig, run') as Spec
 import Test.Utils (runProc)
 
 data PipelineError
   = CompileError C.CompileError
   | PrintError C.PrintError
+
+-- | A list of (currently) unsupported tests from upstream
+blackList :: Array String
+blackList =
+  [ -- compat issues:
+    "NumberLiterals" -- due to show instance for numbers
+
+    -- corefn issues:
+  , "NegativeIntInRange"
+  , "StringEdgeCases"    -- https://github.com/paulyoung/purescript-corefn/issues/57
+  , "StringEscapes"      -- https://github.com/paulyoung/purescript-corefn/issues/57
+
+    -- missing dependencies:
+  , "GenericsRep"
+      -- depends on:
+      --   + purescript-enums (https://github.com/pure-c/pure-c/issues/35)
+  ]
+
+data Test = Pending
 
 main :: Effect Unit
 main =
@@ -53,20 +73,20 @@ main _ = Unit
 """
         void $ make outputDirCache [outputDirCache <> "/Main.purs"]
         void $ runProc "rm" [ "-f", outputDirCache <> "/Main.purs"]
-      tests <- parallel $
-        discoverPureScriptTests testsDirectory
-          -- <#> A.filter (eq "Where" <<< _.name)
+      tests <- parallel $ discoverPureScriptTests testsDirectory
       in tests
 
     liftEffect $
       Spec.run' (Spec.defaultConfig { timeout = Just 10000 }) [Spec.specReporter] $
         describe "PureScript's 'passing' tests" $
-          for_ tests \test ->
-            it test.name do
-              runProc "rm" [ "-rf", outputDir ]
-              runProc "rsync" [ "-a", outputDirCache <> "/", outputDir <> "/" ]
-              make outputDir test.files >>=
-                runProc <@> []
+          for_ tests case _ of
+            { name } | name `A.elem` blackList  ->
+              pending name
+            { name, files } ->
+              it name do
+                runProc "rm" [ "-rf", outputDir ]
+                runProc "rsync" [ "-a", outputDirCache <> "/", outputDir <> "/" ]
+                make outputDir files >>= runProc <@> []
 
     where
     make outputDir sources =
