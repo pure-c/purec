@@ -27,10 +27,7 @@ optimize =
     [ untilFixedPoint $
         applyAll
           [ pure <<< inlineCommonValues
-          ]
-    , untilFixedPoint $
-        applyAll
-          [ pure <<< tco
+          , pure <<< tco
           , pure <<< collapseNestedBlocks
           , pure <<< collapseNestedIfs
           , pure <<< removeCodeAfterReturnStatements

@@ -27,6 +27,7 @@ shouldInline (AST.Var _) = true
 shouldInline (AST.NumericLiteral _) = true
 shouldInline (AST.CharLiteral _) = true
 shouldInline (AST.StringLiteral _) = true
+shouldInline AST.Null = true
 shouldInline _ = false
 
 mapBlock :: (Array AST -> Array AST) -> AST -> AST

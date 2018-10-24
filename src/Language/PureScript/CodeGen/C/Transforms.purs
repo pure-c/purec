@@ -7,7 +7,6 @@ import Prelude
 
 import Control.Monad.Reader (ask, runReaderT, withReaderT)
 import Control.Monad.Writer (runWriterT, tell)
-import Control.MonadPlus (guard)
 import Data.Array as A
 import Data.Either (Either(..))
 import Data.Function (on)
@@ -18,14 +17,13 @@ import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
 import Language.PureScript.CodeGen.C.AST (AST)
-import Language.PureScript.CodeGen.C.AST as AST
+import Language.PureScript.CodeGen.C.AST (AST(..), everywhereTopDown) as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.AST.Common as AST
-import Language.PureScript.CodeGen.C.Common (freshName, isInternalVariable)
+import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
+import Language.PureScript.CodeGen.C.Common (isInternalVariable)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
-import Math as Math
 
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
@@ -114,7 +112,7 @@ eraseLambdas moduleName asts =
           withReaderT (_ { lhs = Just v }) ado
             b' <- go b
             in
-              if AST.isRerefenced v b'
+              if AST.isReferenced v b'
                 then do
                   AST.StatementExpression $
                     AST.Block
@@ -224,9 +222,10 @@ eraseLambdas moduleName asts =
         currentScope
           { bindings =
               Set.fromFoldable $
-                A.filter (not <<< isInternalVariable) $
-                  A.fromFoldable $
-                    currentScope.bindings
+                A.filter (AST.isReferenced <@> body) $
+                  A.filter (not <<< isInternalVariable) $
+                    A.fromFoldable $
+                      currentScope.bindings
           }
 
     -- emit the struct to the top-level
@@ -343,11 +342,14 @@ eraseLambdas moduleName asts =
             , qualifiers: []
             , initialization:
                 Just $
-                  AST.App
-                    R._purs_scope_alloc $
-                    [ AST.NumericLiteral $
-                        Left $ A.length scopeStruct.members
-                    ]
+                  if A.null scopeStruct.members
+                    then AST.Null
+                    else
+                      AST.App
+                        R._purs_scope_alloc $
+                        [ AST.NumericLiteral $
+                            Left $ A.length scopeStruct.members
+                        ]
             }
         , AST.VariableIntroduction
             { name: "$_cont"

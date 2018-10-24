@@ -1,5 +1,5 @@
 module Language.PureScript.CodeGen.C.AST.Common
-  ( isRerefenced
+  ( isReferenced
   ) where
 
 import Prelude
@@ -15,13 +15,13 @@ data IsUsed
 derive instance eqIsUsed :: Eq IsUsed
 
 combine :: IsUsed -> IsUsed -> IsUsed
-combine Used _     = Used
-combine Unused x   = x
-combine Shadowed _ = Shadowed
+combine Used _        = Used
+combine Unused x      = x
+combine Shadowed _    = Shadowed
 
-isRerefenced :: String -> AST -> Boolean
-isRerefenced needle ast =
-  AST.everything combine go ast /= Used
+isReferenced :: String -> AST -> Boolean
+isReferenced needle ast =
+  AST.everything combine go ast == Used
   where
   go (AST.VariableIntroduction { name }) | name == needle = Shadowed
   go (AST.Assignment (AST.Var name) _) | name == needle = Shadowed

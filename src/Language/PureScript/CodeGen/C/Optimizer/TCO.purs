@@ -175,10 +175,15 @@ tco = AST.everywhere convert
                       Just $
                         AST.Block $
                           (args <#> \arg ->
-                              AST.Assignment
-                                (AST.Var arg)
-                                (AST.App R.purs_any_copy
-                                  [ AST.Var $ copyVar arg ]))
+                              AST.VariableIntroduction
+                                { name: arg
+                                , type: R.any
+                                , qualifiers: []
+                                , initialization:
+                                    Just $
+                                      AST.App R.purs_any_copy
+                                        [ AST.Var $ copyVar arg ]
+                                })
                           <>
                           [ loopify ast ]
                   }

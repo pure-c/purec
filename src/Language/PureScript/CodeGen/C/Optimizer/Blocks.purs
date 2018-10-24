@@ -8,12 +8,12 @@ import Prelude
 import Data.Array as A
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
-import Language.PureScript.CodeGen.C.AST (AST, everywhere)
+import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 
 -- | Collapse blocks which appear nested directly below another block
 collapseNestedBlocks :: AST -> AST
-collapseNestedBlocks = everywhere collapse
+collapseNestedBlocks = AST.everywhere collapse
   where
   collapse :: AST -> AST
   collapse (AST.Block sts) = AST.Block (A.concat $ map go sts)
@@ -24,7 +24,7 @@ collapseNestedBlocks = everywhere collapse
   go s = [s]
 
 collapseNestedIfs :: AST -> AST
-collapseNestedIfs = everywhere collapse
+collapseNestedIfs = AST.everywhere collapse
   where
   collapse :: AST -> AST
   collapse (AST.IfElse (AST.NumericLiteral (Left 1)) (AST.Block [ast]) _) = ast
