@@ -63,3 +63,12 @@ compose = "compose"
 
 composeFlipped :: String
 composeFlipped = "composeFlipped"
+
+apply :: String
+apply = "apply"
+
+applyFlipped :: String
+applyFlipped = "applyFlipped"
+
+dataFunction :: String
+dataFunction = "Data_Function"

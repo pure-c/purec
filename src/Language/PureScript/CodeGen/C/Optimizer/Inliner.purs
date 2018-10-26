@@ -14,7 +14,6 @@ import Data.Either (Either(..))
 import Data.Map as Map
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple.Nested ((/\))
-import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.Common (anyM, freshName)
@@ -242,6 +241,31 @@ inlineCommonValues = AST.everywhere go
                 (AST.NumericLiteral <<< Left)
                 mLitY)
           ]
+
+inlineCommonOperators :: AST -> AST
+inlineCommonOperators = AST.everywhereTopDown $ applyAll
+  [ inlineNonClassFunction
+      (isModFn C.dataFunction C.apply)
+      \f x -> AST.App f [x]
+  , inlineNonClassFunction
+      (isModFn C.dataFunction C.applyFlipped)
+      \x f -> AST.App f [x]
+  ]
+  where
+  applyAll = A.foldl compose identity
+  inlineNonClassFunction
+    :: (AST -> Boolean)
+    -> (AST -> AST -> AST)
+    -> (AST -> AST)
+  inlineNonClassFunction p f = convert
+    where
+    convert :: AST -> AST
+    convert (AST.App (AST.App op' [x]) [y]) | p op' = f x y
+    convert x = x
+  isModFn :: String -> String -> AST -> Boolean
+  isModFn m op (AST.Indexer (AST.StringLiteral op') (AST.Var m')) =
+    m == m' && op == op'
+  isModFn _ _ _ = false
 
 -- (f <<< g $ x) = f (g x)
 -- (f <<< g)     = \x -> f (g x)
