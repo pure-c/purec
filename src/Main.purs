@@ -52,6 +52,7 @@ emptyOpts =
   , main: Nothing
   }
 
+help :: String
 help = """Usage: purec [-h] [--main <name>] <input>...
 
 Options:

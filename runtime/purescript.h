@@ -117,7 +117,7 @@ struct purs_any {
 	purs_any_value_t value;
 };
 
-const ANY * purs_any_app(const ANY * f, const ANY * v, ...);
+const ANY * purs_any_app(const ANY *, const ANY *, ...);
 const ANY * purs_any_unthunk (const ANY *);
 const purs_any_tag_t purs_any_get_tag (const ANY *);
 const char * purs_any_tag_str (const purs_any_tag_t);
