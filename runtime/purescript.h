@@ -1,11 +1,9 @@
 #ifndef PURESCRIPT_RUNTIME_H
 #define PURESCRIPT_RUNTIME_H
 
-/* #define PURS_DEBUG_FINALIZATION */
-/* #define PURS_DEBUG_SCOPES */
-
-#define purs_malloc(sz) GC_MALLOC(sz)
-#define purs_new(exp) GC_NEW(exp)
+#define purs_malloc(SZ) GC_MALLOC(SZ)
+#define purs_realloc(PTR, SZ) GC_REALLOC(PTR, SZ)
+#define purs_new(EXP) GC_NEW(EXP)
 
 #define purs_log_error(FMT, ...)\
 	do {\
