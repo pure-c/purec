@@ -78,7 +78,7 @@ typedef enum {
 	PURS_ANY_TAG_STRING = 7,
 	PURS_ANY_TAG_CHAR = 8,
 	PURS_ANY_TAG_ARRAY = 9,
-	PURS_ANY_TAG_FOREIGN = 11,
+	PURS_ANY_TAG_FOREIGN = 10,
 } purs_any_tag_t;
 
 struct purs_any_cont {
