@@ -165,6 +165,9 @@ const ANY * purs_any_copy(const ANY *);
 
 const void * purs_string_copy (const void *);
 
+#define purs_string_size(STR) utf8size(STR)
+#define purs_string_len(STR) utf8len(STR)
+
 // -----------------------------------------------------------------------------
 // arrays
 // -----------------------------------------------------------------------------
