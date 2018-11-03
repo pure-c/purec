@@ -100,6 +100,7 @@ makefileContents = """
 default: premain
 
 PUREC_DIR := ../..
+export PATH := $(PUREC_DIR)/node_modules/.bin:$(PATH)
 include $(PUREC_DIR)/mk/target.mk
 
 SHELL := /bin/bash
