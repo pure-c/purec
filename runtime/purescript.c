@@ -1,5 +1,7 @@
 #include <purescript.h>
 
+static inline void managed_noop_release (managed_t * managed) {}
+
 inline void managed_default_release (managed_t * managed) {
 	free((void *) managed->data);
 }
@@ -68,6 +70,13 @@ inline const ANY * purs_any_record_new(const purs_record_t * record) {
 	ANY * v = purs_new(ANY);
 	v->tag = PURS_ANY_TAG_RECORD;
 	v->value.record = record;
+	return v;
+}
+
+inline const ANY * purs_any_string_new_mv(const char * ptr) {
+	ANY * v = purs_new(ANY);
+	v->tag = PURS_ANY_TAG_STRING;
+	v->value.str = managed_new(ptr, managed_noop_release);
 	return v;
 }
 

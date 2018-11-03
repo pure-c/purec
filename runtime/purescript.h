@@ -133,6 +133,9 @@ const ANY * purs_any_char_new(utf8_int32_t);
 const ANY * purs_any_array_new(const purs_vec_t *);
 const ANY * purs_any_foreign_new(void * tag, void * data);
 
+/* allocate a new string box with existing, *GC-allocated* data */
+const ANY * purs_any_string_new_mv(const char *);
+
 const purs_any_int_t     purs_any_get_int       (const ANY *);
 const purs_any_num_t     purs_any_get_num       (const ANY *);
 const purs_cont_t *      purs_any_get_cont      (const ANY *);
