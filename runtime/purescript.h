@@ -364,7 +364,8 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 		.tag = PURS_ANY_TAG_CONT,\
 		.value = { .cont = { .fn = NAME##__1, .ctx = NULL } }\
 	};\
-	const ANY * NAME ## $ = & NAME##__1_
+	const ANY * NAME = & NAME##__1_; /* for manual use */\
+	const ANY * NAME ## $ = & NAME##__1_ /* for code-gen use */
 
 #define _PURS_FFI_FUNC_CONT(NAME, CUR, NEXT)\
 	const ANY * NAME##__##CUR (const void * super, const ANY * a, va_list $__unused__) {\
