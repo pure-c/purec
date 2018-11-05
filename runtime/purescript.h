@@ -768,7 +768,7 @@ const ANY * purs_any_num_zero;
 #define purs_any_not(V) \
 	purs_any_is_true(V) \
 		? purs_any_false \
-		: purs_any_false
+		: purs_any_true
 #define purs_any_is_true(V) purs_any_eq(V, purs_any_true)
 #define purs_any_is_false(V) purs_any_eq(V, purs_any_false)
 #define purs_any_while(COND) while(purs_any_is_true(COND))
