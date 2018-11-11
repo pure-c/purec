@@ -344,7 +344,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 
 /* note: The '$' is currently appended to all names (see code generation) */
 #define PURS_FFI_EXPORT(NAME)\
-	const ANY * NAME ## $
+	const ANY * NAME ## _$
 
 #define PURS_SCOPE_T(NAME, DECLS)\
 	typedef struct NAME {\
@@ -352,8 +352,8 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 	} NAME
 
 #define PURS_FFI_VALUE(NAME, INIT)\
-	static const purs_any_t _ ## NAME ## $ = INIT;\
-	const purs_any_t * NAME ## $ = & _ ## NAME ## $
+	static const purs_any_t _ ## NAME ## _$ = INIT;\
+	const purs_any_t * NAME ## _$ = & _ ## NAME ## _$
 
 // -----------------------------------------------------------------------------
 // FFI: fixed-arity curried functions
@@ -365,7 +365,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 		.value = { .cont = { .fn = NAME##__1, .ctx = NULL } }\
 	};\
 	const ANY * NAME = & NAME##__1_; /* for manual use */\
-	const ANY * NAME ## $ = & NAME##__1_ /* for code-gen use */
+	const ANY * NAME ## _$ = & NAME##__1_ /* for code-gen use */
 
 #define _PURS_FFI_FUNC_CONT(NAME, CUR, NEXT)\
 	const ANY * NAME##__##CUR (const void * $__super__, const ANY * a, va_list $__unused__) {\
@@ -748,9 +748,10 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 
 // -----------------------------------------------------------------------------
 // Prim shims
+// note: See codegen notes about '_$' suffix
 // -----------------------------------------------------------------------------
 
-#define Prim_undefined$ NULL
+#define Prim_undefined_$ NULL
 
 // -----------------------------------------------------------------------------
 // Built-ins

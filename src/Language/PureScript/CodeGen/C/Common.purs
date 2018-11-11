@@ -1,3 +1,6 @@
+-- | This module contains common functionality, much of which is focused on
+-- | dealing with generated variable identifiers.
+-- TODO: Avoid using '$' and generate standard compatible identifiers
 module Language.PureScript.CodeGen.C.Common
   ( safeName
   , safeConstructorName
@@ -24,10 +27,12 @@ import Data.String.Regex.Flags (global) as Regex
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 import Partial.Unsafe (unsafePartial)
 
+-- | Check if a given variable is internal.
 isInternalVariable :: String -> Boolean
 isInternalVariable = isJust <<< Str.stripPrefix (wrap "$_")
 
--- TODO: Only append '$' if necessary
+-- | Derive a safe name.
+-- TODO: Only append '_' if necessary
 safeName :: String -> String
 safeName name =
   let
@@ -37,7 +42,7 @@ safeName name =
           regex "'" Regex.global
   in
     Regex.replace rex "$" $
-      name <> "$"
+      name <> "_$"
 
 safeConstructorName :: String -> String
 safeConstructorName n = "$cons_" <> safeName n
