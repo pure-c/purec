@@ -2,6 +2,33 @@
 
 An alternative backend for the PureScript programming language that targets C.
 
+## Introduction
+
+PureScript is a high-level, statically typed, functionally pure programming
+language that enables various backends using its intermediate representation of
+elaborated programs.
+
+PureC provides a backend that transpiles to the C programming language, thus
+enabling native, ahead-of-time compilation of PureScript programs. With a dead
+simple FFI to C, performance critical sections can easily be implemented outside
+of PureScript when the need arises.
+
+For an example of how PureC could be used, take a look at
+[pure-c](https://github.com/pure-c/purec-uv), a project implementing both
+purescript-aff and bindings to libuv on top of PureC.
+
+## Features
+
+* Write programs in PureScript
+* Simple FFI to C
+* Generates readable, human- and machine-debuggable C
+* Garbage collected (Boehm)
+
+## Usecases
+
+* Scrap your node.js
+* Write small, easy to distribute command line utilities
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your
