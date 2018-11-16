@@ -226,6 +226,13 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
 					    ...);
 
 /**
+ * Add a given set of key/value pairs to the given record (by mutation)
+ */
+purs_record_t * purs_record_add_multi_mut(purs_record_t *,
+					  size_t count,
+					  ...);
+
+/**
  * Merge two records. The right record overwrites any labels in the left record.
  */
 const purs_record_t * purs_record_merge(const purs_record_t *,
@@ -248,6 +255,12 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t *,
  */
 const purs_record_t * purs_record_remove(const purs_record_t *,
 					 const void * key);
+
+/**
+ * Remove an entry by it's key (by mutation)
+ */
+purs_record_t * purs_record_remove_mut(purs_record_t * source,
+				       const void * key);
 
 /**
  * Create a new record from a bunch of key value pairs.

@@ -439,16 +439,9 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	return (const purs_record_t *) record;
 }
 
-const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t count, ...) {
-	if (count == 0) {
-		return source;
-	}
-
-	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
-
-	va_list args;
-	va_start(args, count);
-
+static purs_record_t * _purs_record_add_multi_mut(purs_record_t * source,
+						  size_t count,
+						  va_list args) {
 	for (size_t i = 0; i < count; i++) {
 		const void * key = va_arg(args, const void *);
 		const ANY * value = va_arg(args, const ANY *);
@@ -457,15 +450,37 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source, size_t
 		entry->value = value;
 		HASH_ADD_KEYPTR(
 			hh,
-			copy,
+			source,
 			entry->key->data,
 			utf8size(entry->key->data),
 			entry
 		);
 	}
+	return source;
+}
 
+purs_record_t * purs_record_add_multi_mut(purs_record_t * source,
+					  size_t count,
+					  ...) {
+	va_list args;
+	va_start(args, count);
+	_purs_record_add_multi_mut(source, count, args);
 	va_end(args);
+	return source;
+}
 
+const purs_record_t * purs_record_add_multi(const purs_record_t * source,
+					    size_t count,
+					    ...) {
+	if (count == 0) {
+		return source;
+	}
+
+	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
+	va_list args;
+	va_start(args, count);
+	copy = _purs_record_add_multi_mut(copy, count, args);
+	va_end(args);
 	return (const purs_record_t *) copy;
 }
 
@@ -490,12 +505,23 @@ const purs_record_t * purs_record_merge(const purs_record_t * l,
 
 const purs_record_t * purs_record_remove(const purs_record_t * source,
 					 const void * key) {
-	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 	purs_record_t * v = (purs_record_t *) purs_record_find_by_key(source, key);
 	if (v != NULL) {
+		purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 		HASH_DEL(copy, (purs_record_t *) v);
+		return (const purs_record_t *) copy;
+	} else {
+		return source;
 	}
-	return (const purs_record_t *) copy;
+}
+
+purs_record_t * purs_record_remove_mut(purs_record_t * source,
+				       const void * key) {
+	purs_record_t * v = (purs_record_t *) purs_record_find_by_key(source, key);
+	if (v != NULL) {
+		HASH_DEL(source, (purs_record_t *) v);
+	}
+	return source;
 }
 
 const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
