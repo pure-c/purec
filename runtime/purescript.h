@@ -606,7 +606,7 @@ int purs_cons_get_tag (const purs_cons_t * cons);
 		.tag = PURS_ANY_TAG_CONT,\
 		.value = { .cont = { .fn = NAME, .ctx = NULL } }\
 	};\
-	const ANY * NAME ## $ = & NAME##__1_
+	const ANY * NAME ## _$ = & NAME##__1_
 
 #define PURS_FFI_FUNC_UNCURRIED_1(NAME, A1, BODY)\
 	const ANY * NAME (const void * $__super__, const ANY * A1, va_list $__unused__) {\
