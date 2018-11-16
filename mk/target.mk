@@ -20,9 +20,9 @@ PACKAGE_SOURCES = $(shell $(PSC_PACKAGE) sources)
 
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
-LD_FLAGS += -dead_strip
+LD_LINKER_FLAGS += -dead_strip
 else
-LD_FLAGS += -gc-sections
+LD_LINKER_FLAGS += -gc-sections
 endif
 
 ## Not all environments support globstar (** dir pattern)
@@ -130,7 +130,8 @@ $$(PUREC_WORKDIR)/$$(target)/.build: \
 		-lm \
 		-lpthread \
 		-ffunction-sections \
-		-Wl,$(LD_FLAGS) \
+		$(LD_FLAGS) \
+		-Wl,$(LD_LINKER_FLAGS) \
 		-o "$$(target).out"
 	@touch $$@
 
