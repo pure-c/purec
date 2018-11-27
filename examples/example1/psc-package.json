@@ -1,0 +1,9 @@
+{
+  "name": "purec-example-example1",
+  "set": "master",
+  "source": "https://github.com/pure-c/package-sets",
+  "depends": [
+    "prelude",
+    "effect"
+  ]
+}
