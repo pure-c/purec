@@ -95,10 +95,9 @@ else
     $$(target)_src_dirs := $(3)
 endif
 
-$$(target)_local := \
-	$$(foreach srcdir,\
-		$$($$(target)_src_dirs),\
-		$$(call rwildcard,$$(srcdir),*.purs))
+$$(target)_local :=\
+	$$(shell find $$($$(target)_src_dirs) -type f -name '*.purs')
+
 $$(target)_deps :=\
 	$$(foreach pkgdir,\
 		$(PACKAGE_SOURCES),\
