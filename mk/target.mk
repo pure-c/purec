@@ -16,7 +16,7 @@ PUREC_LIB_DIR = $(dir $(PUREC_LIB))
 PUREC_LIB_NAME = $(notdir %/%,%,$(PUREC_LIB))
 
 PSC_PACKAGE ?= psc-package
-PACKAGE_SOURCES = $(shell $(PSC_PACKAGE) sources)
+PACKAGE_SOURCES = $(shell [[ -f psc-package.json ]] && $(PSC_PACKAGE) sources)
 
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
