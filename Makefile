@@ -1,5 +1,3 @@
-.PHONY: clean deps deps/npm deps/bwdgc purec test test/build
-
 CLANG ?= clang
 CFLAGS ?=
 
@@ -55,8 +53,13 @@ $(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB) $(BWDGC_LIB)
 
 .PHONY: $(PUREC_LIB)
 
-purec:
+$(PUREC_JS):
 	@npm run build
+.PHONY: $(PUREC_JS)
+
+# deprecated
+purec: $(PUREC_JS)
+.PHONY: purec
 
 clean:
 	@rm -rf $(PUREC_WORKDIR)
@@ -64,6 +67,7 @@ clean:
 	@rm -f $$(find . -name '*.out')
 	@rm -f $$(find . -maxdepth 1 -name '*.a')
 	@rm -rf $$(find examples -type d -name $(PUREC_WORKDIR))
+.PHONY: clean
 
 %.o: %.c | $(BWDGC_LIB)
 	@echo "Compile" $^
@@ -82,10 +86,12 @@ clean:
 deps:\
 	deps/npm\
 	deps/bwdgc
+.PHONY: deps
 
 deps/npm:
 	@npm install
 	@node_modules/.bin/bower install
+.PHONY: deps/npm
 
 deps/bwdgc:
 	@if [ ! -d deps/bwdgc ]; then \
@@ -97,6 +103,7 @@ deps/bwdgc:
 		mkdir -p deps/bwdgc && \
 		tar -C deps/bwdgc -xzf gc.tar.gz --strip-components 1; \
 	fi
+.PHONY: deps/bwdgc
 
 #-------------------------------------------------------------------------------
 # Tests
@@ -104,6 +111,7 @@ deps/bwdgc:
 
 # note: this is temporary while building up the project
 test: examples/bower_components
+.PHONY: test
 
 test/examples:
 	@$(MAKE) -s examples
