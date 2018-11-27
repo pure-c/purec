@@ -48,8 +48,6 @@ blackList =
       --   + purescript-enums (https://github.com/pure-c/pure-c/issues/35)
   ]
 
-data Test = Pending
-
 main :: Effect Unit
 main =
   let
@@ -62,6 +60,7 @@ main =
   in launchAff_ do
 
     tests <- sequential ado
+      -- prepare the output directory: build the project at least once
       parallel do
         mkdirp outputDirCache
         FS.writeTextFile UTF8 (outputDirCache <> "/Makefile") makefileContents
@@ -98,26 +97,22 @@ main _ = Unit
 makefileContents :: String
 makefileContents = """
 default: premain
+.PHONY: default
 
 PUREC_DIR := ../..
-export PATH := $(PUREC_DIR)/node_modules/.bin:$(PATH)
 include $(PUREC_DIR)/mk/target.mk
 
 SHELL := /bin/bash
 
 srcs := $(addprefix ../../,$(shell cat sources))
-deps := $(shell\
-	find "$(PUREC_DIR)"/upstream/tests/support/bower_components/purescript-{proxy,typelevel-prelude,arrays,control,assert,effect,prelude,console,functions,identity,either,integers,bifunctors,orders,newtype,type-equality,math,distributive,refs,unsafe-coerce,st,lazy,foldable-traversable,unfoldable,partial,tuples,maybe,newtype,invariant,tailrec,nonempty}/src/\
-	    -type f\
-	    -name '*.purs')
 
 premain: $(srcs)
 	@touch $^ || { :; }
+	@cp "$(PUREC_DIR)"/upstream/tests/support/psc-package.json .
+	@psc-package install
 	@$(MAKE) -s main
 
-.PHONY: default
-
-$(eval $(call purs_mk_target,main,Main,$(srcs),$(deps)))
+$(eval $(call purs_mk_target,main,Main,$(srcs)))
 """
 
 discoverPureScriptTests
