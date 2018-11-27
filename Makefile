@@ -64,8 +64,8 @@ purec: $(PUREC_JS)
 clean:
 	@rm -rf $(PUREC_WORKDIR)
 	@rm -f $(RUNTIME_OBJECTS)
-	@rm -f $$(find . -name '*.out')
-	@rm -f $$(find . -maxdepth 1 -name '*.a')
+	@rm -f $$(find . -type f -name '*.out')
+	@rm -f $$(find . -maxdepth 1 -type f -name '*.a')
 	@rm -rf $$(find examples -type d -name $(PUREC_WORKDIR))
 .PHONY: clean
 
