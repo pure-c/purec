@@ -37,9 +37,9 @@ $(PUREC_LIB):
 
 clean:
 	@echo 'removing *.o'
-	@rm -f $(find . -type f -name '*.o')
+	@rm -f $$(find . -type f -name '*.o')
 	@echo 'removing *.out'
-	@rm -f $(find . -type f -name '*.out')
+	@rm -f $$(find . -type f -name '*.out')
 	@echo 'removing working directory $(PUREC_WORKDIR)'
 	@rm -rf $(PUREC_WORKDIR)
 
