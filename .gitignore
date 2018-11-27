@@ -1,3 +1,4 @@
+.psc-package/
 *.out
 *.tar.bz2
 *.gch
