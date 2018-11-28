@@ -16,7 +16,7 @@ PUREC_LIB_DIR = $(dir $(PUREC_LIB))
 PUREC_LIB_NAME = $(notdir %/%,%,$(PUREC_LIB))
 
 PSC_PACKAGE ?= psc-package
-PACKAGE_SOURCES = $(shell [[ -f psc-package.json ]] && $(PSC_PACKAGE) sources)
+PACKAGE_SOURCES = $(shell [ -f psc-package.json ] && $(PSC_PACKAGE) sources)
 
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
@@ -134,6 +134,9 @@ $$(PUREC_WORKDIR)/$$(target)/.build: \
 		-o "$$(target).out"
 	@touch $$@
 
-$$(target): $$(PUREC_WORKDIR)/$$(target)/.genc
+_$$(target): $$(PUREC_WORKDIR)/$$(target)/.genc
 	@$$(MAKE) -s $$(PUREC_WORKDIR)/$$(target)/.build
+
+$$(target):
+	@$$(MAKE) _$$(target)
 endef
