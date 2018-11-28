@@ -2,7 +2,10 @@ default: main
 .PHONY: default
 
 PUREC_DIR := ../..
-export PATH := $(PUREC_DIR)/node_modules/.bin:$(PATH)
 include $(PUREC_DIR)/mk/target.mk
+
+.psc-package:
+	psc-package install
+main: .psc-package
 
 $(eval $(call purs_mk_target,main,Example1,src))
