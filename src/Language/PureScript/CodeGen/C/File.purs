@@ -67,11 +67,11 @@ toHeader
 toHeader = A.catMaybes <<< map go
 
   where
-  go (AST.VariableIntroduction { name, initialization }) =
+  go (AST.VariableIntroduction { name }) =
     Just $
       AST.VariableIntroduction
         { name
-        , type: Type.Pointer (Type.Any [ Type.Const ])
+        , type: Type.Any []
         , qualifiers: []
         , initialization: Nothing
         }
@@ -128,7 +128,7 @@ nativeMain mainVar =
           , AST.App
               R.purs_any_app
               [ mainVar
-              , AST.Null
+              , R.purs_any_null
               ]
           , AST.Return (AST.NumericLiteral (Left 0))
           ]

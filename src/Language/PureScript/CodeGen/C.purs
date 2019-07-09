@@ -216,7 +216,7 @@ declToAst isTopLevel (x /\ ident) val = do
   pure $
     AST.VariableIntroduction
       { name
-      , type: R.any'' [ Type.Const ]
+      , type: Type.Any []
       , qualifiers: []
       , initialization: Just initAst
       }

@@ -3,8 +3,7 @@ module Language.PureScript.CodeGen.Runtime
 
     -- any: dynamic runtime types
     any
-  , any', anyMut
-  , any''
+  , anyMut
 
     -- any: built-ins
   , purs_any_app
@@ -18,6 +17,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_get_array
   , purs_any_true
   , purs_any_false
+  , purs_any_null
   , purs_any_int_zero
   , purs_any_num_zero
   , purs_any_int_one
@@ -79,18 +79,11 @@ import Language.PureScript.CodeGen.C.AST as Type
 void :: Array AST.TypeQualifier -> AST.Type
 void = Type.RawType "void"
 
-any'' :: Array AST.TypeQualifier -> AST.Type
-any'' xs = Type.Pointer (Type.Any xs)
-
 anyMut :: AST.Type
 anyMut = Type.Pointer (Type.Any [])
 
--- TODO remove this alias
-any' :: AST.Type
-any' = anyMut
-
 any :: AST.Type
-any = Type.Pointer (Type.Any [ Type.Const ])
+any = Type.Any []
 
 purs_any_fun_t :: AST.Type
 purs_any_fun_t = Type.RawType "purs_any_fun_t" []
@@ -112,6 +105,9 @@ purs_any_num_zero = AST.Var "purs_any_num_zero"
 
 purs_any_int_zero :: AST
 purs_any_int_zero = AST.Var "purs_any_int_zero"
+
+purs_any_null :: AST
+purs_any_null = AST.Var "purs_any_null"
 
 purs_any_false :: AST
 purs_any_false = AST.Var "purs_any_false"

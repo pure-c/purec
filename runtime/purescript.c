@@ -28,89 +28,89 @@ const managed_t * managed_new (const void * data,
 // Any: allocate
 // -----------------------------------------------------------------------------
 
-inline const ANY * purs_any_int_new(const purs_any_int_t i) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_INT;
-	v->value.i = i;
+inline ANY purs_any_int_new(const purs_any_int_t i) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_INT;
+	v.value.i = i;
 	return v;
 }
 
-inline const ANY * purs_any_num_new(const purs_any_num_t n) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_NUM;
-	v->value.n = n;
+inline ANY purs_any_num_new(const purs_any_num_t n) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_NUM;
+	v.value.n = n;
 	return v;
 }
 
-inline const ANY * purs_any_cont_new(const void * ctx, purs_any_fun_t * fn) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_CONT;
-	v->value.cont.fn = fn;
-	v->value.cont.ctx = ctx;
+inline ANY purs_any_cont_new(const void * ctx, purs_any_fun_t * fn) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_CONT;
+	v.value.cont.fn = fn;
+	v.value.cont.ctx = ctx;
 	return v;
 }
 
-inline const ANY * purs_any_thunk_new(const void * ctx, purs_any_thunk_fun_t * fn) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_THUNK;
-	v->value.thunk.ctx = ctx;
-	v->value.thunk.fn = fn;
+inline ANY purs_any_thunk_new(const void * ctx, purs_any_thunk_fun_t * fn) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_THUNK;
+	v.value.thunk.ctx = ctx;
+	v.value.thunk.fn = fn;
 	return v;
 }
 
-inline const ANY * purs_any_cons_new(int tag, const ANY ** values) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_CONS;
-	v->value.cons.tag = tag;
-	v->value.cons.values = values;
+inline ANY purs_any_cons_new(int tag, ANY* values) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_CONS;
+	v.value.cons.tag = tag;
+	v.value.cons.values = values;
 	return v;
 }
 
-inline const ANY * purs_any_record_new(const purs_record_t * record) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_RECORD;
-	v->value.record = record;
+inline ANY purs_any_record_new(const purs_record_t * record) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_RECORD;
+	v.value.record = record;
 	return v;
 }
 
-inline const ANY * purs_any_string_new_mv(const char * ptr) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_STRING;
-	v->value.str = managed_new(ptr, managed_noop_release);
+inline ANY purs_any_string_new_mv(const char * ptr) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_STRING;
+	v.value.str = managed_new(ptr, managed_noop_release);
 	return v;
 }
 
-inline const ANY * purs_any_string_new(const char * fmt, ...) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_STRING;
+inline ANY purs_any_string_new(const char * fmt, ...) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_STRING;
 	va_list ap;
 	char *ptr;
 	va_start(ap, fmt);
 	assert (vasprintf(&ptr, fmt, ap) >= 0);
 	va_end(ap);
-	v->value.str = managed_new(ptr, NULL);
+	v.value.str = managed_new(ptr, NULL);
 	return v;
 }
 
-inline const ANY * purs_any_char_new(utf8_int32_t chr) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_CHAR;
-	v->value.chr = chr;
+inline ANY purs_any_char_new(utf8_int32_t chr) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_CHAR;
+	v.value.chr = chr;
 	return v;
 }
 
-inline const ANY * purs_any_array_new(const purs_vec_t * array) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_ARRAY;
-	v->value.array = array;
+inline ANY purs_any_array_new(const purs_vec_t * array) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_ARRAY;
+	v.value.array = array;
 	return v;
 }
 
-inline const ANY * purs_any_foreign_new(void * tag, void * data) {
-	ANY * v = purs_new(ANY);
-	v->tag = PURS_ANY_TAG_FOREIGN;
-	v->value.foreign.tag = tag;
-	v->value.foreign.data = data;
+inline ANY purs_any_foreign_new(void * tag, void * data) {
+	ANY v;
+	v.tag = PURS_ANY_TAG_FOREIGN;
+	v.value.foreign.tag = tag;
+	v.value.foreign.data = data;
 	return v;
 }
 
@@ -137,87 +137,80 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 
 #define _PURS_ASSERT_TAG(TAG)\
 	do {\
-		purs_assert(v != NULL, "expected tag: %s, but got: NULL", \
-			    purs_any_tag_str(TAG));\
 		v = purs_any_unthunk(v);\
-		purs_assert(v->tag == TAG, "expected tag: %s, but got: %s",\
+		purs_assert(v.tag == TAG, "expected tag: %s, but got: %s",\
 			    purs_any_tag_str(TAG),\
-			    purs_any_tag_str(v->tag));\
+			    purs_any_tag_str(v.tag));\
 	} while (0)
 
 
-inline const purs_any_int_t purs_any_get_int (const ANY * v) {
+inline const purs_any_int_t purs_any_get_int (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_INT);
-	return v->value.i;
+	return v.value.i;
 }
 
-inline const purs_any_num_t purs_any_get_num (const ANY * v) {
+inline const purs_any_num_t purs_any_get_num (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_NUM);
-	return v->value.n;
+	return v.value.n;
 }
 
-inline const purs_cont_t * purs_any_get_cont (const ANY * v) {
+inline purs_any_cont_t purs_any_get_cont (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONT);
-	return (const purs_cont_t *) &v->value.cont;
+	return v.value.cont;
 }
 
-inline const purs_cons_t * purs_any_get_cons (const ANY * v) {
+inline purs_any_cons_t purs_any_get_cons (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONS);
-	return (const purs_cons_t *) &v->value.cons;
+	return v.value.cons;
 }
 
-inline const purs_record_t * purs_any_get_record (const ANY * v) {
+inline const purs_record_t * purs_any_get_record (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_RECORD);
-	return v->value.record;
+	return v.value.record;
 }
 
-inline const void * purs_any_get_string (const ANY * v) {
+inline const void * purs_any_get_string (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_STRING);
-	return v->value.str->data;
+	return v.value.str->data;
 }
 
-inline const utf8_int32_t purs_any_get_char (const ANY * v) {
+inline const utf8_int32_t purs_any_get_char (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CHAR);
-	return v->value.chr;
+	return v.value.chr;
 }
 
-inline const purs_vec_t * purs_any_get_array (const ANY * v) {
+inline const purs_vec_t * purs_any_get_array (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_ARRAY);
-	return v->value.array;
+	return v.value.array;
 }
 
-inline const purs_foreign_t * purs_any_get_foreign (const ANY * v) {
+inline purs_foreign_t purs_any_get_foreign (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_FOREIGN);
-	return (const purs_foreign_t *) &v->value.foreign;
+	return v.value.foreign;
 }
 
 // -----------------------------------------------------------------------------
 // Any
 // -----------------------------------------------------------------------------
 
-inline const ANY * purs_any_unthunk (const ANY * x) {
-	const ANY * tmp;
-	const ANY * out = (ANY *) x;
-	while (out != NULL && out->tag == PURS_ANY_TAG_THUNK) {
-		tmp = out->value.thunk.fn(out->value.thunk.ctx);
-		purs_assert(tmp != out, "infinite unthunk loop");
-		out = tmp;
+inline ANY purs_any_unthunk (ANY x) {
+	ANY out = x;
+	while (out.tag == PURS_ANY_TAG_THUNK) {
+		out = out.value.thunk.fn(out.value.thunk.ctx);
 	}
-	return (const ANY *) out;
+	return out;
 }
 
-inline const purs_any_tag_t purs_any_get_tag (const ANY * v) {
-	return v->tag;
+inline const purs_any_tag_t purs_any_get_tag (ANY v) {
+	return v.tag;
 }
 
-inline const ANY * purs_any_app(const ANY * f, const ANY * v, ...) {
-	assert(f != NULL);
+inline ANY purs_any_app(ANY f, ANY v, ...) {
 	f = purs_any_unthunk(f);
-	assert(f != NULL);
-	assert(f->tag == PURS_ANY_TAG_CONT);
+	assert(f.tag == PURS_ANY_TAG_CONT);
 	va_list args;
 	va_start(args, v);
-	const ANY * r = f->value.cont.fn(f->value.cont.ctx, v, args);
+	ANY r = f.value.cont.fn(f.value.cont.ctx, v, args);
 	va_end(args);
 	return r;
 }
@@ -226,60 +219,60 @@ inline const ANY * purs_any_app(const ANY * f, const ANY * v, ...) {
 // Any: built-ins
 // -----------------------------------------------------------------------------
 
-PURS_ANY_THUNK_DEF(purs_any_true, purs_any_int_new(1));
-PURS_ANY_THUNK_DEF(purs_any_false, purs_any_int_new(0));
-PURS_ANY_THUNK_DEF(purs_any_int_zero, purs_any_int_new(0));
-PURS_ANY_THUNK_DEF(purs_any_num_zero, purs_any_num_new(0.0));
-PURS_ANY_THUNK_DEF(purs_any_int_one, purs_any_int_new(1));
-PURS_ANY_THUNK_DEF(purs_any_num_one, purs_any_num_new(1.0));
-PURS_ANY_THUNK_DEF(purs_any_NaN, purs_any_num_new(PURS_NAN));
-PURS_ANY_THUNK_DEF(purs_any_infinity, purs_any_num_new(PURS_INFINITY));
-PURS_ANY_THUNK_DEF(purs_any_neg_infinity, purs_any_num_new(-PURS_INFINITY));
 
-inline int purs_any_eq_char (const ANY * x, utf8_int32_t y) {
+ANY purs_any_null = { .tag = PURS_ANY_TAG_NULL };
+ANY purs_any_true = PURS_ANY_INT(1);
+ANY purs_any_false = PURS_ANY_INT(0);
+ANY purs_any_int_zero = PURS_ANY_INT(0);
+ANY purs_any_num_zero = PURS_ANY_NUM(0.0);
+ANY purs_any_int_one = PURS_ANY_INT(1);
+ANY purs_any_num_one = PURS_ANY_NUM(1.0);
+ANY purs_any_NaN = PURS_ANY_NUM(PURS_NAN);
+ANY purs_any_infinity = PURS_ANY_NUM(PURS_INFINITY);
+ANY purs_any_neg_infinity = PURS_ANY_NUM(-PURS_INFINITY);
+
+inline int purs_any_eq_char (ANY x, utf8_int32_t y) {
 	return purs_any_get_char(x) == y;
 }
 
-inline int purs_any_eq_string (const ANY * x, const void * str) {
+inline int purs_any_eq_string (ANY x, const void * str) {
 	return utf8cmp(purs_any_get_string(x), str) == 0;
 }
 
-inline int purs_any_eq_int (const ANY * x, purs_any_int_t y) {
+inline int purs_any_eq_int (ANY x, purs_any_int_t y) {
 	return purs_any_get_int(x) == y;
 }
 
-inline int purs_any_eq_num (const ANY * x, double y) {
+inline int purs_any_eq_num (ANY x, double y) {
 	return purs_any_get_num(x) == y;
 }
 
-int purs_any_eq(const ANY * x, const ANY * y) {
+int purs_any_eq(ANY x, ANY y) {
 	x = purs_any_unthunk(x);
 	y = purs_any_unthunk(y);
 
 	/* special treatment for NaN on LHS */
-	if (x != NULL && purs_any_is_NaN(x) &&
-		(y->tag == PURS_ANY_TAG_NUM || y->tag == PURS_ANY_TAG_INT)) {
+	if (purs_any_is_NaN(x) &&
+		(y.tag == PURS_ANY_TAG_NUM || y.tag == PURS_ANY_TAG_INT)) {
 		return 0;
 	}
 
 	/* special treatment for NaN on RHS */
-	if (y != NULL && purs_any_is_NaN(y) &&
-		(x->tag == PURS_ANY_TAG_NUM || x->tag == PURS_ANY_TAG_INT)) {
+	if (purs_any_is_NaN(y) &&
+		(x.tag == PURS_ANY_TAG_NUM || x.tag == PURS_ANY_TAG_INT)) {
 		return 0;
 	}
 
-	if (x == y) {
-		return 1;
-	} else if (x == NULL || y == NULL) {
+	if (x.tag == PURS_ANY_TAG_NULL || y.tag == PURS_ANY_TAG_NULL) {
 		return 0;
 	} else {
 		purs_assert(
-			x->tag == y->tag,
+			x.tag == y.tag,
 			"Cannot eq %s with %s",
-			purs_any_tag_str(x->tag),
-			purs_any_tag_str(y->tag));
+			purs_any_tag_str(x.tag),
+			purs_any_tag_str(y.tag));
 
-		switch (x->tag) {
+		switch (x.tag) {
 		case PURS_ANY_TAG_INT:
 			return purs_any_get_int(x) == purs_any_get_int(y);
 		case PURS_ANY_TAG_NUM:
@@ -297,21 +290,21 @@ int purs_any_eq(const ANY * x, const ANY * y) {
 /**
  Concatenate two dyanmic values into a new dynamic value
 */
-const ANY * purs_any_concat(const ANY * x, const ANY * y) {
+ANY purs_any_concat(ANY x, ANY y) {
 	x = purs_any_unthunk(x);
 	y = purs_any_unthunk(y);
 
-	assert(x != NULL);
-	assert(y != NULL);
+	assert(x.tag != PURS_ANY_TAG_NULL);
+	assert(y.tag != PURS_ANY_TAG_NULL);
 
-	if (x->tag != y->tag) {
+	if (x.tag != y.tag) {
 		purs_assert(
 			0,
 			"cannot concat %s with %s",
-			purs_any_tag_str(x->tag),
-			purs_any_tag_str(y->tag));
+			purs_any_tag_str(x.tag),
+			purs_any_tag_str(y.tag));
 	} else {
-		switch(x->tag) {
+		switch(x.tag) {
 		case PURS_ANY_TAG_STRING: {
 			return purs_any_string_new(
 				"%s%s",
@@ -332,15 +325,16 @@ const ANY * purs_any_concat(const ANY * x, const ANY * y) {
 			}
 		}
 		default:
-			purs_assert(0, "cannot concat %s", purs_any_tag_str(x->tag));
+			purs_assert(0, "cannot concat %s", purs_any_tag_str(x.tag));
 		}
 	}
 }
 
-inline const ANY * purs_any_copy(const ANY * src) {
-	ANY * copy = purs_new(ANY);
-	memcpy(copy, src, sizeof (ANY));
-	return (const ANY*) copy;
+inline ANY purs_any_copy(ANY src) {
+	ANY copy;
+    copy.tag = src.tag;
+    copy.value = src.value;
+	return copy;
 }
 
 // -----------------------------------------------------------------------------
@@ -371,10 +365,10 @@ inline const purs_vec_t * purs_vec_new () {
 const purs_vec_t * purs_vec_new_va (int count, ...) {
 	int i;
 	va_list args;
-	const ANY ** xs = malloc(sizeof (ANY *) * count);
+	ANY* xs = malloc(sizeof (ANY) * count);
 	va_start(args, count);
 	for (i = 0; i < count; i++) {
-		xs[i] = va_arg(args, const ANY *);
+		xs[i] = va_arg(args, ANY);
 	}
 	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
 	vec_pusharr(o, xs, count);
@@ -405,7 +399,7 @@ const purs_vec_t * purs_vec_slice (const purs_vec_t * vec, int begin) {
 
 const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 				   int idx,
-				   const ANY * val) {
+				   ANY val) {
 	if (vec == NULL) {
 		return purs_vec_new_va(1, val);
 	} else {
@@ -419,7 +413,7 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records
 // -----------------------------------------------------------------------------
 
-PURS_ANY_THUNK_DEF(purs_record_empty, purs_any_record_new(NULL));
+ANY purs_record_empty = PURS_ANY_RECORD(NULL);
 
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	const purs_record_t * current_entry, * tmp;
@@ -444,7 +438,7 @@ static purs_record_t * _purs_record_add_multi_mut(purs_record_t * source,
 						  va_list args) {
 	for (size_t i = 0; i < count; i++) {
 		const void * key = va_arg(args, const void *);
-		const ANY * value = va_arg(args, const ANY *);
+		ANY value = va_arg(args, ANY);
 		purs_record_t * entry = purs_new(purs_record_t);
 		entry->key = managed_new(afmt("%s", key), NULL);
 		entry->value = value;
@@ -536,41 +530,41 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-inline const ANY * purs_indirect_thunk_new(const ANY ** x) {
+inline ANY purs_indirect_thunk_new(ANY* x) {
 	return purs_any_thunk_new(x, purs_thunked_deref);
 }
 
-inline void purs_indirect_value_assign(const ANY ** i, const ANY * v) {
+inline void purs_indirect_value_assign(ANY* i, ANY v) {
 	*i = v;
 }
 
-inline const ANY ** purs_indirect_value_new() {
-	return purs_new(const ANY *);
+inline ANY* purs_indirect_value_new() {
+	return purs_new(ANY);
 }
 
-inline const ANY * purs_thunked_deref(const void * data) {
-	const ANY ** _data = (const ANY **) data;
+inline ANY purs_thunked_deref(const void * data) {
+	ANY* _data = (ANY*) data;
 	return *_data;
 }
 
-inline int purs_cons_get_tag (const purs_cons_t * cons) {
-	return cons->tag;
+inline int purs_cons_get_tag (purs_any_cons_t cons) {
+	return cons.tag;
 }
 
-inline const ANY ** _purs_scope_alloc(int num_bindings) {
+inline ANY* _purs_scope_alloc(int num_bindings) {
 	if (num_bindings == 0) return NULL;
-	return purs_malloc(num_bindings * sizeof (const ANY *));
+	return purs_malloc(num_bindings * sizeof (ANY));
 }
 
-inline const ANY ** _purs_scope_new(int num_bindings, const ANY * binding, ...) {
+inline ANY* _purs_scope_new(int num_bindings, ANY binding, ...) {
 	if (num_bindings == 0) return NULL;
-	const ANY ** mem = purs_malloc(num_bindings * sizeof (const ANY *));
+	ANY* mem = purs_malloc(num_bindings * sizeof (ANY));
 	mem[0] = binding;
 	va_list vl;
 	va_start(vl, binding);
 	for (int i = 1; i < num_bindings; i++) {
-		mem[i] = va_arg(vl, const ANY *);
+		mem[i] = va_arg(vl, ANY);
 	}
 	va_end(vl);
-	return (const ANY **) mem;
+	return (ANY*) mem;
 }
