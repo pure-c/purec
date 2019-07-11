@@ -141,7 +141,7 @@ tco = AST.everywhere convert
           , qualifiers: []
           , initialization:
               Just $
-                AST.App R.purs_any_int_new
+                AST.App R.purs_any_int
                   [ AST.NumericLiteral $ Left 0
                   ]
           }

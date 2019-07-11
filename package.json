@@ -16,12 +16,12 @@
   "devDependencies": {
     "bower": "^1.8.4",
     "pulp": "^12.3.0",
-    "purescript": "^0.12.0"
+    "purescript": "^0.12.5"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "pulp build -t purec.js -O",
-    "watch": "pulp -w build"
+    "build": "spago bundle-app -t purec.js",
+    "watch": "spago bundle-app -w -t purec.js"
   },
   "repository": {
     "type": "git",

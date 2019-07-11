@@ -238,19 +238,19 @@ exprToAst (C.Var ann (C.Qualified mModuleName ident)) =
 exprToAst (C.Literal _ (C.NumericLiteral n)) =
   pure $
     AST.App
-      (either (const R.purs_any_int_new) (const R.purs_any_num_new) n)
+      (either (const R.purs_any_int) (const R.purs_any_num) n)
       [ AST.NumericLiteral n
       ]
 exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
     AST.App
-      R.purs_any_string_new
+      R.purs_any_string
       [ AST.StringLiteral s
       ]
 exprToAst (C.Literal _ (C.CharLiteral c)) =
   pure $
     AST.App
-      R.purs_any_char_new
+      R.purs_any_char
       [ AST.NumericLiteral $ Left $ Int.toCharCode c
       ]
 exprToAst (C.Literal _ (C.BooleanLiteral b)) =
@@ -262,9 +262,9 @@ exprToAst (C.Literal _ (C.ArrayLiteral xs)) = ado
   asts <- traverse exprToAst xs
   in
     AST.App
-      R.purs_any_array_new $
+      R.purs_any_array $
       [ AST.App
-        R.purs_vec_new_from_array $
+        R.purs_vec_new_va $
         [ AST.NumericLiteral $ Left $ A.length xs
         ] <>
           if A.null asts
@@ -282,7 +282,7 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
         R.purs_record_empty
       else
         AST.App
-          R.purs_any_record_new $
+          R.purs_any_record $
             [ AST.App
               R.purs_record_new_from_kvps $
               [ AST.NumericLiteral $ Left $ A.length kvpAsts
@@ -305,7 +305,7 @@ exprToAst (C.Let _ binders val) = ado
                 AST.Block $
                   bindersAsts <> [ AST.Return valAst ]
           }
-      , AST.Null
+      , R.purs_any_null
       ]
 
 exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
@@ -378,7 +378,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                   , [ R.purs_assert' "Failed Pattern Match" ]
                   ]
           }
-      , AST.Null
+      , R.purs_any_null
       ]
 
   where
@@ -631,7 +631,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
                 }
             ] <> assignments <> [
               AST.Return $
-                AST.App R.purs_any_cons_new
+                AST.App R.purs_any_cons
                   [ AST.Var $ safeConstructorName $ qualifiedVarName moduleName constructorName
                   , AST.Var valuesName
                   ]
@@ -662,7 +662,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
       safeConstructorName $ qualifiedVarName moduleName constructorName
   pure $
     AST.App
-      R.purs_any_cons_new
+      R.purs_any_cons
       [ AST.Var constructorName'
       , AST.Null
       ]
@@ -706,7 +706,7 @@ exprToAst (C.ObjectUpdate _ o ps) = ado
   sts      <- traverse (\(n /\ exp) -> (n /\ _) <$> exprToAst exp) ps
   temp     <- freshName
   in
-    AST.App R.purs_any_record_new
+    AST.App R.purs_any_record
       [ AST.App R.purs_record_add_multi $
           [ AST.App R.purs_any_get_record [ valueAst ]
           , AST.NumericLiteral (Left $ A.length sts)

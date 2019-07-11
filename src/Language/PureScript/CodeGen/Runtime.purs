@@ -28,19 +28,18 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_int_neg
 
     -- any: allocations
-  , purs_any_cont_new
-  , purs_any_array_new
-  , purs_any_cons_new
-  , purs_any_record_new
-  , purs_any_int_new
-  , purs_any_num_new
-  , purs_any_string_new
-  , purs_any_char_new
+  , purs_any_cont
+  , purs_any_array
+  , purs_any_cons
+  , purs_any_record
+  , purs_any_int
+  , purs_any_num
+  , purs_any_string
+  , purs_any_char
   , purs_any_copy
 
     -- code-gen helpers
-  , _purs_scope_alloc
-  , _purs_scope_new
+  , purs_malloc_many
   , _PURS_SCOPE_T
   , _PURS_CONS_VALUES_NEW
   , purs_indirect_thunk_new
@@ -56,7 +55,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_cons_t
   , purs_record_t
   , purs_cons_get_tag
-  , purs_vec_new_from_array
+  , purs_vec_new_va
   , purs_record_empty
   , purs_record_find_by_key
   , purs_record_copy_shallow
@@ -157,8 +156,8 @@ purs_record_copy_shallow = AST.Var "purs_record_copy_shallow"
 purs_record_add_multi :: AST
 purs_record_add_multi = AST.Var "purs_record_add_multi"
 
-purs_vec_new_from_array :: AST
-purs_vec_new_from_array = AST.Var "purs_vec_new_from_array"
+purs_vec_new_va :: AST
+purs_vec_new_va = AST.Var "purs_vec_new_va"
 
 _PURS_ANY_THUNK_DEF :: AST
 _PURS_ANY_THUNK_DEF = AST.Var "PURS_ANY_THUNK_DEF"
@@ -166,29 +165,29 @@ _PURS_ANY_THUNK_DEF = AST.Var "PURS_ANY_THUNK_DEF"
 _PURS_ANY_THUNK_DECL :: AST
 _PURS_ANY_THUNK_DECL = AST.Var "PURS_ANY_THUNK_DECL"
 
-purs_any_cons_new :: AST
-purs_any_cons_new = AST.Var "purs_any_cons_new"
+purs_any_cons :: AST
+purs_any_cons = AST.Var "purs_any_cons"
 
-purs_any_int_new :: AST
-purs_any_int_new = AST.Var "purs_any_int_new"
+purs_any_int :: AST
+purs_any_int = AST.Var "purs_any_int"
 
-purs_any_char_new :: AST
-purs_any_char_new = AST.Var "purs_any_char_new"
+purs_any_char :: AST
+purs_any_char = AST.Var "purs_any_char"
 
-purs_any_num_new :: AST
-purs_any_num_new = AST.Var "purs_any_num_new"
+purs_any_num :: AST
+purs_any_num = AST.Var "purs_any_num"
 
-purs_any_array_new :: AST
-purs_any_array_new = AST.Var "purs_any_array_new"
+purs_any_array :: AST
+purs_any_array = AST.Var "purs_any_array"
 
-purs_any_record_new :: AST
-purs_any_record_new = AST.Var "purs_any_record_new"
+purs_any_record :: AST
+purs_any_record = AST.Var "purs_any_record"
 
-purs_any_cont_new :: AST
-purs_any_cont_new = AST.Var "purs_any_cont_new"
+purs_any_cont :: AST
+purs_any_cont = AST.Var "purs_any_cont"
 
-purs_any_string_new :: AST
-purs_any_string_new = AST.Var "purs_any_string_new"
+purs_any_string :: AST
+purs_any_string = AST.Var "purs_any_string"
 
 purs_any_copy :: AST
 purs_any_copy = AST.Var "purs_any_copy"
@@ -211,11 +210,8 @@ purs_any_assign_mut = AST.Var "purs_any_assign_mut"
 _PURS_CONS_VALUES_NEW :: AST
 _PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"
 
-_purs_scope_alloc :: AST
-_purs_scope_alloc = AST.Var "_purs_scope_alloc"
-
-_purs_scope_new :: AST
-_purs_scope_new = AST.Var "_purs_scope_new"
+purs_malloc_many :: AST
+purs_malloc_many = AST.Var "purs_malloc_many"
 
 _PURS_SCOPE_T :: AST
 _PURS_SCOPE_T = AST.Var "PURS_SCOPE_T"

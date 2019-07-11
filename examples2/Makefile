@@ -1,7 +1,7 @@
 default: main
 .PHONY: default
 
-PUREC_DIR := ../..
+PUREC_DIR := ..
 include $(PUREC_DIR)/mk/target.mk
 
 .psc-package:

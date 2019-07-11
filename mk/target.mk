@@ -15,8 +15,8 @@ PUREC_LIB = $(PUREC_DIR)/libpurec.a
 PUREC_LIB_DIR = $(dir $(PUREC_LIB))
 PUREC_LIB_NAME = $(notdir %/%,%,$(PUREC_LIB))
 
-PSC_PACKAGE ?= psc-package
-PACKAGE_SOURCES = $(shell [ -f psc-package.json ] && $(PSC_PACKAGE) sources)
+SPAGO ?= spago
+PACKAGE_SOURCES = $(shell [ -d .spago ] && $(SPAGO) sources)
 
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
@@ -40,7 +40,7 @@ clean:
 	@rm -f $$(find . -type f -name '*.o')
 	@echo 'removing *.out'
 	@rm -f $$(find . -type f -name '*.out')
-	@echo 'removing working directory $(PUREC_WORKDIR)'
+	@echo 'removing dir $(PUREC_WORKDIR)'
 	@rm -rf $(PUREC_WORKDIR)
 
 %.o: %.c
@@ -138,5 +138,5 @@ _$$(target): $$(PUREC_WORKDIR)/$$(target)/.genc
 	@$$(MAKE) -s $$(PUREC_WORKDIR)/$$(target)/.build
 
 $$(target):
-	@$$(MAKE) _$$(target)
+	@$$(MAKE) -s _$$(target)
 endef

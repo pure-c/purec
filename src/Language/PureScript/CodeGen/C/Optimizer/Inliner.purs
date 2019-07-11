@@ -190,7 +190,7 @@ inlineCommonValues = AST.everywhere go
       isDict (C.dataRing /\ C.negate) fn =
       case extractIntLit x of
         Just n ->
-          AST.App R.purs_any_int_new [ AST.NumericLiteral (Left (-n)) ]
+          AST.App R.purs_any_int [ AST.NumericLiteral (Left (-n)) ]
         Nothing ->
           AST.App R.purs_any_int_neg [ x ]
 
@@ -212,7 +212,7 @@ inlineCommonValues = AST.everywhere go
 
   -- inline operations on two integers. if two litera
   extractIntLit (AST.App fn [ AST.NumericLiteral (Left n) ])
-    | fn == R.purs_any_int_new =
+    | fn == R.purs_any_int =
       Just n
   extractIntLit _ =
     Nothing
@@ -224,14 +224,14 @@ inlineCommonValues = AST.everywhere go
   intBinOp x y op =
     case extractIntLit x, extractIntLit y of
       Just x', Just y' ->
-        AST.App R.purs_any_int_new
+        AST.App R.purs_any_int
           [ AST.NumericLiteral $ Left case op of
               Add -> x' + y'
               Sub -> x' - y'
               Mul -> x' * y'
           ]
       mLitX, mLitY ->
-        AST.App R.purs_any_int_new
+        AST.App R.purs_any_int
           [ AST.Binary (toASTBinOp op)
               (maybe
                 (AST.App R.purs_any_get_int [ x ])

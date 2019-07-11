@@ -346,7 +346,7 @@ eraseLambdas moduleName asts =
                     then AST.Null
                     else
                       AST.App
-                        R._purs_scope_alloc $
+                        R.purs_malloc_many $
                         [ AST.NumericLiteral $
                             Left $ A.length scopeStruct.members
                         ]
@@ -358,8 +358,10 @@ eraseLambdas moduleName asts =
             , initialization:
                 Just $
                   AST.App
-                    R.purs_any_cont_new
+                    R.purs_any_cont
                       [ AST.Var "$_scope"
+                      , AST.NumericLiteral $
+                          Left $ Set.size capturedScope.bindings
                       , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
                           AST.Var contFuncName
                       ]

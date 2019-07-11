@@ -92,12 +92,12 @@ toBody = A.catMaybes <<< map go
     go' = case _ of
       AST.Cast _ ast@(AST.App f _)
         | f `A.elem`
-            [ R.purs_any_cons_new
-            , R.purs_any_int_new
-            , R.purs_any_num_new
-            , R.purs_any_string_new
-            , R.purs_any_record_new
-            , R.purs_any_array_new
+            [ R.purs_any_cons
+            , R.purs_any_int
+            , R.purs_any_num
+            , R.purs_any_string
+            , R.purs_any_record
+            , R.purs_any_array
             ]
         -> go' ast
       _ ->
@@ -125,11 +125,12 @@ nativeMain mainVar =
     , body: Just $
         AST.Block
           [ AST.App (AST.Var "GC_INIT") []
-          , AST.App
-              R.purs_any_app
-              [ mainVar
-              , R.purs_any_null
-              ]
-          , AST.Return (AST.NumericLiteral (Left 0))
+          , AST.Return $
+              AST.App R.purs_any_get_int
+                [ AST.App R.purs_any_app
+                    [ mainVar
+                    , R.purs_any_null
+                    ]
+                ]
           ]
     }

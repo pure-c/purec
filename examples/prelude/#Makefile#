@@ -4,8 +4,9 @@ default: main
 PUREC_DIR := ../..
 include $(PUREC_DIR)/mk/target.mk
 
-.psc-package:
-	psc-package install
-main: .psc-package
+.spago:
+ech
+	spago install
+main: .spago
 
 $(eval $(call purs_mk_target,main,Main,src))

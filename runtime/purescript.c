@@ -1,4 +1,4 @@
-#include <purescript.h>
+#include "runtime/purescript.h"
 
 static inline void managed_noop_release (managed_t * managed) {}
 
@@ -28,59 +28,71 @@ const managed_t * managed_new (const void * data,
 // Any: allocate
 // -----------------------------------------------------------------------------
 
-inline ANY purs_any_int_new(const purs_any_int_t i) {
+/* todo: turn into macro */
+ANY purs_any_int(const purs_any_int_t i) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_INT;
 	v.value.i = i;
 	return v;
 }
 
-inline ANY purs_any_num_new(const purs_any_num_t n) {
+/* todo: turn into macro */
+ANY purs_any_num(const purs_any_num_t n) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_NUM;
 	v.value.n = n;
 	return v;
 }
 
-inline ANY purs_any_cont_new(const void * ctx, purs_any_fun_t * fn) {
+/* todo: turn into macro */
+ANY purs_any_cont(ANY * ctx, int len, purs_any_fun_t * fn) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CONT;
-	v.value.cont.fn = fn;
-	v.value.cont.ctx = ctx;
+	v.value.cont = purs_malloc(sizeof (purs_any_cont_t));
+	v.value.cont->fn = fn;
+	v.value.cont->ctx = ctx;
+	v.value.cont->len = len;
 	return v;
 }
 
-inline ANY purs_any_thunk_new(const void * ctx, purs_any_thunk_fun_t * fn) {
+/* todo: turn into macro */
+ANY purs_any_thunk(ANY ctx, purs_any_thunk_fun_t * fn) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_THUNK;
-	v.value.thunk.ctx = ctx;
-	v.value.thunk.fn = fn;
+	v.value.thunk = purs_malloc(sizeof (purs_any_thunk_t));
+	v.value.thunk->ctx = ctx;
+	v.value.thunk->fn = fn;
 	return v;
 }
 
-inline ANY purs_any_cons_new(int tag, ANY* values) {
+/* todo: turn into macro */
+ANY purs_any_cons(int tag, ANY* values) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CONS;
-	v.value.cons.tag = tag;
-	v.value.cons.values = values;
+	v.value.cons = purs_malloc(sizeof (purs_any_cons_t));
+	v.value.cons->tag = tag;
+	v.value.cons->values = values;
 	return v;
 }
 
-inline ANY purs_any_record_new(const purs_record_t * record) {
+/* todo: turn into macro */
+ANY purs_any_record(const purs_record_t * record) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_RECORD;
 	v.value.record = record;
 	return v;
 }
 
-inline ANY purs_any_string_new_mv(const char * ptr) {
+/* todo: turn into macro */
+ANY purs_any_string_mv(const char * ptr) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_STRING;
 	v.value.str = managed_new(ptr, managed_noop_release);
 	return v;
 }
 
-inline ANY purs_any_string_new(const char * fmt, ...) {
+/* todo: turn into macro */
+ANY purs_any_string(const char * fmt, ...) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_STRING;
 	va_list ap;
@@ -92,21 +104,24 @@ inline ANY purs_any_string_new(const char * fmt, ...) {
 	return v;
 }
 
-inline ANY purs_any_char_new(utf8_int32_t chr) {
+/* todo: turn into macro */
+ANY purs_any_char(utf8_int32_t chr) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CHAR;
 	v.value.chr = chr;
 	return v;
 }
 
-inline ANY purs_any_array_new(const purs_vec_t * array) {
+/* todo: turn into macro */
+ANY purs_any_array(const purs_vec_t * array) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_ARRAY;
 	v.value.array = array;
 	return v;
 }
 
-inline ANY purs_any_foreign_new(void * tag, void * data) {
+/* todo: turn into macro */
+ANY purs_any_foreign(void * tag, void * data) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_FOREIGN;
 	v.value.foreign.tag = tag;
@@ -154,12 +169,17 @@ inline const purs_any_num_t purs_any_get_num (ANY v) {
 	return v.value.n;
 }
 
-inline purs_any_cont_t purs_any_get_cont (ANY v) {
+inline const utf8_int32_t purs_any_get_char (ANY v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_CHAR);
+	return v.value.chr;
+}
+
+inline purs_any_cont_t * purs_any_get_cont (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONT);
 	return v.value.cont;
 }
 
-inline purs_any_cons_t purs_any_get_cons (ANY v) {
+inline purs_any_cons_t * purs_any_get_cons (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONS);
 	return v.value.cons;
 }
@@ -167,16 +187,6 @@ inline purs_any_cons_t purs_any_get_cons (ANY v) {
 inline const purs_record_t * purs_any_get_record (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_RECORD);
 	return v.value.record;
-}
-
-inline const void * purs_any_get_string (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_STRING);
-	return v.value.str->data;
-}
-
-inline const utf8_int32_t purs_any_get_char (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_CHAR);
-	return v.value.chr;
 }
 
 inline const purs_vec_t * purs_any_get_array (ANY v) {
@@ -189,6 +199,11 @@ inline purs_foreign_t purs_any_get_foreign (ANY v) {
 	return v.value.foreign;
 }
 
+inline const void * purs_any_get_string (ANY v) {
+	_PURS_ASSERT_TAG(PURS_ANY_TAG_STRING);
+	return v.value.str->data;
+}
+
 // -----------------------------------------------------------------------------
 // Any
 // -----------------------------------------------------------------------------
@@ -196,7 +211,7 @@ inline purs_foreign_t purs_any_get_foreign (ANY v) {
 inline ANY purs_any_unthunk (ANY x) {
 	ANY out = x;
 	while (out.tag == PURS_ANY_TAG_THUNK) {
-		out = out.value.thunk.fn(out.value.thunk.ctx);
+		out = out.value.thunk->fn(out.value.thunk->ctx);
 	}
 	return out;
 }
@@ -210,7 +225,7 @@ inline ANY purs_any_app(ANY f, ANY v, ...) {
 	assert(f.tag == PURS_ANY_TAG_CONT);
 	va_list args;
 	va_start(args, v);
-	ANY r = f.value.cont.fn(f.value.cont.ctx, v, args);
+	ANY r = f.value.cont->fn(f.value.cont->ctx, v, args);
 	va_end(args);
 	return r;
 }
@@ -219,14 +234,17 @@ inline ANY purs_any_app(ANY f, ANY v, ...) {
 // Any: built-ins
 // -----------------------------------------------------------------------------
 
-
 ANY purs_any_null = { .tag = PURS_ANY_TAG_NULL };
+
 ANY purs_any_true = PURS_ANY_INT(1);
 ANY purs_any_false = PURS_ANY_INT(0);
+
 ANY purs_any_int_zero = PURS_ANY_INT(0);
 ANY purs_any_num_zero = PURS_ANY_NUM(0.0);
+
 ANY purs_any_int_one = PURS_ANY_INT(1);
 ANY purs_any_num_one = PURS_ANY_NUM(1.0);
+
 ANY purs_any_NaN = PURS_ANY_NUM(PURS_NAN);
 ANY purs_any_infinity = PURS_ANY_NUM(PURS_INFINITY);
 ANY purs_any_neg_infinity = PURS_ANY_NUM(-PURS_INFINITY);
@@ -306,7 +324,7 @@ ANY purs_any_concat(ANY x, ANY y) {
 	} else {
 		switch(x.tag) {
 		case PURS_ANY_TAG_STRING: {
-			return purs_any_string_new(
+			return purs_any_string(
 				"%s%s",
 				     purs_any_get_string(x),
 				     purs_any_get_string(y));
@@ -321,7 +339,7 @@ ANY purs_any_concat(ANY x, ANY y) {
 			} else {
 				purs_vec_t * out_vec = (purs_vec_t *) purs_vec_copy(x_vec);
 				vec_pusharr(out_vec, y_vec->data, y_vec->length);
-				return purs_any_array_new((const purs_vec_t *) out_vec);
+				return purs_any_array((const purs_vec_t *) out_vec);
 			}
 		}
 		default:
@@ -530,41 +548,28 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-inline ANY purs_indirect_thunk_new(ANY* x) {
-	return purs_any_thunk_new(x, purs_thunked_deref);
+ANY purs_indirect_thunk_new(ANY * x) {
+	ANY w = { .value = { .foreign = { .data = x } } };
+	return purs_any_thunk(w, purs_thunked_deref);
 }
 
-inline void purs_indirect_value_assign(ANY* i, ANY v) {
-	*i = v;
+/* todo: convert to macro */
+ANY purs_thunked_deref(ANY ctx) {
+	return *((ANY*)(ctx.value.foreign.data));
 }
 
-inline ANY* purs_indirect_value_new() {
+/* todo: convert to macro */
+ANY * purs_indirect_value_new() {
 	return purs_new(ANY);
 }
 
-inline ANY purs_thunked_deref(const void * data) {
-	ANY* _data = (ANY*) data;
-	return *_data;
+/* todo: convert to macro */
+void purs_indirect_value_assign(ANY * i, ANY v) {
+	*i = v;
 }
 
-inline int purs_cons_get_tag (purs_any_cons_t cons) {
-	return cons.tag;
-}
-
-inline ANY* _purs_scope_alloc(int num_bindings) {
+/* todo: turn into macro */
+ANY* purs_malloc_many(int num_bindings) {
 	if (num_bindings == 0) return NULL;
 	return purs_malloc(num_bindings * sizeof (ANY));
-}
-
-inline ANY* _purs_scope_new(int num_bindings, ANY binding, ...) {
-	if (num_bindings == 0) return NULL;
-	ANY* mem = purs_malloc(num_bindings * sizeof (ANY));
-	mem[0] = binding;
-	va_list vl;
-	va_start(vl, binding);
-	for (int i = 1; i < num_bindings; i++) {
-		mem[i] = va_arg(vl, ANY);
-	}
-	va_end(vl);
-	return (ANY*) mem;
 }

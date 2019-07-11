@@ -109,32 +109,43 @@ deps/bwdgc:
 # Tests
 #-------------------------------------------------------------------------------
 
-# note: this is temporary while building up the project
-test: examples/bower_components
-.PHONY: test
+test/c: $(LIBPUREC)
+	@$(CLANG) -L. \
+		ctests/*.c \
+		-lpurec \
+		-lpthread \
+		-I. \
+		-o ctests/a.out
+	@./ctests/a.out
+.PHONY: test/c
 
-test/examples:
-	@$(MAKE) -s examples
-	@./examples/example1/main.out <<< "john"
+test/examples/example1:
+	@$(MAKE) -s -C examples/example1
+	@./examples/example1/main.out <<< "foobar"
+
+test/examples/example2:
+	@$(MAKE) -s -C examples/example2
 	@./examples/example2/main.out
+
+test/examples/effect:
+	@$(MAKE) -s -C examples/effect
 	@./examples/effect/main.out
+
+test/examples: \
+    test/examples/example1 \
+    test/examples/example2 \
+    test/examples/effect
 .PHONY: test/examples
 
-test/pulp: upstream/tests/support/bower_components
+test/purs: upstream/tests/support/bower_components
 	$(PULP) test
 .PHONY: test/pulp
 
-test: test/examples test/pulp
+test: test/examples test/purs test/c
 
 #-------------------------------------------------------------------------------
-# Examples
+# utilities
 #-------------------------------------------------------------------------------
-
-examples: purec examples/bower_components
-	@$(MAKE) -s -C examples/example1
-	@$(MAKE) -s -C examples/example2
-	@$(MAKE) -s -C examples/effect
-.PHONY: examples
 
 %/bower_components:
 	@ROOT=$(PWD) &&\
