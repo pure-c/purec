@@ -1,7 +1,7 @@
 #include "runtime/purescript.h"
 
-
 int test_empty_array () {
+	return 0;
 }
 
 int test_arrays () {
