@@ -627,12 +627,16 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
                     Just $
                       AST.App
                         R.purs_malloc_any_buf
-                        [ AST.NumericLiteral (Left $ A.length fields) ]
+                        [ AST.NumericLiteral $ Left $ A.length fields
+                        ]
                 }
             ] <> assignments <> [
               AST.Return $
                 AST.App R.purs_any_cons
-                  [ AST.Var $ safeConstructorName $ qualifiedVarName moduleName constructorName
+                  [ AST.Var $
+                      safeConstructorName $
+                        qualifiedVarName moduleName constructorName
+                  , AST.NumericLiteral $ Left $ A.length fields
                   , AST.Var valuesName
                   ]
             ]
@@ -663,9 +667,10 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
   pure $
     AST.App
       R.purs_any_cons
-      [ AST.Var constructorName'
-      , AST.Null
-      ]
+        [ AST.Var constructorName'
+        , AST.NumericLiteral $ Left 0
+        , AST.Null
+        ]
 exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   f   <- exprToAst ident
   arg <- exprToAst expr

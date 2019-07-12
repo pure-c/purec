@@ -40,11 +40,12 @@ ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t * fn) {
 }
 
 /* todo: turn into macro */
-ANY purs_any_cons(int tag, ANY* values) {
+ANY purs_any_cons(int tag, int size, ANY* values) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CONS;
 	v.value.cons = purs_malloc(sizeof (purs_any_cons_t));
 	v.value.cons->tag = tag;
+	v.value.cons->size = size;
 	v.value.cons->values = values;
 	return v;
 }

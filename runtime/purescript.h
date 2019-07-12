@@ -119,6 +119,7 @@ struct purs_any_cont {
 /* todo: track len values, for clean up */
 struct purs_any_cons {
 	int tag;
+	int size;
 	ANY * values;
 };
 
@@ -140,7 +141,7 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 
 /* XXX these functions heap-allocate. maybe rename? */
 ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t *);
-ANY purs_any_cons(int tag, ANY* values);
+ANY purs_any_cons(int tag, int size, ANY* values);
 ANY purs_any_string(const char * fmt, ...);
 
 /* allocate a new string box with existing, *GC-allocated* data */
