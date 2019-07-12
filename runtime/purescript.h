@@ -313,16 +313,19 @@ struct tco_state {
 #define purs_derefence(V) *V
 
 /* thunked pointer dereference. useful for recursive bindings */
-ANY * purs_indirect_value_new();
-void purs_indirect_value_assign(ANY *, ANY);
-ANY purs_indirect_thunk_new(ANY *);
+#define purs_indirect_value_new() purs_new(ANY)
+#define purs_indirect_value_assign(I, V) *(I) = (V)
+#define purs_indirect_thunk_new(X) \
+	({\
+		purs_any_thunk_t * thunk = purs_malloc(sizeof (purs_any_thunk_t));\
+		thunk->ctx = ((purs_any_t){ .value = { .foreign = { .data = X } } });\
+		thunk->fn = purs_thunked_deref;\
+		PURS_ANY_THUNK(thunk);\
+	})
 ANY purs_thunked_deref(ANY);
 
 /* allocate a buffer to fit 'N' 'ANY's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (ANY) * N)
-
-/* code-gen helper to allocate and fill a scope. */
-ANY* purs_malloc_many(int num_bindings);
 
 /* declare a thunked top-level value. */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
@@ -412,7 +415,7 @@ ANY* purs_malloc_many(int num_bindings);
 
 #define _PURS_FFI_FUNC_CONT(NAME, CUR, NEXT)\
 	ANY NAME##__##CUR (ANY * $__super__, ANY a, va_list $__unused__) {\
-		ANY* ctx = purs_malloc_many(CUR);\
+		ANY* ctx = purs_malloc_any_buf(CUR);\
 		if ($__super__ != NULL) {\
 			memcpy(ctx, $__super__, CUR * sizeof (ANY));\
 		}\

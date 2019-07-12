@@ -39,7 +39,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_char
 
     -- code-gen helpers
-  , purs_malloc_many
+  , purs_malloc_any_buf
   , purs_indirect_thunk_new
   , purs_indirect_value_new
   , purs_indirect_value_assign
@@ -213,9 +213,6 @@ purs_address_of = AST.Var "purs_address_of"
 
 purs_derefence :: AST
 purs_derefence = AST.Var "purs_derefence"
-
-purs_malloc_many :: AST
-purs_malloc_many = AST.Var "purs_malloc_many"
 
 _PURS_SCOPE_T :: AST
 _PURS_SCOPE_T = AST.Var "PURS_SCOPE_T"

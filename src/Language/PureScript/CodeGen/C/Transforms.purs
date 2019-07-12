@@ -346,7 +346,7 @@ eraseLambdas moduleName asts =
                     then AST.Null
                     else
                       AST.App
-                        R.purs_malloc_many $
+                        R.purs_malloc_any_buf $
                         [ AST.NumericLiteral $
                             Left $ A.length scopeStruct.members
                         ]

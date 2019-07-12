@@ -483,30 +483,6 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-ANY purs_indirect_thunk_new(ANY * x) {
-	purs_any_thunk_t * thunk = purs_malloc(sizeof (purs_any_thunk_t));
-	thunk->ctx = ((purs_any_t){ .value = { .foreign = { .data = x } } });
-	thunk->fn = purs_thunked_deref;
-	return PURS_ANY_THUNK(thunk);
-}
-
-/* todo: convert to macro */
 ANY purs_thunked_deref(ANY ctx) {
 	return *((ANY*)(ctx.value.foreign.data));
-}
-
-/* todo: convert to macro */
-ANY * purs_indirect_value_new() {
-	return purs_new(ANY);
-}
-
-/* todo: convert to macro */
-void purs_indirect_value_assign(ANY * i, ANY v) {
-	*i = v;
-}
-
-/* todo: turn into macro */
-ANY* purs_malloc_many(int num_bindings) {
-	if (num_bindings == 0) return NULL;
-	return purs_malloc(num_bindings * sizeof (ANY));
 }
