@@ -1,5 +1,5 @@
 { name =
-    "purec-example-memory"
+    "purec-test-basic"
 , dependencies =
     [] : List Text
 , packages =

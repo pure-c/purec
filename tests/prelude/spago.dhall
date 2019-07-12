@@ -1,7 +1,7 @@
 { name =
-    "purec-example-partialfuns"
+    "purec-test-prelude"
 , dependencies =
-    [] : List Text
+    [ "prelude" ]
 , packages =
     ./packages.dhall
 , sources =

@@ -1,5 +1,5 @@
 { name =
-    "purec-example-basic"
+    "purec-test-partialfuns"
 , dependencies =
     [] : List Text
 , packages =

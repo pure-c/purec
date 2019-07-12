@@ -1,7 +1,7 @@
 { name =
-    "purec-example-prelude"
+    "purec-test-foreign"
 , dependencies =
-    [ "prelude" ]
+    [] : List Text
 , packages =
     ./packages.dhall
 , sources =
