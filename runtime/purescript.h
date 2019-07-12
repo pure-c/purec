@@ -130,7 +130,7 @@ ANY purs_any_unthunk (ANY);
 const purs_any_tag_t purs_any_get_tag (ANY);
 const char * purs_any_tag_str (const purs_any_tag_t);
 
-/* note: two versions for compat/historical reasons */
+/* DEPRECATED: two versions for compat/historical reasons only */
 #define purs_any_int PURS_ANY_INT
 #define purs_any_num PURS_ANY_NUM
 #define purs_any_char PURS_ANY_CHAR
@@ -138,8 +138,8 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 #define purs_any_array PURS_ANY_ARRAY
 #define purs_any_record PURS_ANY_RECORD
 
+/* XXX these functions heap-allocate. maybe rename? */
 ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t *);
-ANY purs_any_thunk(ANY ctx, purs_any_thunk_fun_t *);
 ANY purs_any_cons(int tag, ANY* values);
 ANY purs_any_string(const char * fmt, ...);
 
@@ -374,6 +374,9 @@ ANY* purs_malloc_many(int num_bindings);
 
 #define PURS_ANY_ARRAY(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_ARRAY, .value = { .array = X } })
+
+#define PURS_ANY_THUNK(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_THUNK, .value = { .thunk = X } })
 
 // -----------------------------------------------------------------------------
 // FFI helpers

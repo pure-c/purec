@@ -40,16 +40,6 @@ ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t * fn) {
 }
 
 /* todo: turn into macro */
-ANY purs_any_thunk(ANY ctx, purs_any_thunk_fun_t * fn) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_THUNK;
-	v.value.thunk = purs_malloc(sizeof (purs_any_thunk_t));
-	v.value.thunk->ctx = ctx;
-	v.value.thunk->fn = fn;
-	return v;
-}
-
-/* todo: turn into macro */
 ANY purs_any_cons(int tag, ANY* values) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CONS;
@@ -493,8 +483,10 @@ const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
 // -----------------------------------------------------------------------------
 
 ANY purs_indirect_thunk_new(ANY * x) {
-	ANY w = { .value = { .foreign = { .data = x } } };
-	return purs_any_thunk(w, purs_thunked_deref);
+	purs_any_thunk_t * thunk = purs_malloc(sizeof (purs_any_thunk_t));
+	thunk->ctx = ((purs_any_t){ .value = { .foreign = { .data = x } } });
+	thunk->fn = purs_thunked_deref;
+	return PURS_ANY_THUNK(thunk);
 }
 
 /* todo: convert to macro */
