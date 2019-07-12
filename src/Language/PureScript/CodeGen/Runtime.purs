@@ -3,7 +3,6 @@ module Language.PureScript.CodeGen.Runtime
 
     -- any: dynamic runtime types
     any
-  , anyMut
 
     -- any: built-ins
   , purs_any_app
@@ -39,7 +38,6 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_char
 
     -- code-gen helpers
-  , purs_malloc_any_buf
   , purs_indirect_thunk_new
   , purs_indirect_value_new
   , purs_indirect_value_assign
@@ -81,9 +79,6 @@ int = Type.RawType "int"
 
 void :: Array AST.TypeQualifier -> AST.Type
 void = Type.RawType "void"
-
-anyMut :: AST.Type
-anyMut = Type.Pointer (Type.Any [])
 
 any :: AST.Type
 any = Type.Any []
