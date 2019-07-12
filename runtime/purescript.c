@@ -135,7 +135,7 @@ ANY purs_any_foreign(void * tag, void * data) {
 
 inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 	static const char * tags[] = {
-		"UNKNOWN",
+		"NULL",
 		"INT",
 		"NUM",
 		"CONT",
