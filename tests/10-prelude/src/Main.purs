@@ -51,3 +51,4 @@ main =
   >> check (show (map show [ 1, 2, 3 ]) == "[\"1\", \"2\", \"3\"]")
   >> check (map (_ * 3) [ 1, 2, 3 ] == [ 3, 6, 9 ])
   >> check (pure 3 == [ 3 ])
+  >> check (map identity ([] :: Array Int) == [])

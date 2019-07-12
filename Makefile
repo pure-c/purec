@@ -24,6 +24,8 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
+TESTS = $(shell ls tests)
+
 CFLAGS += \
 	-D 'uthash_malloc=GC_malloc' \
 	-D 'uthash_free(ptr, sz)=NULL' \
@@ -119,29 +121,34 @@ test/c: $(LIBPUREC)
 	@./ctests/a.out
 .PHONY: test/c
 
-test/examples/example1:
-	@$(MAKE) -s -C examples/example1
-	@./examples/example1/main.out <<< "foobar"
+test/tests:
+	@for t in $(TESTS); do\
+		echo >&2 "running...: $$t" &&\
+		$(MAKE) > /dev/null -s -C "tests/$$t" clean &&\
+		$(MAKE) > /dev/null -s -C "tests/$$t" || {\
+			echo >&2 "[!] failed to compile: $$t";\
+			exit 1;\
+		} &&\
+		( cd "tests/$$t" && ./main.out; ) || {\
+			echo >&2 "[!] failed to run: $$t";\
+			exit 1;\
+		};\
+	done
+.PHONY: test/tests
 
-test/examples/example2:
-	@$(MAKE) -s -C examples/example2
-	@./examples/example2/main.out
-
-test/examples/effect:
-	@$(MAKE) -s -C examples/effect
-	@./examples/effect/main.out
-
-test/examples: \
-    test/examples/example1 \
-    test/examples/example2 \
-    test/examples/effect
-.PHONY: test/examples
-
-test/purs: upstream/tests/support/bower_components
-	$(PULP) test
+test/upstream: upstream/tests/support/bower_components
+	@$(PULP) test > /dev/null
 .PHONY: test/pulp
 
-test: test/examples test/purs test/c
+test:
+	@echo 'running ctests...'
+	@$(MAKE) -s test/c
+	@echo 'running tests...'
+	@$(MAKE) -s test/tests
+	@echo 'running upstream tests...'
+	@$(MAKE) -s test/upstream
+	@echo 'success!'
+.PHONY: test
 
 #-------------------------------------------------------------------------------
 # utilities
