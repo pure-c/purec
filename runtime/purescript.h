@@ -130,16 +130,18 @@ ANY purs_any_unthunk (ANY);
 const purs_any_tag_t purs_any_get_tag (ANY);
 const char * purs_any_tag_str (const purs_any_tag_t);
 
-ANY purs_any_int(const purs_any_int_t);
-ANY purs_any_num(const purs_any_num_t);
+/* note: two versions for compat/historical reasons */
+#define purs_any_int PURS_ANY_INT
+#define purs_any_num PURS_ANY_NUM
+#define purs_any_char PURS_ANY_CHAR
+#define purs_any_foreign PURS_ANY_FOREIGN
+#define purs_any_array PURS_ANY_ARRAY
+#define purs_any_record PURS_ANY_RECORD
+
 ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t *);
 ANY purs_any_thunk(ANY ctx, purs_any_thunk_fun_t *);
 ANY purs_any_cons(int tag, ANY* values);
-ANY purs_any_record(const purs_record_t *);
 ANY purs_any_string(const char * fmt, ...);
-ANY purs_any_char(utf8_int32_t);
-ANY purs_any_array(const purs_vec_t *);
-ANY purs_any_foreign(void * tag, void * data);
 
 /* allocate a new string box with existing, *GC-allocated* data */
 ANY purs_any_string_new_mv(const char *);
@@ -341,29 +343,23 @@ ANY* purs_malloc_many(int num_bindings);
 		.value = { .thunk = & NAME ## __thunk__ }\
 	};
 
-/* #define purs_any_int_neg(X) purs_any_int_new(-purs_any_get_int(X)) */
-/* #define purs_any_int_set_mut(X, V) do { X->value.i = V; } while (0) */
-/* #define purs_any_assign_mut(V1, V2)\ */
-/* 	do {\ */
-/* 		V1.tag = V2.tag;\ */
-/* 		V1.value = V2.value;\ */
-/* 	} while (0) */
+#define purs_any_int_neg(X) purs_any_int_new(-purs_any_get_int(X))
 
 // -----------------------------------------------------------------------------
 // Any: initializers
 // -----------------------------------------------------------------------------
 
-#define PURS_ANY_INT(x)\
-	{ .tag = PURS_ANY_TAG_INT, .value = { .i = x } }
+#define PURS_ANY_INT(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_INT, .value = { .i = X } })
 
-#define PURS_ANY_NUM(x)\
-	{ .tag = PURS_ANY_TAG_NUM, .value = { .n = x } }
+#define PURS_ANY_NUM(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_NUM, .value = { .n = X } })
 
-#define PURS_ANY_CHAR(x)\
-	{ .tag = PURS_ANY_TAG_CHAR, .value = { .chr = x } }
+#define PURS_ANY_CHAR(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_CHAR, .value = { .chr = X } })
 
 #define PURS_ANY_FOREIGN(TAG, DATA)\
-	{\
+	((purs_any_t){\
 		.tag = PURS_ANY_TAG_FOREIGN,\
 		.value = {\
 			.foreign = {\
@@ -371,13 +367,13 @@ ANY* purs_malloc_many(int num_bindings);
 				.data = (DATA)\
 			}\
 		}\
-	}
+	})
 
-#define PURS_ANY_RECORD(x)\
-	{ .tag = PURS_ANY_TAG_RECORD, .value = { .record = x } }
+#define PURS_ANY_RECORD(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_RECORD, .value = { .record = X } })
 
-#define PURS_ANY_ARRAY(ARR)\
-	{ .tag = PURS_ANY_TAG_ARRAY, .value = { .array = ARR } }
+#define PURS_ANY_ARRAY(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_ARRAY, .value = { .array = X } })
 
 // -----------------------------------------------------------------------------
 // FFI helpers

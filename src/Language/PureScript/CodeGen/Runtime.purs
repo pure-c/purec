@@ -44,8 +44,6 @@ module Language.PureScript.CodeGen.Runtime
   , purs_indirect_value_new
   , purs_indirect_value_assign
   , purs_malloc_any_buf
-  , purs_any_int_set_mut
-  , purs_any_assign_mut
   , purs_address_of
   , purs_derefence
 
@@ -206,12 +204,6 @@ purs_indirect_value_new = AST.Var "purs_indirect_value_new"
 
 purs_indirect_value_assign :: AST
 purs_indirect_value_assign = AST.Var "purs_indirect_value_assign"
-
-purs_any_int_set_mut :: AST
-purs_any_int_set_mut = AST.Var "purs_any_int_set_mut"
-
-purs_any_assign_mut :: AST
-purs_any_assign_mut = AST.Var "purs_any_assign_mut"
 
 purs_malloc_any_buf :: AST
 purs_malloc_any_buf = AST.Var "purs_malloc_any_buf"

@@ -29,22 +29,6 @@ const managed_t * managed_new (const void * data,
 // -----------------------------------------------------------------------------
 
 /* todo: turn into macro */
-ANY purs_any_int(const purs_any_int_t i) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_INT;
-	v.value.i = i;
-	return v;
-}
-
-/* todo: turn into macro */
-ANY purs_any_num(const purs_any_num_t n) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_NUM;
-	v.value.n = n;
-	return v;
-}
-
-/* todo: turn into macro */
 ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t * fn) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CONT;
@@ -76,14 +60,6 @@ ANY purs_any_cons(int tag, ANY* values) {
 }
 
 /* todo: turn into macro */
-ANY purs_any_record(const purs_record_t * record) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_RECORD;
-	v.value.record = record;
-	return v;
-}
-
-/* todo: turn into macro */
 ANY purs_any_string_mv(const char * ptr) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_STRING;
@@ -101,31 +77,6 @@ ANY purs_any_string(const char * fmt, ...) {
 	assert (vasprintf(&ptr, fmt, ap) >= 0);
 	va_end(ap);
 	v.value.str = managed_new(ptr, NULL);
-	return v;
-}
-
-/* todo: turn into macro */
-ANY purs_any_char(utf8_int32_t chr) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_CHAR;
-	v.value.chr = chr;
-	return v;
-}
-
-/* todo: turn into macro */
-ANY purs_any_array(const purs_vec_t * array) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_ARRAY;
-	v.value.array = array;
-	return v;
-}
-
-/* todo: turn into macro */
-ANY purs_any_foreign(void * tag, void * data) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_FOREIGN;
-	v.value.foreign.tag = tag;
-	v.value.foreign.data = data;
 	return v;
 }
 
