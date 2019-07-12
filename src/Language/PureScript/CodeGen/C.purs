@@ -626,7 +626,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
                 , initialization:
                     Just $
                       AST.App
-                        R._PURS_CONS_VALUES_NEW
+                        R.purs_malloc_any_buf
                         [ AST.NumericLiteral (Left $ A.length fields) ]
                 }
             ] <> assignments <> [

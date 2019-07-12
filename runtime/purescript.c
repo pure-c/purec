@@ -45,7 +45,7 @@ ANY purs_any_num(const purs_any_num_t n) {
 }
 
 /* todo: turn into macro */
-ANY purs_any_cont(ANY * ctx, int len, purs_any_fun_t * fn) {
+ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t * fn) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CONT;
 	v.value.cont = purs_malloc(sizeof (purs_any_cont_t));
@@ -346,13 +346,6 @@ ANY purs_any_concat(ANY x, ANY y) {
 			purs_assert(0, "cannot concat %s", purs_any_tag_str(x.tag));
 		}
 	}
-}
-
-inline ANY purs_any_copy(ANY src) {
-	ANY copy;
-    copy.tag = src.tag;
-    copy.value = src.value;
-	return copy;
 }
 
 // -----------------------------------------------------------------------------

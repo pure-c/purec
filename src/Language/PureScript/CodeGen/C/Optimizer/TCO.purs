@@ -12,8 +12,10 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
 import Data.String as Str
 import Data.Tuple.Nested ((/\))
+import Debug.Trace (trace)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
+import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.Runtime as R
 
 -- | Eliminate tail calls
@@ -25,7 +27,8 @@ tco = AST.everywhere convert
   convert
     x@(AST.App
        (AST.Var "purs_indirect_value_assign")
-       [ v@(AST.Var internalIdent), (fn@AST.Function _)])
+       [ v@(AST.Var internalIdent), (fn@AST.Function _)
+       ])
     | Just name <- Str.stripPrefix (wrap "$_indirect_") internalIdent =
     let
       args /\ body /\ replace =
@@ -45,12 +48,9 @@ tco = AST.everywhere convert
       else x
   convert x = x
 
-  tcoDone = "$_tco_done"
+  tcoState = "$_tco_state"
   tcoLoop = "$_tco_loop"
   tcoResult = "$_tco_result"
-
-  copyVar n = "$_copy_" <> n
-  copyFnArg a = a { name = copyVar a.name }
 
   collectFnArgs = go [] identity
     where
@@ -124,28 +124,25 @@ tco = AST.everywhere convert
   toLoop :: String -> Array String -> AST -> AST
   toLoop ident args ast =
     AST.Block $
-      (args <#> \arg ->
-          AST.VariableIntroduction
-            { name: copyVar arg
-            , type: R.any
-            , qualifiers: []
-            , initialization:
-                Just $
-                  AST.App R.purs_any_copy
-                    [ AST.Var arg ]
-            })
-      <>
       [ AST.VariableIntroduction
-          { name: tcoDone
-          , type: R.any
+          { name: tcoState
+          , type: Type.RawType "struct tco_state" []
           , qualifiers: []
           , initialization:
               Just $
-                AST.App R.purs_any_int
-                  [ AST.NumericLiteral $ Left 0
+                AST.App (AST.Var "purs_tco_state_new")
+                  [ AST.NumericLiteral $ Left $ A.length args
                   ]
           }
-      , AST.VariableIntroduction
+      ] <>
+      (args # A.mapWithIndex \i arg ->
+        AST.App (AST.Var "purs_tco_set_arg")
+          [ AST.Var tcoState
+          , AST.NumericLiteral $ Left i
+          , AST.Var arg
+          ])
+      <>
+      [ AST.VariableIntroduction
           { name: tcoResult
           , type: R.any
           , qualifiers: []
@@ -160,43 +157,51 @@ tco = AST.everywhere convert
                 AST.Function
                   { name: Just tcoLoop
                   , arguments:
-                      [ { name: tcoDone
+                      [ { name: tcoState
                         , type: R.any
                         }
-                      ] <> do
-                        args <#> \name ->
-                          { name: copyVar name
-                          , type: R.any
-                          }
+                      ]
                   , qualifiers: []
                   , returnType: R.any
                   , variadic:  false
                   , body:
                       Just $
                         AST.Block $
-                          (args <#> \arg ->
+                          (args # A.mapWithIndex \i arg ->
                               AST.VariableIntroduction
                                 { name: arg
                                 , type: R.any
                                 , qualifiers: []
                                 , initialization:
                                     Just $
-                                      AST.App R.purs_any_copy
-                                        [ AST.Var $ copyVar arg ]
+                                      AST.App (AST.Var "purs_tco_get_arg")
+                                        [ AST.App (AST.Var "purs_foreign_get_data")
+                                            [ AST.App R.purs_any_get_foreign
+                                                [ AST.Var tcoState
+                                                ]
+                                            ]
+                                        , AST.NumericLiteral $ Left i
+                                        ]
                                 })
                           <>
                           [ loopify ast ]
                   }
           }
-      , AST.While (AST.Unary AST.Not (AST.App R.purs_any_get_int [ AST.Var tcoDone ])) $
+      , AST.While
+          (AST.Unary AST.Not
+            (AST.App
+              (AST.Var "purs_tco_is_done")
+              [ AST.Var tcoState
+              ])) $
           AST.Block
             [ AST.Assignment (AST.Var tcoResult) $
-                AST.App R.purs_any_app $
-                  A.concat $
-                    [ [ AST.Var tcoLoop, AST.Var tcoDone ]
-                    , AST.Var <<< copyVar <$> args
-                    , [ AST.Null ]
-                    ]
+                AST.App R.purs_any_app
+                  [ AST.Var tcoLoop
+                  , AST.App R.purs_any_foreign
+                      [ AST.Null
+                      , AST.App R.purs_address_of [ AST.Var tcoState ]
+                      ]
+                  ]
             ]
       , AST.Return $ AST.Var tcoResult
       ]
@@ -211,27 +216,36 @@ tco = AST.everywhere convert
         in
           AST.Block $
             A.zipWith
-              (\val arg ->
-                AST.App R.purs_any_assign_mut [ AST.Var $ copyVar arg, val ])
+              (\val (i /\ _) ->
+                AST.App
+                  (AST.Var "purs_tco_mut_arg")
+                  [ AST.App (AST.Var "purs_foreign_get_data")
+                      [ AST.App R.purs_any_get_foreign
+                          [ AST.Var tcoState
+                          ]
+                      ]
+                  , AST.NumericLiteral $ Left i
+                  , val
+                  ])
               allArgumentValues
-              args
+              (args # A.mapWithIndex (/\))
             <>
-            [ AST.Return AST.Null ]
+            [ AST.Return R.purs_any_null ]
       | otherwise =
           AST.Block
-            [ markDone
+            [ AST.App (AST.Var "purs_tco_set_done")
+                [ AST.App (AST.Var "purs_foreign_get_data")
+                    [ AST.App R.purs_any_get_foreign
+                        [ AST.Var tcoState
+                        ]
+                    ]
+                ]
             , AST.Return ret
             ]
     loopify (AST.While cond body) = AST.While cond (loopify body)
     loopify (AST.IfElse cond body el) = AST.IfElse cond (loopify body) (loopify <$> el)
     loopify (AST.Block body) = AST.Block (map loopify body)
     loopify x = x
-
-    markDone =
-      AST.App R.purs_any_int_set_mut
-        [ AST.Cast R.anyMut $ AST.Var tcoDone
-        , AST.NumericLiteral (Left 1)
-        ]
 
     collectArguments = go []
       where
@@ -245,7 +259,7 @@ tco = AST.everywhere convert
     | Just { head: (AST.Var ident') } <- A.uncons args
     = ident == ident'
   isSelfCall ident (AST.App (AST.Var "purs_any_app") args)
-    | Just { head: fn } <- A.uncons args
-    = isSelfCall ident fn
+    | Just { head } <- A.uncons args
+    = isSelfCall ident head
   isSelfCall _ _ =
     false

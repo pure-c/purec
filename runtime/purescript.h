@@ -56,7 +56,7 @@ typedef struct purs_any_thunk purs_any_thunk_t;
 typedef struct purs_any_cons purs_any_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef ANY (purs_any_thunk_fun_t)(ANY ctx);
-typedef ANY (purs_any_fun_t)(ANY * ctx, ANY, va_list);
+typedef ANY (purs_any_cont_fun_t)(ANY * ctx, ANY, va_list);
 typedef struct purs_foreign purs_foreign_t;
 
 struct managed { const void * data; };
@@ -111,7 +111,7 @@ struct purs_any_thunk {
 };
 
 struct purs_any_cont {
-	purs_any_fun_t * fn;
+	purs_any_cont_fun_t * fn;
 	int len;
 	ANY * ctx;
 };
@@ -132,7 +132,7 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 
 ANY purs_any_int(const purs_any_int_t);
 ANY purs_any_num(const purs_any_num_t);
-ANY purs_any_cont(ANY * ctx, int len, purs_any_fun_t *);
+ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t *);
 ANY purs_any_thunk(ANY ctx, purs_any_thunk_fun_t *);
 ANY purs_any_cons(int tag, ANY* values);
 ANY purs_any_record(const purs_record_t *);
@@ -165,7 +165,6 @@ int purs_any_eq_num    (ANY, double);
 
 int purs_any_eq(ANY, ANY);
 ANY purs_any_concat(ANY, ANY);
-ANY purs_any_copy(ANY);
 
 // -----------------------------------------------------------------------------
 // strings
@@ -278,6 +277,28 @@ purs_record_add_multi(NULL, count, __VA_ARGS__)
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
+struct tco_state {
+	int done;
+	purs_any_t * args;
+};
+
+#define purs_tco_state_new(N)\
+	({\
+		struct tco_state x;\
+		x.done = 0;\
+		x.args = purs_malloc(sizeof (ANY) * N);\
+		x;\
+	})
+#define purs_tco_is_done(X) (X.done == 1)
+#define purs_tco_set_done(X) (((struct tco_state *) X)->done = 1)
+#define purs_tco_get_arg(X, I) (((struct tco_state *) X)->args[I])
+#define purs_tco_set_arg(X, I, V) (X.args[I] = V)
+#define purs_tco_mut_arg(X, I, V) (((struct tco_state *) X)->args[I] = V)
+
+#define purs_foreign_get_data(X)\
+	(X.data)
+
+/* emit a scope struct */
 #define PURS_SCOPE_T(NAME, DECLS)\
 	typedef struct NAME {\
 		struct DECLS;\
@@ -285,6 +306,8 @@ purs_record_add_multi(NULL, count, __VA_ARGS__)
 
 /* todo: remove this! */
 #define purs_cons_get_tag(V) V->tag
+#define purs_address_of(V) &V
+#define purs_derefence(V) *V
 
 /* thunked pointer dereference. useful for recursive bindings */
 ANY * purs_indirect_value_new();
@@ -292,21 +315,10 @@ void purs_indirect_value_assign(ANY *, ANY);
 ANY purs_indirect_thunk_new(ANY *);
 ANY purs_thunked_deref(ANY);
 
-/* allocate a cons 'value' field large enough to fit 'n' amount of 'ANY' */
-#define PURS_CONS_VALUES_NEW(N) purs_malloc(sizeof (ANY) * N)
+/* allocate a buffer to fit 'N' 'ANY's */
+#define purs_malloc_any_buf(N) purs_malloc(sizeof (ANY) * N)
 
-/* #define purs_any_int_neg(X) purs_any_int_new(-purs_any_get_int(X)) */
-/* #define purs_any_int_set_mut(X, V) do { X->value.i = V; } while (0) */
-/* #define purs_any_assign_mut(V1, V2)\ */
-/* 	do {\ */
-/* 		V1.tag = V2.tag;\ */
-/* 		V1.value = V2.value;\ */
-/* 	} while (0) */
-
-/* code-gen helper to allocate and fill a scope.
- * assumes scope to consist only of (ANY) pointers, the count of which
- * is known.
- */
+/* code-gen helper to allocate and fill a scope. */
 ANY* purs_malloc_many(int num_bindings);
 
 /* declare a thunked top-level value. */
@@ -328,6 +340,14 @@ ANY* purs_malloc_many(int num_bindings);
 		.tag = PURS_ANY_TAG_THUNK,\
 		.value = { .thunk = & NAME ## __thunk__ }\
 	};
+
+/* #define purs_any_int_neg(X) purs_any_int_new(-purs_any_get_int(X)) */
+/* #define purs_any_int_set_mut(X, V) do { X->value.i = V; } while (0) */
+/* #define purs_any_assign_mut(V1, V2)\ */
+/* 	do {\ */
+/* 		V1.tag = V2.tag;\ */
+/* 		V1.value = V2.value;\ */
+/* 	} while (0) */
 
 // -----------------------------------------------------------------------------
 // Any: initializers

@@ -82,7 +82,7 @@ unThunk = AST.everywhere go
               (AST.App (AST.Var "purs_any_app")
                 [ AST.Function
                     { arguments: [], body: Just (AST.Block body) }
-                , AST.Null
+                , AST.Var "purs_any_null"
                 ])
         } ->
         AST.Block $ init <> body

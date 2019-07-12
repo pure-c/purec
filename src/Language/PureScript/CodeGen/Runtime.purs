@@ -13,6 +13,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_eq_string
   , purs_any_get_cons
   , purs_any_get_int
+  , purs_any_get_foreign
   , purs_any_get_record
   , purs_any_get_array
   , purs_any_true
@@ -24,34 +25,35 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_num_one
 
     -- any: built-ins (added for code-gen)
-  , purs_any_app
   , purs_any_int_neg
 
-    -- any: allocations
+    -- any: initializors
   , purs_any_cont
   , purs_any_array
   , purs_any_cons
   , purs_any_record
   , purs_any_int
+  , purs_any_foreign
   , purs_any_num
   , purs_any_string
   , purs_any_char
-  , purs_any_copy
 
     -- code-gen helpers
   , purs_malloc_many
-  , _PURS_SCOPE_T
-  , _PURS_CONS_VALUES_NEW
   , purs_indirect_thunk_new
   , purs_indirect_value_new
   , purs_indirect_value_assign
+  , purs_malloc_any_buf
   , purs_any_int_set_mut
   , purs_any_assign_mut
+  , purs_address_of
+  , purs_derefence
+
+  , _PURS_SCOPE_T
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
 
     -- misc
-  , purs_any_fun_t
   , purs_cons_t
   , purs_record_t
   , purs_cons_get_tag
@@ -66,6 +68,7 @@ module Language.PureScript.CodeGen.Runtime
 
     -- ...
   , void
+  , int
   ) where
 
 import Prelude
@@ -75,6 +78,9 @@ import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 
+int :: Array AST.TypeQualifier -> AST.Type
+int = Type.RawType "int"
+
 void :: Array AST.TypeQualifier -> AST.Type
 void = Type.RawType "void"
 
@@ -83,9 +89,6 @@ anyMut = Type.Pointer (Type.Any [])
 
 any :: AST.Type
 any = Type.Any []
-
-purs_any_fun_t :: AST.Type
-purs_any_fun_t = Type.RawType "purs_any_fun_t" []
 
 purs_record_t :: String
 purs_record_t = "purs_record_t"
@@ -125,6 +128,9 @@ purs_any_eq_char = AST.Var "purs_any_eq_char"
 
 purs_any_eq_string :: AST
 purs_any_eq_string = AST.Var "purs_any_eq_string"
+
+purs_any_get_foreign :: AST
+purs_any_get_foreign = AST.Var "purs_any_get_foreign"
 
 purs_any_get_int :: AST
 purs_any_get_int = AST.Var "purs_any_get_int"
@@ -168,6 +174,9 @@ _PURS_ANY_THUNK_DECL = AST.Var "PURS_ANY_THUNK_DECL"
 purs_any_cons :: AST
 purs_any_cons = AST.Var "purs_any_cons"
 
+purs_any_foreign :: AST
+purs_any_foreign = AST.Var "purs_any_foreign"
+
 purs_any_int :: AST
 purs_any_int = AST.Var "purs_any_int"
 
@@ -189,9 +198,6 @@ purs_any_cont = AST.Var "purs_any_cont"
 purs_any_string :: AST
 purs_any_string = AST.Var "purs_any_string"
 
-purs_any_copy :: AST
-purs_any_copy = AST.Var "purs_any_copy"
-
 purs_indirect_thunk_new :: AST
 purs_indirect_thunk_new = AST.Var "purs_indirect_thunk_new"
 
@@ -207,8 +213,14 @@ purs_any_int_set_mut = AST.Var "purs_any_int_set_mut"
 purs_any_assign_mut :: AST
 purs_any_assign_mut = AST.Var "purs_any_assign_mut"
 
-_PURS_CONS_VALUES_NEW :: AST
-_PURS_CONS_VALUES_NEW = AST.Var "PURS_CONS_VALUES_NEW"
+purs_malloc_any_buf :: AST
+purs_malloc_any_buf = AST.Var "purs_malloc_any_buf"
+
+purs_address_of :: AST
+purs_address_of = AST.Var "purs_address_of"
+
+purs_derefence :: AST
+purs_derefence = AST.Var "purs_derefence"
 
 purs_malloc_many :: AST
 purs_malloc_many = AST.Var "purs_malloc_many"

@@ -23,4 +23,4 @@ let additions =
           "compiler/0.12.x"
       }
 
-in  upstream ⫽ overrides ⫽ additions
+in  upstream // overrides // additions
