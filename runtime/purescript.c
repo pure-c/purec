@@ -1,29 +1,5 @@
 #include "runtime/purescript.h"
 
-static inline void managed_noop_release (managed_t * managed) {}
-
-inline void managed_default_release (managed_t * managed) {
-	free((void *) managed->data);
-}
-
-const managed_t * managed_new (const void * data,
-			       const managed_release_func release) {
-	managed_t * managed = purs_new(managed_t);
-	managed->data = data;
-	if (release != NULL) {
-		GC_register_finalizer(
-			(void *) managed,
-			(GC_finalization_proc) release,
-			0, 0, 0);
-	} else {
-		GC_register_finalizer(
-			(void *) managed,
-			(GC_finalization_proc) managed_default_release,
-			0, 0, 0);
-	}
-	return managed;
-}
-
 // -----------------------------------------------------------------------------
 // Any: allocate
 // -----------------------------------------------------------------------------
@@ -47,27 +23,6 @@ ANY purs_any_cons(int tag, int size, ANY* values) {
 	v.value.cons->tag = tag;
 	v.value.cons->size = size;
 	v.value.cons->values = values;
-	return v;
-}
-
-/* todo: turn into macro */
-ANY purs_any_string_mv(const char * ptr) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_STRING;
-	v.value.str = managed_new(ptr, managed_noop_release);
-	return v;
-}
-
-/* todo: turn into macro */
-ANY purs_any_string(const char * fmt, ...) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_STRING;
-	va_list ap;
-	char *ptr;
-	va_start(ap, fmt);
-	assert (vasprintf(&ptr, fmt, ap) >= 0);
-	va_end(ap);
-	v.value.str = managed_new(ptr, NULL);
 	return v;
 }
 
@@ -100,50 +55,58 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 			    purs_any_tag_str(v.tag));\
 	} while (0)
 
-
+/* todo: macro */
 inline const purs_any_int_t purs_any_get_int (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_INT);
 	return v.value.i;
 }
 
+/* todo: macro */
 inline const purs_any_num_t purs_any_get_num (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_NUM);
 	return v.value.n;
 }
 
+/* todo: macro */
 inline const utf8_int32_t purs_any_get_char (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CHAR);
 	return v.value.chr;
 }
 
+/* todo: macro */
 inline purs_any_cont_t * purs_any_get_cont (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONT);
 	return v.value.cont;
 }
 
+/* todo: macro */
 inline purs_any_cons_t * purs_any_get_cons (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONS);
 	return v.value.cons;
 }
 
+/* todo: macro */
 inline const purs_record_t * purs_any_get_record (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_RECORD);
 	return v.value.record;
 }
 
+/* todo: macro */
 inline const purs_vec_t * purs_any_get_array (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_ARRAY);
 	return v.value.array;
 }
 
+/* todo: macro */
 inline purs_foreign_t purs_any_get_foreign (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_FOREIGN);
 	return v.value.foreign;
 }
 
-inline const void * purs_any_get_string (ANY v) {
+/* todo: macro */
+inline const purs_str_t * purs_any_get_string (ANY v) {
 	_PURS_ASSERT_TAG(PURS_ANY_TAG_STRING);
-	return v.value.str->data;
+	return v.value.str;
 }
 
 // -----------------------------------------------------------------------------
@@ -266,10 +229,9 @@ ANY purs_any_concat(ANY x, ANY y) {
 	} else {
 		switch(x.tag) {
 		case PURS_ANY_TAG_STRING: {
-			return purs_any_string(
-				"%s%s",
-				     purs_any_get_string(x),
-				     purs_any_get_string(y));
+			return purs_any_string(purs_str_new("%s%s",
+							    purs_any_get_string(x)->data,
+							    purs_any_get_string(y)->data));
 		}
 		case PURS_ANY_TAG_ARRAY: {
 			const purs_vec_t * x_vec = purs_any_get_array(x);
@@ -294,11 +256,20 @@ ANY purs_any_concat(ANY x, ANY y) {
 // strings
 // -----------------------------------------------------------------------------
 
-const void * purs_string_copy (const void * source) {
-	size_t sz = utf8size(source);
-	void * dest = malloc(sz);
-	memcpy(dest, source, sz);
-	return (const void*) dest;
+static void purs_str_free(const struct purs_rc *ref) {
+    purs_str_t * x = container_of(ref, purs_str_t, rc);
+    free(x->data); /* do not use 'purs_free' ! */
+    purs_free(x);
+}
+
+const purs_str_t * purs_str_new(const char * fmt, ...) {
+	va_list ap;
+	purs_str_t * x = purs_new(purs_str_t);
+	x->rc = (struct purs_rc) { purs_str_free, 0 };
+	va_start(ap, fmt);
+	assert (vasprintf(&x->data, fmt, ap) >= 0);
+	va_end(ap);
+	return (const purs_str_t *) x;
 }
 
 // -----------------------------------------------------------------------------
@@ -378,8 +349,8 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 		HASH_ADD_KEYPTR(
 			hh,
 			record,
-			entry_copy->key->data,
-			utf8size(entry_copy->key->data),
+			entry_copy->key,
+			utf8size(entry_copy->key),
 			entry_copy
 		);
 	}
@@ -393,13 +364,13 @@ static purs_record_t * _purs_record_add_multi_mut(purs_record_t * source,
 		const void * key = va_arg(args, const void *);
 		ANY value = va_arg(args, ANY);
 		purs_record_t * entry = purs_new(purs_record_t);
-		entry->key = managed_new(afmt("%s", key), NULL);
+		entry->key = afmt("%s", key);
 		entry->value = value;
 		HASH_ADD_KEYPTR(
 			hh,
 			source,
-			entry->key->data,
-			utf8size(entry->key->data),
+			entry->key,
+			utf8size(entry->key),
 			entry
 		);
 	}
@@ -442,8 +413,8 @@ const purs_record_t * purs_record_merge(const purs_record_t * l,
 		HASH_ADD_KEYPTR(
 			hh,
 			copy,
-			entry->key->data,
-			utf8size(entry->key->data),
+			entry->key,
+			utf8size(entry->key),
 			entry
 		);
 	}

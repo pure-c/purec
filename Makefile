@@ -1,19 +1,20 @@
 CLANG ?= clang
 CFLAGS ?=
+WITH_GC ?=
 
 SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
 
 PURS := PATH=$$PATH:node_modules/.bin purs
 PULP := PATH=$$PATH:node_modules/.bin pulp
+
 PUREC_JS := purec.js
 PUREC := node $(PUREC_JS)
 PUREC_WORKDIR := .purec-work
-
-BWDGC_V := v8.0.0
-
 PUREC_LIB := libpurec.a
 PUREC_INTERMEDIATE_LIB := libpurec.intermediate.a
+
+BWDGC_V := v8.0.0
 BWDGC_LIB := deps/bwdgc/.libs/libgc.a
 
 RUNTIME_SOURCES = \
@@ -26,12 +27,19 @@ RUNTIME_OBJECTS = \
 
 TESTS = $(shell ls tests)
 
+ifdef WITH_GC
 CFLAGS += \
 	-D 'uthash_malloc=GC_malloc' \
 	-D 'uthash_free(ptr, sz)=NULL' \
 	-D 'vec_realloc=GC_realloc' \
 	-D 'vec_free(x)=NULL' \
 	-D 'vec_malloc=GC_malloc'
+else
+ifdef UNIT_TESTING
+CFLAGS += \
+	-D UNIT_TESTING
+endif
+endif
 
 $(BWDGC_LIB):
 	@$(MAKE) -s deps/bwdgc
@@ -43,7 +51,11 @@ $(BWDGC_LIB):
 $(PUREC_INTERMEDIATE_LIB): $(RUNTIME_OBJECTS)
 	@ar csr $@ $^
 
+ifdef WITH_GC
 $(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB) $(BWDGC_LIB)
+else
+$(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB)
+endif
 	@rm -rf .build
 	@mkdir -p .build
 	@cd .build &&\
@@ -68,7 +80,6 @@ clean:
 	@rm -f $(RUNTIME_OBJECTS)
 	@rm -f $$(find . -type f -name '*.out')
 	@rm -f $$(find . -maxdepth 1 -type f -name '*.a')
-	@rm -rf $$(find examples -type d -name $(PUREC_WORKDIR))
 .PHONY: clean
 
 %.o: %.c | $(BWDGC_LIB)
@@ -111,17 +122,28 @@ deps/bwdgc:
 # Tests
 #-------------------------------------------------------------------------------
 
-test/c: $(LIBPUREC)
-	@$(CLANG) -L. \
+test/c:
+	@$(MAKE) -s clean
+	@UNIT_TESTING=1 $(MAKE) -s test/c.0
+PHONY: test/c
+
+test/c.0: $(PUREC_LIB)
+	@$(CLANG) \
+		-L. \
 		ctests/*.c \
 		-lpurec \
+		-lcmocka \
 		-lpthread \
 		-I. \
 		-o ctests/a.out
 	@./ctests/a.out
-.PHONY: test/c
+.PHONY: test/c.0
 
 test/tests:
+	@$(MAKE) -s clean
+	@$(MAKE) -s test/tests.0
+
+test/tests.0:
 	@for t in $(TESTS); do\
 		echo >&2 "running...: $$t" &&\
 		$(MAKE) > /dev/null -s -C "tests/$$t" clean &&\
@@ -134,9 +156,10 @@ test/tests:
 			exit 1;\
 		};\
 	done
-.PHONY: test/tests
+.PHONY: test/tests.0
 
 test/upstream: upstream/tests/support/bower_components
+	@$(MAKE) -s clean
 	@$(PULP) test > /dev/null
 .PHONY: test/pulp
 

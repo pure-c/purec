@@ -1,9 +1,43 @@
 #ifndef PURESCRIPT_RUNTIME_H
 #define PURESCRIPT_RUNTIME_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
+#include <math.h>
+
+#ifdef WITH_GC
+#include "deps/bwdgc/include/gc.h"
 #define purs_malloc(SZ) GC_MALLOC(SZ)
 #define purs_realloc(PTR, SZ) GC_REALLOC(PTR, SZ)
-#define purs_new(EXP) GC_NEW(EXP)
+#define purs_new(EXP) GC_NEW(sizeof (EXP))
+#define purs_free(X)
+#else
+#ifdef UNIT_TESTING
+extern void* _test_malloc(const size_t size, const char* file, const int line);
+extern void* _test_calloc(const size_t number_of_elements, const size_t size,
+                          const char* file, const int line);
+extern void _test_free(void* const ptr, const char* file, const int line);
+#define purs_malloc(SZ) _test_malloc(SZ, __FILE__, __LINE__)
+#define purs_realloc(PTR, SZ) _test_malloc(PTR, SZ, __FILE__, __LINE__)
+#define purs_free(PTR) _test_free(PTR, __FILE__, __LINE__)
+#define purs_new(EXP) purs_malloc(sizeof (EXP))
+#else // UNIT_TESTING
+#define purs_malloc(SZ) malloc(SZ)
+#define purs_realloc(PTR, SZ) realloc(PTR, SZ)
+#define purs_new(EXP) purs_malloc(sizeof (EXP))
+#define purs_free(X) free(X)
+#endif
+#endif
+
+#include "ccan/asprintf/asprintf.h"
+#include "vendor/uthash.h"
+#include "vendor/utf8.h"
+#include "vendor/vec.h"
 
 #define purs_log_error(FMT, ...)\
 	do {\
@@ -33,21 +67,9 @@
 #define ANY purs_any_t
 #define APP purs_any_app
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
-#include <math.h>
-#include "deps/bwdgc/include/gc.h"
-#include "ccan/asprintf/asprintf.h"
-#include "vendor/uthash.h"
-#include "vendor/utf8.h"
-#include "vendor/vec.h"
-
 #define purs_any_int_t int32_t
 #define purs_any_num_t double
-#define managed_utf8str_t managed_t
 
-typedef struct managed managed_t;
 typedef struct purs_any purs_any_t;
 typedef vec_t(purs_any_t) purs_vec_t;
 typedef struct purs_record purs_record_t;
@@ -58,11 +80,7 @@ typedef union purs_any_value purs_any_value_t;
 typedef ANY (purs_any_thunk_fun_t)(ANY ctx);
 typedef ANY (purs_any_cont_fun_t)(ANY * ctx, ANY, va_list);
 typedef struct purs_foreign purs_foreign_t;
-
-struct managed { const void * data; };
-void managed_default_release (managed_t * managed);
-typedef void (*managed_release_func)(managed_t * managed);
-const managed_t * managed_new(const void * data, managed_release_func release);
+typedef struct purs_str purs_str_t;
 
 typedef enum {
 	PURS_ANY_TAG_NULL = 0,
@@ -83,21 +101,41 @@ struct purs_foreign {
 	void * data;
 };
 
-union purs_any_value {
+/* a reference-counted structure */
+struct purs_rc {
+	void (*free_fn)(const struct purs_rc *);
+	int count;
+};
 
+#define container_of(ptr, type, member) \
+    ((type *)((char *)(ptr) - offsetof(type, member)))
+
+static inline void purs_rc_retain(const struct purs_rc *ref) {
+	((struct purs_rc *)ref)->count++;
+}
+
+static inline void purs_rc_release(const struct purs_rc *ref) {
+	if (--((struct purs_rc *)ref)->count == 0) {
+		ref->free_fn(ref);
+	}
+}
+
+union purs_any_value {
 	/* inline values */
 	purs_any_int_t i;
 	purs_any_num_t n;
 	utf8_int32_t chr;
+
 	purs_foreign_t foreign;
 
 	/* self-referential, and other values */
-	purs_any_cont_t * cont;
-	purs_any_cons_t * cons;
+	purs_any_cont_t *  cont;
+	purs_any_cons_t *  cons;
 	purs_any_thunk_t * thunk;
+
 	const purs_record_t * record;
-	const managed_t * str;
-	const purs_vec_t * array;
+	const purs_str_t *    str;
+	const purs_vec_t *    array;
 };
 
 struct purs_any {
@@ -108,19 +146,26 @@ struct purs_any {
 struct purs_any_thunk {
 	purs_any_thunk_fun_t * fn;
 	ANY ctx;
+	struct purs_rc rc;
 };
 
 struct purs_any_cont {
 	purs_any_cont_fun_t * fn;
 	int len;
 	ANY * ctx;
+	struct purs_rc rc;
 };
 
-/* todo: track len values, for clean up */
 struct purs_any_cons {
 	int tag;
 	int size;
 	ANY * values;
+	struct purs_rc rc;
+};
+
+struct purs_str {
+	char * data;
+	struct purs_rc rc;
 };
 
 ANY purs_any_null;
@@ -138,14 +183,11 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 #define purs_any_foreign PURS_ANY_FOREIGN
 #define purs_any_array PURS_ANY_ARRAY
 #define purs_any_record PURS_ANY_RECORD
+#define purs_any_string PURS_ANY_STRING
 
 /* XXX these functions heap-allocate. maybe rename? */
 ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t *);
 ANY purs_any_cons(int tag, int size, ANY* values);
-ANY purs_any_string(const char * fmt, ...);
-
-/* allocate a new string box with existing, *GC-allocated* data */
-ANY purs_any_string_new_mv(const char *);
 
 const purs_any_int_t     purs_any_get_int       (ANY);
 const purs_any_num_t     purs_any_get_num       (ANY);
@@ -154,7 +196,7 @@ purs_foreign_t           purs_any_get_foreign   (ANY);
 purs_any_cont_t *        purs_any_get_cont      (ANY);
 purs_any_cons_t *        purs_any_get_cons      (ANY);
 const purs_record_t *    purs_any_get_record    (ANY);
-const void *             purs_any_get_string    (ANY);
+const purs_str_t *       purs_any_get_string    (ANY);
 const purs_vec_t *       purs_any_get_array     (ANY);
 
 // -----------------------------------------------------------------------------
@@ -173,6 +215,7 @@ ANY purs_any_concat(ANY, ANY);
 // strings
 // -----------------------------------------------------------------------------
 
+const purs_str_t * purs_str_new(const char * fmt, ...);
 const void * purs_string_copy (const void *);
 
 #define purs_string_size(STR) utf8size(STR)
@@ -183,22 +226,16 @@ const void * purs_string_copy (const void *);
 // -----------------------------------------------------------------------------
 
 void purs_vec_release (purs_vec_t *);
+
 const purs_vec_t * purs_vec_new ();
 const purs_vec_t * purs_vec_new_va (int count, ...);
 const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 const purs_vec_t * purs_vec_slice (const purs_vec_t *, int begin);
 
-#define purs_vec_foreach(v, var, iter)\
-	vec_foreach(v, var, iter)
-
-#define purs_vec_reserve(v, n)\
-	vec_reserve(v, n)
-
-#define purs_vec_push_mut(v, x)\
-	vec_push(v, x)
-
-#define purs_vec_pusharr_mut(v, arr, count)\
-	vec_pusharr(v, arr, count)
+#define purs_vec_foreach(v, var, iter) vec_foreach(v, var, iter)
+#define purs_vec_reserve(v, n) vec_reserve(v, n)
+#define purs_vec_push_mut(v, x) vec_push(v, x)
+#define purs_vec_pusharr_mut(v, arr, count) vec_pusharr(v, arr, count)
 
 /**
  * Insert the value val at index idx shifting the elements after the index to
@@ -211,7 +248,7 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, ANY val);
 // -----------------------------------------------------------------------------
 
 typedef struct purs_record {
-	const managed_utf8str_t * key;
+	const void * key;
 	ANY value;
 	UT_hash_handle hh;
 } purs_record_t;
@@ -280,6 +317,10 @@ purs_record_add_multi(NULL, count, __VA_ARGS__)
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
+#define purs_address_of(V) &V
+#define purs_derefence(V) *V
+
+/* Tail-call optimization generation */
 struct tco_state {
 	int done;
 	purs_any_t * args;
@@ -297,11 +338,9 @@ struct tco_state {
 #define purs_tco_get_arg(X, I) (((struct tco_state *) X)->args[I])
 #define purs_tco_set_arg(X, I, V) (X.args[I] = V)
 #define purs_tco_mut_arg(X, I, V) (((struct tco_state *) X)->args[I] = V)
+#define purs_foreign_get_data(X) (X.data)
 
-#define purs_foreign_get_data(X)\
-	(X.data)
-
-/* emit a scope struct */
+/* Captured scope generation */
 #define PURS_SCOPE_T(NAME, DECLS)\
 	typedef struct NAME {\
 		struct DECLS;\
@@ -309,16 +348,14 @@ struct tco_state {
 
 /* todo: remove this! */
 #define purs_cons_get_tag(V) V->tag
-#define purs_address_of(V) &V
-#define purs_derefence(V) *V
 
-/* thunked pointer dereference. useful for recursive bindings */
+/* Thunked pointer dereference: Recursive bindings support */
 #define purs_indirect_value_new() purs_new(ANY)
 #define purs_indirect_value_assign(I, V) *(I) = (V)
 #define purs_indirect_thunk_new(X) \
 	({\
 		purs_any_thunk_t * thunk = purs_malloc(sizeof (purs_any_thunk_t));\
-		thunk->ctx = ((purs_any_t){ .value = { .foreign = { .data = X } } });\
+		thunk->ctx = ((purs_any_t){ .value = { .foreign = { .data = (X) } } }); \
 		thunk->fn = purs_thunked_deref;\
 		PURS_ANY_THUNK(thunk);\
 	})
@@ -353,14 +390,34 @@ ANY purs_thunked_deref(ANY);
 // Any: initializers
 // -----------------------------------------------------------------------------
 
+#define PURS_ANY_RETAIN(X) {\
+		switch ((X)->tag) {\
+		case PURS_ANY_TAG_STRING:\
+			purs_rc_retain(&((X)->value.str->rc));\
+			break;\
+		default:\
+			break;\
+		}\
+	}
+
+#define PURS_ANY_RELEASE(X) {\
+		switch ((X)->tag) {\
+		case PURS_ANY_TAG_STRING:\
+			purs_rc_release(&((X)->value.str->rc));\
+			break;\
+		default:\
+			break;\
+		}\
+	}
+
 #define PURS_ANY_INT(X)\
-	((purs_any_t){ .tag = PURS_ANY_TAG_INT, .value = { .i = X } })
+	((purs_any_t){ .tag = PURS_ANY_TAG_INT, .value = { .i = (X) } })
 
 #define PURS_ANY_NUM(X)\
-	((purs_any_t){ .tag = PURS_ANY_TAG_NUM, .value = { .n = X } })
+	((purs_any_t){ .tag = PURS_ANY_TAG_NUM, .value = { .n = (X) } })
 
 #define PURS_ANY_CHAR(X)\
-	((purs_any_t){ .tag = PURS_ANY_TAG_CHAR, .value = { .chr = X } })
+	((purs_any_t){ .tag = PURS_ANY_TAG_CHAR, .value = { .chr = (X) } })
 
 #define PURS_ANY_FOREIGN(TAG, DATA)\
 	((purs_any_t){\
@@ -373,14 +430,17 @@ ANY purs_thunked_deref(ANY);
 		}\
 	})
 
+#define PURS_ANY_STRING(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_STRING, .value = { .str = (X) } })
+
 #define PURS_ANY_RECORD(X)\
-	((purs_any_t){ .tag = PURS_ANY_TAG_RECORD, .value = { .record = X } })
+	((purs_any_t){ .tag = PURS_ANY_TAG_RECORD, .value = { .record = (X) } })
 
 #define PURS_ANY_ARRAY(X)\
-	((purs_any_t){ .tag = PURS_ANY_TAG_ARRAY, .value = { .array = X } })
+	((purs_any_t){ .tag = PURS_ANY_TAG_ARRAY, .value = { .array = (X) } })
 
 #define PURS_ANY_THUNK(X)\
-	((purs_any_t){ .tag = PURS_ANY_TAG_THUNK, .value = { .thunk = X } })
+	((purs_any_t){ .tag = PURS_ANY_TAG_THUNK, .value = { .thunk = (X) } })
 
 // -----------------------------------------------------------------------------
 // FFI helpers
