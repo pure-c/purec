@@ -4,18 +4,23 @@
 // Any: allocate
 // -----------------------------------------------------------------------------
 
-/* todo: turn into macro */
-ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t * fn) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_CONT;
-	v.value.cont = purs_malloc(sizeof (purs_any_cont_t));
-	v.value.cont->fn = fn;
-	v.value.cont->ctx = ctx;
-	v.value.cont->len = len;
-	return v;
+static void purs_cont_free(const struct purs_rc *ref) {
+	purs_cont_t * x = container_of(ref, purs_cont_t, rc);
+	PURS_RC_RELEASE(x->scope);
+	purs_free(x);
 }
 
-/* todo: turn into macro */
+const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
+				  purs_cont_fun_t * fn) {
+	purs_cont_t * cont = purs_malloc(sizeof (purs_cont_t));
+	cont->fn = fn;
+	cont->scope = scope;
+	PURS_RC_RETAIN(scope);
+	cont->rc = ((struct purs_rc) { purs_cont_free, 1 });
+	return (const purs_cont_t *) cont;
+}
+
+/* todo: treat. */
 ANY purs_any_cons(int tag, int size, ANY* values) {
 	ANY v;
 	v.tag = PURS_ANY_TAG_CONS;
@@ -47,66 +52,34 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 	return tags[tag];
 }
 
-#define _PURS_ASSERT_TAG(TAG)\
-	do {\
-		v = purs_any_unthunk(v);\
-		purs_assert(v.tag == TAG, "expected tag: %s, but got: %s",\
-			    purs_any_tag_str(TAG),\
-			    purs_any_tag_str(v.tag));\
-	} while (0)
+// -----------------------------------------------------------------------------
+// Scopes
+// -----------------------------------------------------------------------------
 
-/* todo: macro */
-inline const purs_any_int_t purs_any_get_int (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_INT);
-	return v.value.i;
+static void purs_scope_free(const struct purs_rc *ref) {
+	struct purs_scope * x = container_of(ref, struct purs_scope, rc);
+	for (int i = 0; i < x->size; i++) {
+		PURS_ANY_RELEASE(&(x->bindings[i]));
+	}
+	purs_free(x->bindings);
+	purs_free(x);
 }
 
-/* todo: macro */
-inline const purs_any_num_t purs_any_get_num (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_NUM);
-	return v.value.n;
-}
-
-/* todo: macro */
-inline const utf8_int32_t purs_any_get_char (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_CHAR);
-	return v.value.chr;
-}
-
-/* todo: macro */
-inline purs_any_cont_t * purs_any_get_cont (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONT);
-	return v.value.cont;
-}
-
-/* todo: macro */
-inline purs_any_cons_t * purs_any_get_cons (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_CONS);
-	return v.value.cons;
-}
-
-/* todo: macro */
-inline const purs_record_t * purs_any_get_record (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_RECORD);
-	return v.value.record;
-}
-
-/* todo: macro */
-inline const purs_vec_t * purs_any_get_array (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_ARRAY);
-	return v.value.array;
-}
-
-/* todo: macro */
-inline purs_foreign_t purs_any_get_foreign (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_FOREIGN);
-	return v.value.foreign;
-}
-
-/* todo: macro */
-inline const purs_str_t * purs_any_get_string (ANY v) {
-	_PURS_ASSERT_TAG(PURS_ANY_TAG_STRING);
-	return v.value.str;
+struct purs_scope * purs_scope_new(int size, ...) {
+	struct purs_scope * scope = purs_new(struct purs_scope);
+	ANY* bindings = purs_malloc(sizeof (ANY) * size);
+	scope->size = size;
+	scope->bindings = bindings;
+	int i;
+	va_list ap;
+	va_start(ap, size);
+	for (i = 0; i < size; i++) {
+		bindings[i] = *va_arg(ap, ANY *);
+		PURS_ANY_RETAIN(&bindings[i]);
+	}
+	va_end(ap);
+	scope->rc = ((struct purs_rc) { purs_scope_free, 1 });
+	return scope;
 }
 
 // -----------------------------------------------------------------------------
@@ -130,7 +103,7 @@ inline ANY purs_any_app(ANY f, ANY v, ...) {
 	assert(f.tag == PURS_ANY_TAG_CONT);
 	va_list args;
 	va_start(args, v);
-	ANY r = f.value.cont->fn(f.value.cont->ctx, v, args);
+	ANY r = f.value.cont->fn(f.value.cont->scope, v, args);
 	va_end(args);
 	return r;
 }
@@ -257,15 +230,15 @@ ANY purs_any_concat(ANY x, ANY y) {
 // -----------------------------------------------------------------------------
 
 static void purs_str_free(const struct purs_rc *ref) {
-    purs_str_t * x = container_of(ref, purs_str_t, rc);
-    free(x->data); /* do not use 'purs_free' ! */
-    purs_free(x);
+	purs_str_t * x = container_of(ref, purs_str_t, rc);
+	free(x->data); /* do not use 'purs_free' ! */
+	purs_free(x);
 }
 
 const purs_str_t * purs_str_new(const char * fmt, ...) {
 	va_list ap;
 	purs_str_t * x = purs_new(purs_str_t);
-	x->rc = (struct purs_rc) { purs_str_free, 0 };
+	x->rc = (struct purs_rc) { purs_str_free, 1 };
 	va_start(ap, fmt);
 	assert (vasprintf(&x->data, fmt, ap) >= 0);
 	va_end(ap);

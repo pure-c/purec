@@ -73,12 +73,13 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 typedef struct purs_any purs_any_t;
 typedef vec_t(purs_any_t) purs_vec_t;
 typedef struct purs_record purs_record_t;
-typedef struct purs_any_cont purs_any_cont_t;
+typedef struct purs_cont purs_cont_t;
 typedef struct purs_any_thunk purs_any_thunk_t;
 typedef struct purs_any_cons purs_any_cons_t;
 typedef union purs_any_value purs_any_value_t;
+struct purs_scope;
 typedef ANY (purs_any_thunk_fun_t)(ANY ctx);
-typedef ANY (purs_any_cont_fun_t)(ANY * ctx, ANY, va_list);
+typedef ANY (purs_cont_fun_t)(const struct purs_scope *, ANY, va_list);
 typedef struct purs_foreign purs_foreign_t;
 typedef struct purs_str purs_str_t;
 
@@ -120,22 +121,24 @@ static inline void purs_rc_release(const struct purs_rc *ref) {
 	}
 }
 
+/* by convetion, the rc is embedded as 'rc', making these macros possible */
+#define PURS_RC_RELEASE(X) purs_rc_release(&(X)->rc)
+#define PURS_RC_RETAIN(X)  purs_rc_retain(&(X)->rc)
+
 union purs_any_value {
 	/* inline values */
 	purs_any_int_t i;
 	purs_any_num_t n;
 	utf8_int32_t chr;
-
 	purs_foreign_t foreign;
 
 	/* self-referential, and other values */
-	purs_any_cont_t *  cont;
-	purs_any_cons_t *  cons;
+	const purs_cont_t * cont;
+	purs_any_cons_t * cons;
 	purs_any_thunk_t * thunk;
-
 	const purs_record_t * record;
-	const purs_str_t *    str;
-	const purs_vec_t *    array;
+	const purs_str_t * str;
+	const purs_vec_t * array;
 };
 
 struct purs_any {
@@ -149,10 +152,9 @@ struct purs_any_thunk {
 	struct purs_rc rc;
 };
 
-struct purs_any_cont {
-	purs_any_cont_fun_t * fn;
-	int len;
-	ANY * ctx;
+struct purs_cont {
+	purs_cont_fun_t * fn;
+	const struct purs_scope * scope; /* todo: inline? */
 	struct purs_rc rc;
 };
 
@@ -176,28 +178,43 @@ ANY purs_any_unthunk (ANY);
 const purs_any_tag_t purs_any_get_tag (ANY);
 const char * purs_any_tag_str (const purs_any_tag_t);
 
-/* DEPRECATED: two versions for compat/historical reasons only */
-#define purs_any_int PURS_ANY_INT
-#define purs_any_num PURS_ANY_NUM
-#define purs_any_char PURS_ANY_CHAR
-#define purs_any_foreign PURS_ANY_FOREIGN
-#define purs_any_array PURS_ANY_ARRAY
-#define purs_any_record PURS_ANY_RECORD
-#define purs_any_string PURS_ANY_STRING
-
 /* XXX these functions heap-allocate. maybe rename? */
-ANY purs_any_cont(ANY * ctx, int len, purs_any_cont_fun_t *);
 ANY purs_any_cons(int tag, int size, ANY* values);
 
-const purs_any_int_t     purs_any_get_int       (ANY);
-const purs_any_num_t     purs_any_get_num       (ANY);
-const utf8_int32_t       purs_any_get_char      (ANY);
-purs_foreign_t           purs_any_get_foreign   (ANY);
-purs_any_cont_t *        purs_any_get_cont      (ANY);
-purs_any_cons_t *        purs_any_get_cons      (ANY);
-const purs_record_t *    purs_any_get_record    (ANY);
-const purs_str_t *       purs_any_get_string    (ANY);
-const purs_vec_t *       purs_any_get_array     (ANY);
+#define __PURS_ANY_GETTER(N, A, R, TAG)\
+	static inline R _purs_any_get_ ## N (ANY v, char * file, int line) {\
+		v = purs_any_unthunk(v);\
+		purs_assert(v.tag == TAG,\
+			    "expected tag: %s, but got: %s. at %s:%d",\
+			    purs_any_tag_str(TAG),\
+			    purs_any_tag_str(v.tag),\
+			    file,\
+			    line);\
+		return v.value.A;\
+	}
+
+__PURS_ANY_GETTER(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
+__PURS_ANY_GETTER(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
+__PURS_ANY_GETTER(char, chr, utf8_int32_t, PURS_ANY_TAG_CHAR)
+__PURS_ANY_GETTER(foreign, foreign, purs_foreign_t, PURS_ANY_TAG_FOREIGN)
+__PURS_ANY_GETTER(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
+__PURS_ANY_GETTER(cons, cons, const purs_any_cons_t *, PURS_ANY_TAG_CONS)
+__PURS_ANY_GETTER(thunk, thunk, const purs_any_thunk_t *, PURS_ANY_TAG_THUNK)
+__PURS_ANY_GETTER(record, record, const purs_record_t *, PURS_ANY_TAG_RECORD)
+__PURS_ANY_GETTER(string, str, const purs_str_t *, PURS_ANY_TAG_STRING)
+__PURS_ANY_GETTER(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
+
+/* todo: generate faster, unsafe variants */
+#define purs_any_get_int(A) _purs_any_get_int((A), __FILE__, __LINE__)
+#define purs_any_get_num(A) _purs_any_get_num((A), __FILE__, __LINE__)
+#define purs_any_get_char(A) _purs_any_get_char((A), __FILE__, __LINE__)
+#define purs_any_get_foreign(A) _purs_any_get_foreign((A), __FILE__, __LINE__)
+#define purs_any_get_cont(A) _purs_any_get_cont((A), __FILE__, __LINE__)
+#define purs_any_get_cons(A) _purs_any_get_cons((A), __FILE__, __LINE__)
+#define purs_any_get_thunk(A) _purs_any_get_thunk((A), __FILE__, __LINE__)
+#define purs_any_get_record(A) _purs_any_get_record((A), __FILE__, __LINE__)
+#define purs_any_get_string(A) _purs_any_get_string((A), __FILE__, __LINE__)
+#define purs_any_get_array(A) _purs_any_get_array((A), __FILE__, __LINE__)
 
 // -----------------------------------------------------------------------------
 // Any: built-in functions
@@ -210,6 +227,12 @@ int purs_any_eq_num    (ANY, double);
 
 int purs_any_eq(ANY, ANY);
 ANY purs_any_concat(ANY, ANY);
+
+// -----------------------------------------------------------------------------
+// continuations
+// -----------------------------------------------------------------------------
+
+const purs_cont_t * purs_cont_new(const struct purs_scope *, purs_cont_fun_t *);
 
 // -----------------------------------------------------------------------------
 // strings
@@ -341,6 +364,14 @@ struct tco_state {
 #define purs_foreign_get_data(X) (X.data)
 
 /* Captured scope generation */
+struct purs_scope {
+	int size;
+	ANY* bindings;
+	struct purs_rc rc;
+};
+
+struct purs_scope * purs_scope_new(int size, ...);
+
 #define PURS_SCOPE_T(NAME, DECLS)\
 	typedef struct NAME {\
 		struct DECLS;\
@@ -402,10 +433,23 @@ ANY purs_thunked_deref(ANY);
 
 #define PURS_ANY_RELEASE(X) {\
 		switch ((X)->tag) {\
+		case PURS_ANY_TAG_NULL:\
+		case PURS_ANY_TAG_INT:\
+		case PURS_ANY_TAG_NUM:\
+			break;\
+		case PURS_ANY_TAG_THUNK:\
+		case PURS_ANY_TAG_CONS:\
+		case PURS_ANY_TAG_RECORD:\
+		case PURS_ANY_TAG_CHAR:\
+		case PURS_ANY_TAG_ARRAY:\
+		case PURS_ANY_TAG_FOREIGN:\
+			assert(0);\
+			break;\
+		case PURS_ANY_TAG_CONT:\
+			purs_rc_release(&((X)->value.cont->rc));\
+			break;\
 		case PURS_ANY_TAG_STRING:\
 			purs_rc_release(&((X)->value.str->rc));\
-			break;\
-		default:\
 			break;\
 		}\
 	}
@@ -442,6 +486,19 @@ ANY purs_thunked_deref(ANY);
 #define PURS_ANY_THUNK(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_THUNK, .value = { .thunk = (X) } })
 
+#define PURS_ANY_CONT(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_CONT, .value = { .cont = (X) } })
+
+/* DEPRECATED: two versions for compat/historical reasons only */
+#define purs_any_int PURS_ANY_INT
+#define purs_any_num PURS_ANY_NUM
+#define purs_any_char PURS_ANY_CHAR
+#define purs_any_foreign PURS_ANY_FOREIGN
+#define purs_any_array PURS_ANY_ARRAY
+#define purs_any_record PURS_ANY_RECORD
+#define purs_any_cont PURS_ANY_CONT
+#define purs_any_string PURS_ANY_STRING
+
 // -----------------------------------------------------------------------------
 // FFI helpers
 // -----------------------------------------------------------------------------
@@ -458,7 +515,7 @@ ANY purs_thunked_deref(ANY);
 // -----------------------------------------------------------------------------
 
 #define _PURS_FFI_FUNC_ENTRY(NAME)\
-	purs_any_cont_t NAME ## __cont__ = {\
+	purs_cont_t NAME ## __cont__ = {\
 		.fn = NAME ## __1,\
 		.len = 0,\
 		.ctx = NULL\
@@ -482,7 +539,7 @@ ANY purs_thunked_deref(ANY);
 		if (ctx != NULL) {\
 			ctx[CUR - 1] = a;\
 		}\
-		return purs_any_cont(ctx, CUR, NAME##__##NEXT);\
+		return purs_cont(ctx, CUR, NAME##__##NEXT);\
 	}
 
 #define _PURS_FFI_FUNC_CONT_1_TO_2(NAME)   _PURS_FFI_FUNC_CONT(NAME,  1,  2)
