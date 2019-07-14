@@ -49,16 +49,19 @@ module Language.PureScript.CodeGen.Runtime
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
 
-    -- misc
   , purs_cons_t
-  , purs_record_t
   , purs_cons_get_tag
   , purs_vec_new_va
+
+  -- records
+  , purs_record_t
   , purs_record_empty
   , purs_record_find_by_key
   , purs_record_copy_shallow
   , purs_record_add_multi
-  , purs_record_new_from_kvps
+  , purs_record_new_va
+
+    -- misc
   , purs_assert
   , purs_assert'
 
@@ -143,8 +146,8 @@ purs_cons_get_tag = AST.Var "purs_cons_get_tag"
 purs_any_app :: AST
 purs_any_app = AST.Var "purs_any_app"
 
-purs_record_new_from_kvps :: AST
-purs_record_new_from_kvps = AST.Var "purs_record_new_from_kvps"
+purs_record_new_va :: AST
+purs_record_new_va = AST.Var "purs_record_new_va"
 
 purs_record_find_by_key :: AST
 purs_record_find_by_key = AST.Var "purs_record_find_by_key"

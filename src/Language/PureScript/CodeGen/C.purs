@@ -284,7 +284,7 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
         AST.App
           R.purs_any_record $
             [ AST.App
-              R.purs_record_new_from_kvps $
+              R.purs_record_new_va $
               [ AST.NumericLiteral $ Left $ A.length kvpAsts
               ] <> A.concat kvpAsts
             ]

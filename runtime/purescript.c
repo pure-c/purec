@@ -192,36 +192,21 @@ ANY purs_any_concat(ANY x, ANY y) {
 
 	assert(x.tag != PURS_ANY_TAG_NULL);
 	assert(y.tag != PURS_ANY_TAG_NULL);
+	assert(x.tag == y.tag);
 
-	if (x.tag != y.tag) {
-		purs_assert(
-			0,
-			"cannot concat %s with %s",
-			purs_any_tag_str(x.tag),
-			purs_any_tag_str(y.tag));
-	} else {
-		switch(x.tag) {
-		case PURS_ANY_TAG_STRING: {
-			return purs_any_string(purs_str_new("%s%s",
-							    purs_any_get_string(x)->data,
-							    purs_any_get_string(y)->data));
-		}
-		case PURS_ANY_TAG_ARRAY: {
-			const purs_vec_t * x_vec = purs_any_get_array(x);
-			const purs_vec_t * y_vec = purs_any_get_array(y);
-			if (x_vec->length == 0) {
-				return y;
-			} else if (y_vec->length == 0) {
-				return x;
-			} else {
-				purs_vec_t * out_vec = (purs_vec_t *) purs_vec_copy(x_vec);
-				vec_pusharr(out_vec, y_vec->data, y_vec->length);
-				return purs_any_array((const purs_vec_t *) out_vec);
-			}
-		}
-		default:
-			purs_assert(0, "cannot concat %s", purs_any_tag_str(x.tag));
-		}
+	switch(x.tag) {
+	case PURS_ANY_TAG_STRING: {
+		return purs_any_string(purs_str_new("%s%s",
+						    purs_any_get_string(x)->data,
+						    purs_any_get_string(y)->data));
+	}
+	case PURS_ANY_TAG_ARRAY: {
+		const purs_vec_t * x_vec = purs_any_get_array(x);
+		const purs_vec_t * y_vec = purs_any_get_array(y);
+		return purs_any_array(purs_vec_concat(x_vec, y_vec));
+	}
+	default:
+		purs_assert(0, "cannot concat %s", purs_any_tag_str(x.tag));
 	}
 }
 
@@ -249,48 +234,110 @@ const purs_str_t * purs_str_new(const char * fmt, ...) {
 // arrays
 // -----------------------------------------------------------------------------
 
-inline void purs_vec_release (purs_vec_t * vec) {
-	vec_deinit(vec);
+static void purs_vec_free(const struct purs_rc *ref) {
+	purs_vec_t * x = container_of(ref, purs_vec_t, rc);
+	int i;
+	ANY v;
+	purs_vec_foreach(x, v, i) {
+		PURS_ANY_RELEASE(&v);
+	}
+	vec_deinit(x);
+	purs_free(x);
 }
 
-inline const purs_vec_t * purs_vec_new () {
-	purs_vec_t * v = purs_new(purs_vec_t);
-	vec_init(v);
-	return (const purs_vec_t *) v;
+static inline purs_vec_t * purs_vec_new() {
+	purs_vec_t * o = purs_new(purs_vec_t);
+	o->data = NULL;
+	o->length = 0;
+	o->capacity = 0;
+	o->rc = (struct purs_rc) { purs_vec_free, 1 };
+	return o;
+}
+
+#define purs_vec_empty NULL
+#define purs_vec_is_empty(V) (V == NULL || V->length == 0)
+
+const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs,
+				   const purs_vec_t * rhs) {
+	if (purs_vec_is_empty(lhs)) {
+		if (rhs != NULL) {
+			PURS_RC_RETAIN(rhs);
+			return rhs;
+		}
+		return NULL;
+	} else if (purs_vec_is_empty(rhs)) {
+		if (lhs != NULL) {
+			PURS_RC_RETAIN(lhs);
+			return lhs;
+		}
+		return NULL;
+	} else {
+		int length = lhs->length + rhs->length;
+		purs_vec_t * o = purs_vec_new();
+		o->data = vec_malloc(sizeof (ANY) * length);
+		o->length = length;
+		o->capacity = length;
+		memcpy(o->data, lhs->data, sizeof (ANY) * lhs->length);
+		memcpy(o->data + lhs->length, rhs->data, sizeof (ANY) * rhs->length);
+		for (int i = 0; i < o->length; i++) {
+			PURS_ANY_RETAIN(&o->data[i]);
+		}
+		return o;
+	}
 }
 
 const purs_vec_t * purs_vec_new_va (int count, ...) {
-	int i;
-	va_list args;
-	ANY* xs = malloc(sizeof (ANY) * count);
-	va_start(args, count);
-	for (i = 0; i < count; i++) {
-		xs[i] = va_arg(args, ANY);
+	if (count <= 0) {
+		return NULL;
 	}
-	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
-	vec_pusharr(o, xs, count);
-	free(xs);
+
+	purs_vec_t * o = purs_vec_new();
+
+	o->data = vec_malloc(sizeof (ANY) * count);
+	o->length = count;
+	o->capacity = count;
+
+	va_list ap;
+	va_start(ap, count);
+	for (int i = 0; i < count; i++) {
+		o->data[i] = va_arg(ap, ANY);
+		PURS_ANY_RETAIN(&o->data[i]);
+	}
+	va_end(ap);
+
 	return (const purs_vec_t *) o;
 }
 
-const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
-	if (vec == NULL || vec->data == NULL) {
-		return (purs_vec_t *) purs_vec_new();
+static const purs_vec_t * _purs_vec_copy (const purs_vec_t * vec) {
+	if (purs_vec_is_empty(vec)) {
+		return NULL;
 	} else {
-		purs_vec_t * copy = (purs_vec_t *) purs_vec_new();
-		copy->length = vec->length;
-		copy->capacity = vec->capacity;
-		copy->data = vec_malloc(sizeof (ANY*) * vec->capacity);
-		memcpy(copy->data,
-		       vec->data,
-		       sizeof (*copy->data) * vec->capacity);
-		return (const purs_vec_t *) copy;
+		purs_vec_t * o = purs_vec_new();
+		o->length = vec->length;
+		o->capacity = vec->capacity;
+		o->data = vec_malloc(sizeof (ANY) * vec->capacity);
+		memcpy(o->data, vec->data, sizeof (ANY) * vec->capacity);
+		return (const purs_vec_t *) o;
 	}
 }
 
-const purs_vec_t * purs_vec_slice (const purs_vec_t * vec, int begin) {
-	purs_vec_t * copy = (purs_vec_t *) purs_vec_copy(vec);
-	vec_splice(copy, 0, begin);
+const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
+	const purs_vec_t * copy = _purs_vec_copy(vec);
+	for (int i = 0; i < copy->length; i++) {
+		PURS_ANY_RETAIN(&copy->data[i]);
+	}
+	return copy;
+}
+
+const purs_vec_t * purs_vec_splice (const purs_vec_t * vec,
+				    int start,
+				    int count) {
+	/* todo: avoid copying input array */
+	purs_vec_t * copy = (purs_vec_t *) _purs_vec_copy(vec);
+	vec_splice(copy, start, count);
+	for (int i = 0; i < copy->length; i++) {
+		PURS_ANY_RETAIN(&copy->data[i]);
+	}
 	return (const purs_vec_t *) copy;
 }
 
@@ -302,6 +349,7 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 	} else {
 		purs_vec_t * out = (purs_vec_t *) purs_vec_copy(vec);
 		vec_insert(out, idx, val);
+		PURS_ANY_RETAIN(&val);
 		return (const purs_vec_t *) out;
 	}
 }
@@ -310,117 +358,102 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records
 // -----------------------------------------------------------------------------
 
+static inline void _purs_record_add_multi_mut(purs_record_t * x, int count, va_list ap);
+
 ANY purs_record_empty = PURS_ANY_RECORD(NULL);
 
+static void purs_record_free(const struct purs_rc *ref) {
+	purs_record_t * x = container_of(ref, purs_record_t, rc);
+	const purs_record_node_t * e, * tmp;
+	HASH_ITER(hh, x->root, e, tmp) {
+		PURS_ANY_RELEASE(&e->value);
+		HASH_DEL(x->root, (purs_record_node_t *) e);
+		purs_free((purs_record_node_t *) e);
+	}
+	purs_free(x);
+}
+
+/* construct a new record from key/value pairs, e.g.:
+ * > purs_record_new_va(2, "foo", foo, "bar", bar);
+ */
+const purs_record_t * purs_record_new_va(int count, ...) {
+	purs_record_t * x = purs_new(purs_record_t);
+	x->root = NULL;
+	va_list ap;
+	va_start(ap, count);
+	_purs_record_add_multi_mut(x, count, ap);
+	va_end(ap);
+	x->rc = ((struct purs_rc) { purs_record_free, 1 });
+	return (const purs_record_t *) x;
+}
+
+/* create a shallow copy of the record
+ */
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
-	const purs_record_t * current_entry, * tmp;
-	purs_record_t * entry_copy;
-	purs_record_t * record = NULL;
-	HASH_ITER(hh, source, current_entry, tmp) {
-		entry_copy = purs_new(purs_record_t);
-		memcpy(entry_copy, current_entry, sizeof(purs_record_t));
+	const purs_record_node_t * src, * tmp;
+	purs_record_t * x = purs_new(purs_record_t);
+	x->root = NULL;
+	HASH_ITER(hh, source->root, src, tmp) {
+		purs_record_node_t * dst = purs_new(purs_record_node_t);
+		dst->key = afmt("%s", src->key); /* todo: perf */
+		dst->value = src->value;
+		PURS_ANY_RETAIN(&dst->value);
 		HASH_ADD_KEYPTR(
 			hh,
-			record,
-			entry_copy->key,
-			utf8size(entry_copy->key),
-			entry_copy
+			x->root,
+			dst->key,
+			utf8size(dst->key),
+			dst
 		);
 	}
-	return (const purs_record_t *) record;
-}
-
-static purs_record_t * _purs_record_add_multi_mut(purs_record_t * source,
-						  size_t count,
-						  va_list args) {
-	for (size_t i = 0; i < count; i++) {
-		const void * key = va_arg(args, const void *);
-		ANY value = va_arg(args, ANY);
-		purs_record_t * entry = purs_new(purs_record_t);
-		entry->key = afmt("%s", key);
-		entry->value = value;
-		HASH_ADD_KEYPTR(
-			hh,
-			source,
-			entry->key,
-			utf8size(entry->key),
-			entry
-		);
-	}
-	return source;
-}
-
-purs_record_t * purs_record_add_multi_mut(purs_record_t * source,
-					  size_t count,
-					  ...) {
-	va_list args;
-	va_start(args, count);
-	_purs_record_add_multi_mut(source, count, args);
-	va_end(args);
-	return source;
+	x->rc = ((struct purs_rc) { purs_record_free, 1 });
+	return (const purs_record_t *) x;
 }
 
 const purs_record_t * purs_record_add_multi(const purs_record_t * source,
 					    size_t count,
 					    ...) {
 	if (count == 0) {
+		PURS_RC_RETAIN(source);
 		return source;
 	}
 
 	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
 	va_list args;
 	va_start(args, count);
-	copy = _purs_record_add_multi_mut(copy, count, args);
+	_purs_record_add_multi_mut(copy, count, args);
 	va_end(args);
 	return (const purs_record_t *) copy;
 }
 
-const purs_record_t * purs_record_merge(const purs_record_t * l,
-					const purs_record_t * r) {
-	const purs_record_t *rec, *tmp = NULL;
-	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(l);
-	HASH_ITER(hh, r, rec, tmp) {
-		purs_record_t * entry = purs_new(purs_record_t);
-		entry->key = rec->key;
-		entry->value = rec->value;
+static inline
+void _purs_record_add_multi_mut(purs_record_t * x,
+				int count,
+				va_list ap) {
+	for (int i = 0; i < count; i++) {
+		const char * key = va_arg(ap, const char *);
+		ANY value = va_arg(ap, ANY);
+		purs_record_node_t * entry = purs_new(purs_record_node_t);
+		entry->key = afmt("%s", key); /* todo: perf */
+		entry->value = value;
+		PURS_ANY_RETAIN(&value);
 		HASH_ADD_KEYPTR(
 			hh,
-			copy,
+			x->root,
 			entry->key,
 			utf8size(entry->key),
 			entry
 		);
 	}
-	return (const purs_record_t *) copy;
 }
 
-const purs_record_t * purs_record_remove(const purs_record_t * source,
-					 const void * key) {
-	purs_record_t * v = (purs_record_t *) purs_record_find_by_key(source, key);
-	if (v != NULL) {
-		purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
-		HASH_DEL(copy, (purs_record_t *) v);
-		return (const purs_record_t *) copy;
-	} else {
-		return source;
-	}
-}
-
-purs_record_t * purs_record_remove_mut(purs_record_t * source,
-				       const void * key) {
-	purs_record_t * v = (purs_record_t *) purs_record_find_by_key(source, key);
-	if (v != NULL) {
-		HASH_DEL(source, (purs_record_t *) v);
-	}
-	return source;
-}
-
-const purs_record_t * purs_record_find_by_key(const purs_record_t * record,
-					      const void * key) {
-	purs_record_t * result;
+ANY * purs_record_find_by_key(const purs_record_t * record,
+			      const void * key) {
+	purs_record_node_t * result;
 	size_t len = utf8size(key);
-	HASH_FIND(hh, record, key, len, result);
-	return result;
+	HASH_FIND(hh, record->root, key, len, result);
+	if (result == NULL) return NULL;
+	return &result->value;
 }
 
 // -----------------------------------------------------------------------------

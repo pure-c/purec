@@ -18,9 +18,19 @@
 #define purs_free(X)
 #else
 #ifdef UNIT_TESTING
+extern void mock_assert(const int result, const char *const expression, const char *const file, const int line);
+#undef assert
+#define assert(A) mock_assert((A), #A, __FILE__, __LINE__)
+#define purs_assert(A, FMT, ...)\
+	do {\
+		if (!(A)) {\
+			/*char buf[1024];*/\
+			/*sprintf(buf, FMT, ##__VA_ARGS__);*/\
+			mock_assert((A), #A, __FILE__, __LINE__);\
+		}\
+	} while (0)
 extern void* _test_malloc(const size_t size, const char* file, const int line);
-extern void* _test_calloc(const size_t number_of_elements, const size_t size,
-                          const char* file, const int line);
+extern void* _test_calloc(const size_t number_of_elements, const size_t size, const char* file, const int line);
 extern void _test_free(void* const ptr, const char* file, const int line);
 #define purs_malloc(SZ) _test_malloc(SZ, __FILE__, __LINE__)
 #define purs_realloc(PTR, SZ) _test_malloc(PTR, SZ, __FILE__, __LINE__)
@@ -31,6 +41,13 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 #define purs_realloc(PTR, SZ) realloc(PTR, SZ)
 #define purs_new(EXP) purs_malloc(sizeof (EXP))
 #define purs_free(X) free(X)
+#define purs_assert(A, FMT, ...)\
+	do {\
+		if (!(A)) {\
+			purs_log_error(FMT, ##__VA_ARGS__);\
+			assert(A);\
+		}\
+	} while (0)
 #endif
 #endif
 
@@ -48,14 +65,6 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 			##__VA_ARGS__);\
 	} while (0)
 
-#define purs_assert(A, FMT, ...)\
-	do {\
-		if (!(A)) {\
-			purs_log_error(FMT, ##__VA_ARGS__);\
-			assert(A);\
-		}\
-} while (0)
-
 #ifdef ANY
 #error macro 'ANY' already defined
 #endif
@@ -70,8 +79,8 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 #define purs_any_int_t int32_t
 #define purs_any_num_t double
 
+typedef struct purs_vec purs_vec_t;
 typedef struct purs_any purs_any_t;
-typedef vec_t(purs_any_t) purs_vec_t;
 typedef struct purs_record purs_record_t;
 typedef struct purs_cont purs_cont_t;
 typedef struct purs_any_thunk purs_any_thunk_t;
@@ -83,6 +92,7 @@ typedef ANY (purs_cont_fun_t)(const struct purs_scope *, ANY, va_list);
 typedef struct purs_foreign purs_foreign_t;
 typedef struct purs_str purs_str_t;
 
+/* tag numbers are strictly sequential (for lookups, etc.)! */
 typedef enum {
 	PURS_ANY_TAG_NULL = 0,
 	PURS_ANY_TAG_INT = 1,
@@ -96,6 +106,7 @@ typedef enum {
 	PURS_ANY_TAG_ARRAY = 9,
 	PURS_ANY_TAG_FOREIGN = 10,
 } purs_any_tag_t;
+#define PURS_ANY_TAGS_TOT 10 /* Keep this in Sync! */
 
 struct purs_foreign {
 	void * tag;
@@ -167,6 +178,14 @@ struct purs_any_cons {
 
 struct purs_str {
 	char * data;
+	struct purs_rc rc;
+};
+
+/* a reference-counted vec_t(...) */
+struct purs_vec {
+	ANY * data;
+	int length;
+	int capacity;
 	struct purs_rc rc;
 };
 
@@ -248,12 +267,10 @@ const void * purs_string_copy (const void *);
 // arrays
 // -----------------------------------------------------------------------------
 
-void purs_vec_release (purs_vec_t *);
-
-const purs_vec_t * purs_vec_new ();
 const purs_vec_t * purs_vec_new_va (int count, ...);
 const purs_vec_t * purs_vec_copy (const purs_vec_t *);
-const purs_vec_t * purs_vec_slice (const purs_vec_t *, int begin);
+const purs_vec_t * purs_vec_splice (const purs_vec_t *, int start, int count);
+const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs, const purs_vec_t * rhs);
 
 #define purs_vec_foreach(v, var, iter) vec_foreach(v, var, iter)
 #define purs_vec_reserve(v, n) vec_reserve(v, n)
@@ -270,14 +287,21 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, ANY val);
 // records
 // -----------------------------------------------------------------------------
 
-typedef struct purs_record {
+typedef struct purs_node_record {
 	const void * key;
 	ANY value;
 	UT_hash_handle hh;
+} purs_record_node_t;
+
+typedef struct purs_record {
+	const purs_record_node_t * root;
+	struct purs_rc rc;
 } purs_record_t;
 
 // TODO: rename to 'purs_any_record_empty'
 ANY purs_record_empty;
+
+const purs_record_t * purs_record_new_va(int count, ...);
 
 /**
  * Create a shallow copy of the given record.
@@ -314,27 +338,8 @@ const purs_record_t * purs_record_merge(const purs_record_t *,
 /**
  * Find an entry by it's key.
  */
-const purs_record_t * purs_record_find_by_key(const purs_record_t *,
-					      const void * key);
-
-/**
- * Remove an entry by it's key.
- */
-const purs_record_t * purs_record_remove(const purs_record_t *,
-					 const void * key);
-
-/**
- * Remove an entry by it's key (by mutation)
- */
-purs_record_t * purs_record_remove_mut(purs_record_t * source,
-				       const void * key);
-
-/**
- * Create a new record from a bunch of key value pairs.
- * The 'count' is the count of pairs, not elements in the va_list.
- */
-#define purs_record_new_from_kvps(count, ...)\
-purs_record_add_multi(NULL, count, __VA_ARGS__)
+ANY * purs_record_find_by_key(const purs_record_t *,
+			      const void * key);
 
 // -----------------------------------------------------------------------------
 // Code-gen helpers
@@ -436,14 +441,18 @@ ANY purs_thunked_deref(ANY);
 		case PURS_ANY_TAG_NULL:\
 		case PURS_ANY_TAG_INT:\
 		case PURS_ANY_TAG_NUM:\
+		case PURS_ANY_TAG_CHAR:\
 			break;\
 		case PURS_ANY_TAG_THUNK:\
 		case PURS_ANY_TAG_CONS:\
-		case PURS_ANY_TAG_RECORD:\
-		case PURS_ANY_TAG_CHAR:\
-		case PURS_ANY_TAG_ARRAY:\
 		case PURS_ANY_TAG_FOREIGN:\
 			assert(0);\
+			break;\
+		case PURS_ANY_TAG_ARRAY:\
+			purs_rc_release(&((X)->value.array->rc));\
+			break;\
+		case PURS_ANY_TAG_RECORD:\
+			purs_rc_release(&((X)->value.record->rc));\
 			break;\
 		case PURS_ANY_TAG_CONT:\
 			purs_rc_release(&((X)->value.cont->rc));\
