@@ -9,3 +9,4 @@ include $(PUREC_DIR)/mk/target.mk
 main: .spago
 
 $(eval $(call purs_mk_target,main,Main,src))
+$(eval $(call purs_mk_target,lib,,src))

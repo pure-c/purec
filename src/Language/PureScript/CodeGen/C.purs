@@ -62,7 +62,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
     cModulePath =
       F.cModulePath moduleName
     cIncludes =
-      ("purescript" A.: _) $
+      ("runtime/purescript" A.: _) $
        map F.cModulePath $
         (A.catMaybes [
           ado
@@ -243,9 +243,10 @@ exprToAst (C.Literal _ (C.NumericLiteral n)) =
       ]
 exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
-    AST.App
-      R.purs_any_string
-      [ AST.StringLiteral s
+    AST.App R.purs_any_string
+      [ AST.App R.purs_str_new
+          [ AST.StringLiteral s
+          ]
       ]
 exprToAst (C.Literal _ (C.CharLiteral c)) =
   pure $
@@ -486,16 +487,14 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                     , qualifiers: []
                     , initialization:
                         Just $
-                          AST.Accessor
-                            (AST.Raw "value")
-                            (AST.App
-                              R.purs_record_find_by_key
-                              [
-                                AST.App
-                                  R.purs_any_get_record
-                                  [ AST.Var varName ]
-                              , AST.StringLiteral prop
-                              ])
+                          AST.App R.purs_derefence
+                            [ AST.App R.purs_record_find_by_key
+                                [ AST.App
+                                    R.purs_any_get_record
+                                    [ AST.Var varName ]
+                                , AST.StringLiteral prop
+                                ]
+                            ]
                     } A.: ast
         in
           go next binders
@@ -696,16 +695,14 @@ exprToAst (C.Accessor _ k exp) = ado
   -- XXX: what if valueAst is not a record?
   valueAst <- exprToAst exp
   in
-    AST.Accessor
-      (AST.Raw "value")
-      (AST.App
-        R.purs_record_find_by_key
-        [
-          AST.App
-            R.purs_any_get_record
-            [ valueAst ]
-        , AST.StringLiteral k
-        ])
+    AST.App R.purs_derefence
+      [ AST.App R.purs_record_find_by_key
+          [ AST.App
+              R.purs_any_get_record
+              [ valueAst ]
+          , AST.StringLiteral k
+          ]
+      ]
 exprToAst (C.ObjectUpdate _ o ps) = ado
   valueAst <- exprToAst o
   sts      <- traverse (\(n /\ exp) -> (n /\ _) <$> exprToAst exp) ps

@@ -129,34 +129,67 @@ PHONY: test/c
 
 test/c.0: $(PUREC_LIB)
 	@$(CLANG) \
+		-I. \
 		-L. \
-		ctests/*.c \
+		ctests/main.c \
 		-lpurec \
 		-lcmocka \
-		-lpthread \
-		-I. \
 		-o ctests/a.out
 	@./ctests/a.out
 .PHONY: test/c.0
 
-test/tests:
+test/tests/lib:
 	@$(MAKE) -s clean
-	@$(MAKE) -s test/tests.0
+	@UNIT_TESTING=1 $(MAKE) -s test/tests/lib.0
+PHONY: test/tests/lib
 
-test/tests.0:
-	@for t in $(TESTS); do\
-		echo >&2 "running...: $$t" &&\
-		$(MAKE) > /dev/null -s -C "tests/$$t" clean &&\
-		$(MAKE) > /dev/null -s -C "tests/$$t" || {\
-			echo >&2 "[!] failed to compile: $$t";\
-			exit 1;\
-		} &&\
-		( cd "tests/$$t" && ./main.out; ) || {\
-			echo >&2 "[!] failed to run: $$t";\
-			exit 1;\
-		};\
+# compile each project under 'tests/' as a library, load and execute via
+# cmocka.
+# note: this necessitates *all* projects under test to:
+#   + Have a 'lib' target without an entry point in a module called 'Main'
+#   + Export a 'main' function from module 'Main'
+define mk_test_case
+name := $(1)
+test/tests/lib/$$(name): $(PUREC_LIB)
+	@$(MAKE) -s -C "tests/$$(name)" clean
+	@$(MAKE) -s -C "tests/$$(name)" lib/c
+	@cd "tests/$$(name)" &&\
+		$(CLANG) \
+			-I. \
+			-I../.. \
+			-L../.. \
+			../main.stub.c \
+			-lpurec \
+			-lcmocka \
+			-o a.out
+	@./"tests/$$(name)/a.out"
+.PHONY: test/tests/lib/$$(name)
+endef
+
+$(eval $(call mk_test_case,00-basic))
+
+test/tests/lib.0: $(PUREC_LIB)
+	@set -e; for t in $(TESTS); do\
+		$(MAKE) -s "test/tests/lib/$$t";\
 	done
-.PHONY: test/tests.0
+.PHONY: test/tests/lib.0
+
+test/tests/main:
+	@$(MAKE) -s clean
+	@$(MAKE) -s test/tests/main.0
+PHONY: test/tests/main
+
+# compile and execute each project under 'tests/'
+test/tests/main.0:
+	@set -e; for t in $(TESTS); do\
+		echo "tests/main: $$t: clean" &&\
+		$(MAKE) > /dev/null -s -C "tests/$$t" clean &&\
+		echo "tests/main: $$t: compile" &&\
+		$(MAKE) > /dev/null -s -C "tests/$$t" &&\
+		echo "tests/main: $$t: run" &&\
+		( cd "tests/$$t" && ./main.out; )
+	done
+.PHONY: test/tests/main.0
 
 test/upstream: upstream/tests/support/bower_components
 	@$(MAKE) -s clean
@@ -164,10 +197,12 @@ test/upstream: upstream/tests/support/bower_components
 .PHONY: test/pulp
 
 test:
-	@echo 'running ctests...'
+	@echo 'test: c-tests'
 	@$(MAKE) -s test/c
-	@echo 'running tests...'
-	@$(MAKE) -s test/tests
+	@echo 'test: tests/lib'
+	@$(MAKE) -s test/tests/lib
+	@echo 'test: tests/main'
+	@$(MAKE) -s test/tests/main
 	@echo 'running upstream tests...'
 	@$(MAKE) -s test/upstream
 	@echo 'success!'
@@ -181,3 +216,23 @@ test:
 	@ROOT=$(PWD) &&\
 		cd "$(dir $@)" &&\
 		"$$ROOT/node_modules/.bin/bower" install
+
+# @set -e; for t in $(TESTS); do\
+# 	echo "$tests/lib: $$t: clean" &&\
+# 	$(MAKE) > /dev/null -s -C "tests/$$t" clean &&\
+# 	echo "$$t: compile library" &&\
+# 	$(MAKE) > /dev/null -s -C "tests/$$t" lib/c &&\
+# 	echo "$$t: compile harness" &&\
+# 	( cd "tests/$$t" &&\
+# 		$(CLANG) \
+# 			-I. \
+# 			-I../.. \
+# 			-L../.. \
+# 			../main.stub.c \
+# 			-lpurec \
+# 			-lcmocka \
+# 			-o a.out &&\
+# 		echo "tests/lib: $$t: run harness" &&\
+# 		./a.out;\
+# 	);\
+# done

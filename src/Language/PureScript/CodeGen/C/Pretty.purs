@@ -74,9 +74,9 @@ prettyPrintAst
    . Monad m
   => AST
   -> PrinterT m
-prettyPrintAst (AST.Raw x) = do
+prettyPrintAst (AST.Raw x) =
   emit x
-prettyPrintAst (AST.Include { path }) = do
+prettyPrintAst (AST.Include { path }) =
   emit $ "#include \"" <> path <> ".h\""
 prettyPrintAst AST.EndOfHeader =
   pure unit
@@ -179,9 +179,6 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         indent *> prettyPrintAst last
       lf
       indent *> emit ")"
-  -- TODO move this logic out of the printer
-  when (fnAst == R._PURS_SCOPE_T) do
-    emit ";"
 prettyPrintAst (AST.Assignment l r) = do
   prettyPrintAst l
   emit " = "

@@ -218,6 +218,7 @@ eraseLambdas moduleName asts =
     --       objects are considered used if there's an (unshadowed)
     --       reference from anywhere in the lambda's body AST.
     let
+      capturedBindings = A.fromFoldable capturedScope.bindings
       capturedScope =
         currentScope
           { bindings =
@@ -227,11 +228,6 @@ eraseLambdas moduleName asts =
                     A.fromFoldable $
                       currentScope.bindings
           }
-
-    -- emit the struct to the top-level
-    scopeStruct <- do
-      { name, members, ast } <- scopeToStruct capturedScope
-      { name, members } <$ tell [ ast ]
 
     -- assemble a new top-level function that re-assembles the captured
     contFuncName <- ado
@@ -256,7 +252,7 @@ eraseLambdas moduleName asts =
         { name: Just contFuncName
         , arguments:
             [ { name: "$_ctx"
-              , type: Type.Pointer (Type.RawType scopeStruct.name [])
+              , type: Type.Pointer (Type.RawType R.purs_scope_t [ Type.Const ])
               }
             , { name: fromMaybe "$_unused" $ _.name <$> A.head arguments
               , type: R.any
@@ -288,7 +284,7 @@ eraseLambdas moduleName asts =
                           (_.name <$> A.head arguments)
                         ) $
                           A.concat $
-                            [ A.mapWithIndex <@> scopeStruct.members $
+                            [ A.mapWithIndex <@> capturedBindings $
                                 \offset name ->
                                   name /\ offset /\ Just offset
                             , A.mapWithIndex <@> (fromMaybe [] $ A.tail arguments) $
@@ -319,8 +315,10 @@ eraseLambdas moduleName asts =
                             , qualifiers: []
                             , initialization:
                                 Just $
-                                  AST.Accessor (AST.Var name) $
-                                    AST.Var "$_ctx"
+                                  AST.App (AST.Var "purs_scope_binding_at")
+                                    [ AST.Var "$_ctx"
+                                    , AST.NumericLiteral $ Left i
+                                    ]
                             }
                   , [ body' ]
                   ]
@@ -338,17 +336,17 @@ eraseLambdas moduleName asts =
       AST.Block $
         [ AST.VariableIntroduction
             { name: "$_scope"
-            , type: Type.Pointer R.any
+            , type: Type.Pointer (Type.RawType R.purs_scope_t [])
             , qualifiers: []
             , initialization:
                 Just $
-                  if A.null scopeStruct.members
+                  if A.null capturedBindings
                     then AST.Null
                     else
                       AST.App
-                        R.purs_malloc_any_buf $
+                        R.purs_scope_new1 $
                         [ AST.NumericLiteral $
-                            Left $ A.length scopeStruct.members
+                            Left $ A.length capturedBindings
                         ]
             }
         , AST.VariableIntroduction
@@ -359,58 +357,26 @@ eraseLambdas moduleName asts =
                 Just $
                   AST.App
                     R.purs_any_cont
-                      [ AST.Var "$_scope"
-                      , AST.NumericLiteral $
-                          Left $ Set.size capturedScope.bindings
-                      , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
-                          AST.Var contFuncName
+                      [ AST.App
+                          R.purs_cont_new
+                            [ AST.Var "$_scope"
+                            , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
+                                AST.Var contFuncName
+                            ]
                       ]
             }
         ] <>
-          (A.mapWithIndex <@> scopeStruct.members $ \i v ->
-            AST.Assignment
-              (AST.Indexer (AST.NumericLiteral $ Left i) (AST.Var "$_scope")) $
-                if Just v == capturedScope.lhs
+          (A.mapWithIndex <@> capturedBindings $ \i v ->
+            AST.App (AST.Var "purs_scope_capture_at")
+              [ AST.Var "$_scope"
+              , AST.NumericLiteral $ Left i
+              , if Just v == capturedScope.lhs
                   then
                     AST.App R.purs_indirect_thunk_new
                       [ AST.Var "$_ivalue" ]
                   else
                     AST.Var v
+              ]
           ) <>
         [ AST.Var "$_cont"
         ]
-
-  scopeToStruct
-    :: ∀ n r
-     . Applicative n
-    => MonadSupply n
-    => _
-    -> n { name :: String, ast :: AST, members :: Array String }
-  scopeToStruct currentScope =
-    let
-      members =
-        A.fromFoldable currentScope.bindings
-
-    in ado
-      name <- ado
-        id <- freshId
-        in
-          fromMaybe (moduleName <> "_anon") currentScope.function <>
-            "__cont_" <> show currentScope.depth <> "_$"  <> show id
-      in
-        { name
-        , members
-        , ast:
-            AST.App
-              R._PURS_SCOPE_T
-              [ AST.Raw name
-              , AST.Block $
-                  members <#> \var ->
-                    AST.VariableIntroduction
-                      { name: var
-                      , type: R.any
-                      , qualifiers: []
-                      , initialization: Nothing
-                      }
-              ]
-        }

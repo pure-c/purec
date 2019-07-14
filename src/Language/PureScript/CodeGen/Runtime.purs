@@ -45,15 +45,28 @@ module Language.PureScript.CodeGen.Runtime
   , purs_address_of
   , purs_derefence
 
-  , _PURS_SCOPE_T
+    -- scope
+  , purs_scope_t
+  , purs_scope_new
+  , purs_scope_new1
+
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
 
+    -- constructors
   , purs_cons_t
   , purs_cons_get_tag
+
+    -- arrays
   , purs_vec_new_va
 
-  -- records
+    -- continuations
+  , purs_cont_new
+
+    -- strings
+  , purs_str_new
+
+    -- records
   , purs_record_t
   , purs_record_empty
   , purs_record_find_by_key
@@ -88,6 +101,9 @@ any = Type.Any []
 
 purs_record_t :: String
 purs_record_t = "purs_record_t"
+
+purs_scope_t :: String
+purs_scope_t = "purs_scope_t"
 
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
@@ -161,6 +177,18 @@ purs_record_add_multi = AST.Var "purs_record_add_multi"
 purs_vec_new_va :: AST
 purs_vec_new_va = AST.Var "purs_vec_new_va"
 
+purs_cont_new :: AST
+purs_cont_new = AST.Var "purs_cont_new"
+
+purs_str_new :: AST
+purs_str_new = AST.Var "purs_str_new"
+
+purs_scope_new1 :: AST
+purs_scope_new1 = AST.Var "purs_scope_new1"
+
+purs_scope_new :: AST
+purs_scope_new = AST.Var "purs_scope_new"
+
 _PURS_ANY_THUNK_DEF :: AST
 _PURS_ANY_THUNK_DEF = AST.Var "PURS_ANY_THUNK_DEF"
 
@@ -211,9 +239,6 @@ purs_address_of = AST.Var "purs_address_of"
 
 purs_derefence :: AST
 purs_derefence = AST.Var "purs_derefence"
-
-_PURS_SCOPE_T :: AST
-_PURS_SCOPE_T = AST.Var "PURS_SCOPE_T"
 
 purs_record_empty :: AST
 purs_record_empty = AST.Var "purs_record_empty"

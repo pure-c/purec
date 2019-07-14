@@ -86,7 +86,7 @@ typedef struct purs_cont purs_cont_t;
 typedef struct purs_any_thunk purs_any_thunk_t;
 typedef struct purs_any_cons purs_any_cons_t;
 typedef union purs_any_value purs_any_value_t;
-struct purs_scope;
+typedef struct purs_scope purs_scope_t;
 typedef ANY (purs_any_thunk_fun_t)(ANY ctx);
 typedef ANY (purs_cont_fun_t)(const struct purs_scope *, ANY, va_list);
 typedef struct purs_foreign purs_foreign_t;
@@ -239,10 +239,21 @@ __PURS_ANY_GETTER(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 // Any: built-in functions
 // -----------------------------------------------------------------------------
 
-int purs_any_eq_string (ANY, const void *);
-int purs_any_eq_char   (ANY, utf8_int32_t);
-int purs_any_eq_int    (ANY, purs_any_int_t);
-int purs_any_eq_num    (ANY, double);
+static inline int purs_any_eq_char (ANY x, utf8_int32_t y) {
+	return purs_any_get_char(x) == y;
+}
+
+static inline int purs_any_eq_string (ANY x, const void * str) {
+	return utf8cmp(purs_any_get_string(x)->data, str) == 0;
+}
+
+static inline int purs_any_eq_int (ANY x, purs_any_int_t y) {
+	return purs_any_get_int(x) == y;
+}
+
+static inline int purs_any_eq_num (ANY x, double y) {
+	return purs_any_get_num(x) == y;
+}
 
 int purs_any_eq(ANY, ANY);
 ANY purs_any_concat(ANY, ANY);
@@ -375,12 +386,11 @@ struct purs_scope {
 	struct purs_rc rc;
 };
 
-struct purs_scope * purs_scope_new(int size, ...);
+#define purs_scope_binding_at(S, N) ((S)->bindings[(N)])
+#define purs_scope_capture_at(S, N, B) { (S)->bindings[(N)] = (B); }
 
-#define PURS_SCOPE_T(NAME, DECLS)\
-	typedef struct NAME {\
-		struct DECLS;\
-	} NAME
+struct purs_scope * purs_scope_new(int size, ...);
+struct purs_scope * purs_scope_new1(int size);
 
 /* todo: remove this! */
 #define purs_cons_get_tag(V) V->tag

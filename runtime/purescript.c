@@ -6,7 +6,7 @@
 
 static void purs_cont_free(const struct purs_rc *ref) {
 	purs_cont_t * x = container_of(ref, purs_cont_t, rc);
-	PURS_RC_RELEASE(x->scope);
+	if (x->scope != NULL) PURS_RC_RELEASE(x->scope);
 	purs_free(x);
 }
 
@@ -15,7 +15,7 @@ const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
 	purs_cont_t * cont = purs_malloc(sizeof (purs_cont_t));
 	cont->fn = fn;
 	cont->scope = scope;
-	PURS_RC_RETAIN(scope);
+	if (scope != NULL) PURS_RC_RETAIN(scope);
 	cont->rc = ((struct purs_rc) { purs_cont_free, 1 });
 	return (const purs_cont_t *) cont;
 }
@@ -63,6 +63,16 @@ static void purs_scope_free(const struct purs_rc *ref) {
 	}
 	purs_free(x->bindings);
 	purs_free(x);
+}
+
+struct purs_scope * purs_scope_new1(int size) {
+	struct purs_scope * scope = purs_new(struct purs_scope);
+	ANY* bindings = purs_malloc(sizeof (ANY) * size);
+	scope->size = size;
+	scope->bindings = bindings;
+	memset(bindings, 0, sizeof (ANY) * size); /* todo: calloc? */
+	scope->rc = ((struct purs_rc) { purs_scope_free, 1 });
+	return scope;
 }
 
 struct purs_scope * purs_scope_new(int size, ...) {
@@ -126,22 +136,6 @@ ANY purs_any_num_one = PURS_ANY_NUM(1.0);
 ANY purs_any_NaN = PURS_ANY_NUM(PURS_NAN);
 ANY purs_any_infinity = PURS_ANY_NUM(PURS_INFINITY);
 ANY purs_any_neg_infinity = PURS_ANY_NUM(-PURS_INFINITY);
-
-inline int purs_any_eq_char (ANY x, utf8_int32_t y) {
-	return purs_any_get_char(x) == y;
-}
-
-inline int purs_any_eq_string (ANY x, const void * str) {
-	return utf8cmp(purs_any_get_string(x), str) == 0;
-}
-
-inline int purs_any_eq_int (ANY x, purs_any_int_t y) {
-	return purs_any_get_int(x) == y;
-}
-
-inline int purs_any_eq_num (ANY x, double y) {
-	return purs_any_get_num(x) == y;
-}
 
 int purs_any_eq(ANY x, ANY y) {
 	x = purs_any_unthunk(x);

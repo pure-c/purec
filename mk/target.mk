@@ -36,11 +36,11 @@ $(PUREC_LIB):
 	@rsync $< $@
 
 clean:
-	@echo 'removing *.o'
+	@echo 2>&1 'clean: removing *.o'
 	@rm -f $$(find . -type f -name '*.o')
-	@echo 'removing *.out'
+	@echo 2>&1 'clean: removing *.out'
 	@rm -f $$(find . -type f -name '*.out')
-	@echo 'removing dir $(PUREC_WORKDIR)'
+	@echo 2>&1 'clean: removing dir $(PUREC_WORKDIR)'
 	@rm -rf $(PUREC_WORKDIR)
 
 %.o: %.c
@@ -83,11 +83,7 @@ else
     target := $(1)
 endif
 
-ifeq (,$(2))
-    $$(target)_main_module := Main
-else
-    $$(target)_main_module := $(2)
-endif
+$$(target)_main_module := $(2)
 
 ifeq (,$(3))
     $$(target)_src_dirs := src
@@ -127,16 +123,21 @@ $$(PUREC_WORKDIR)/$$(target)/.build: \
 		-L $(PUREC_LIB_DIR) \
 		-lpurec \
 		-lm \
-		-lpthread \
 		-ffunction-sections \
 		$(LD_FLAGS) \
 		-Wl,$(LD_LINKER_FLAGS) \
 		-o "$$(target).out"
 	@touch $$@
+	@echo Purec build succeeded!
 
 _$$(target): $$(PUREC_WORKDIR)/$$(target)/.genc
 	@$$(MAKE) -s $$(PUREC_WORKDIR)/$$(target)/.build
 
 $$(target):
 	@$$(MAKE) -s _$$(target)
+.PHONY: $$(target)
+
+$$(target)/c:
+	@$$(MAKE) -s $$(PUREC_WORKDIR)/$$(target)/.genc
+.PHONY: $$(target)/c
 endef

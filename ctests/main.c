@@ -35,6 +35,14 @@ static void leak_cont_test(void **state) {
 	PURS_ANY_RELEASE(&cont);
 }
 
+static void purs_scope_new1_test(void **state) {
+	(void) state; /* unused */
+	const purs_scope_t * s = purs_scope_new1(1);
+	const purs_cont_t * c = purs_cont_new(s, NULL);
+	PURS_RC_RELEASE(s);
+	PURS_RC_RELEASE(c);
+}
+
 static void leak_string_test(void **state) {
 	(void) state; /* unused */
 	const purs_str_t * s = purs_str_new("bar");
@@ -195,13 +203,15 @@ static void purs_any_concat_test(void **state) {
 }
 
 int main (void) {
-    const struct CMUnitTest tests[] = {
-        cmocka_unit_test(leak_string_test),
-        cmocka_unit_test(leak_array_test),
-        cmocka_unit_test(leak_record_test),
-        cmocka_unit_test(leak_cont_test),
-        cmocka_unit_test(purs_any_concat_test),
-        cmocka_unit_test(purs_vec_concat_test),
-    };
-    return cmocka_run_group_tests(tests, NULL, NULL);
+	const struct CMUnitTest tests[] = {
+		cmocka_unit_test(leak_string_test),
+		cmocka_unit_test(leak_array_test),
+		cmocka_unit_test(leak_record_test),
+		cmocka_unit_test(leak_cont_test),
+		cmocka_unit_test(purs_scope_new1_test),
+		cmocka_unit_test(purs_any_concat_test),
+		cmocka_unit_test(purs_vec_concat_test),
+	};
+
+	return cmocka_run_group_tests(tests, NULL, NULL);
 }

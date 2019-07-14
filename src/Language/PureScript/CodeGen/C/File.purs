@@ -84,8 +84,6 @@ toBody = A.catMaybes <<< map go
   go :: AST -> Maybe AST
   go x@(AST.Function _) =
     Just x
-  go x@(AST.App v _) | v == R._PURS_SCOPE_T =
-    Just x
   go (AST.VariableIntroduction { name, type: typ, initialization: Just initialization }) =
     go' initialization
     where
@@ -124,8 +122,7 @@ nativeMain mainVar =
     , variadic: false
     , body: Just $
         AST.Block
-          [ AST.App (AST.Var "GC_INIT") []
-          , AST.Return $
+          [ AST.Return $
               AST.App R.purs_any_get_int
                 [ AST.App R.purs_any_app
                     [ mainVar
