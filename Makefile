@@ -150,7 +150,11 @@ PHONY: test/tests/lib
 #   + Export a 'main' function from module 'Main'
 define mk_test_case
 name := $(1)
-test/tests/lib/$$(name): $(PUREC_LIB)
+test/tests/lib/$$(name):
+	@$(MAKE) -s clean
+	@UNIT_TESTING=1 $(MAKE) -s test/tests/lib/$$(name).0
+
+test/tests/lib/$$(name).0: $(PUREC_LIB)
 	@$(MAKE) -s -C "tests/$$(name)" clean
 	@$(MAKE) -s -C "tests/$$(name)" lib/c
 	@cd "tests/$$(name)" &&\
@@ -159,6 +163,7 @@ test/tests/lib/$$(name): $(PUREC_LIB)
 			-I../.. \
 			-L../.. \
 			../main.stub.c \
+			./.purec-work/lib/*.c \
 			-lpurec \
 			-lcmocka \
 			-o a.out
@@ -216,23 +221,3 @@ test:
 	@ROOT=$(PWD) &&\
 		cd "$(dir $@)" &&\
 		"$$ROOT/node_modules/.bin/bower" install
-
-# @set -e; for t in $(TESTS); do\
-# 	echo "$tests/lib: $$t: clean" &&\
-# 	$(MAKE) > /dev/null -s -C "tests/$$t" clean &&\
-# 	echo "$$t: compile library" &&\
-# 	$(MAKE) > /dev/null -s -C "tests/$$t" lib/c &&\
-# 	echo "$$t: compile harness" &&\
-# 	( cd "tests/$$t" &&\
-# 		$(CLANG) \
-# 			-I. \
-# 			-I../.. \
-# 			-L../.. \
-# 			../main.stub.c \
-# 			-lpurec \
-# 			-lcmocka \
-# 			-o a.out &&\
-# 		echo "tests/lib: $$t: run harness" &&\
-# 		./a.out;\
-# 	);\
-# done

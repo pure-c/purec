@@ -189,26 +189,49 @@ struct purs_vec {
 	struct purs_rc rc;
 };
 
+/* todo: a more efficient, non-allocating, release-mode version */
+#define purs_any_assert_tag_eq(EXPECTED, ACTUAL)\
+	purs_assert((ACTUAL) == (EXPECTED),\
+		    "expected tag: %s, but got: %s",\
+		    purs_any_tag_str((ACTUAL)),\
+		    purs_any_tag_str((EXPECTED)))
+
 ANY purs_any_null;
 #define purs_any_is_null(x) (x.tag == PURS_ANY_TAG_NULL)
 
-ANY purs_any_app(ANY, ANY, ...);
-ANY purs_any_unthunk (ANY);
-const purs_any_tag_t purs_any_get_tag (ANY);
 const char * purs_any_tag_str (const purs_any_tag_t);
 
-/* XXX these functions heap-allocate. maybe rename? */
+static inline ANY purs_any_unthunk (ANY x) {
+	ANY out = x;
+	while (out.tag == PURS_ANY_TAG_THUNK) {
+		/* todo: free intermediate results? */
+		out = out.value.thunk->fn(out.value.thunk->ctx);
+	}
+	return out;
+}
+
+static inline ANY purs_any_app(ANY f, ANY v, ...) {
+	f = purs_any_unthunk(f);
+	purs_any_assert_tag_eq(f.tag, PURS_ANY_TAG_CONT);
+	va_list args;
+	va_start(args, v);
+	ANY r = f.value.cont->fn(f.value.cont->scope, v, args);
+	va_end(args);
+	return r;
+}
+
+/* todo: remove this! */
+static inline const purs_any_tag_t purs_any_get_tag (ANY v) {
+	return v.tag;
+}
+
+/* todo: treat! */
 ANY purs_any_cons(int tag, int size, ANY* values);
 
 #define __PURS_ANY_GETTER(N, A, R, TAG)\
 	static inline R _purs_any_get_ ## N (ANY v, char * file, int line) {\
 		v = purs_any_unthunk(v);\
-		purs_assert(v.tag == TAG,\
-			    "expected tag: %s, but got: %s. at %s:%d",\
-			    purs_any_tag_str(TAG),\
-			    purs_any_tag_str(v.tag),\
-			    file,\
-			    line);\
+		purs_any_assert_tag_eq(v.tag, TAG);\
 		return v.value.A;\
 	}
 

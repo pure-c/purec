@@ -70,16 +70,8 @@ hoistVarDecls = map go
                   xs'
       x -> x
 
--- | Erase lambdas from the AST by creating tailor-made scope structures for
--- | every lambda we encounter.
--- |
--- | For example, given the following function:
--- |    foo = \a b -> b
--- | This is trivially representable as a couple of continuation functions:
--- |   struct foo_1_scope { const ANY * a; };
--- |   struct foo_2_scope { const ANY * a; const ANY * b; };
--- |   const ANY * foo_2 (const void * super, const ANY * b);
--- |   const ANY * foo_1 (const void * super, const ANY * a);
+-- | Erase lambdas from the AST by capturing used bindings in a heap-allocated,
+-- | buffer and emitting a top-level continuation function.
 -- |
 -- | XXX: we might have to run this pass *after* optimization passes ran in
 -- |      order to not capture inlined and unused variables.

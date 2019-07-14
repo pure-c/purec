@@ -15,8 +15,8 @@ const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
 	purs_cont_t * cont = purs_malloc(sizeof (purs_cont_t));
 	cont->fn = fn;
 	cont->scope = scope;
-	if (scope != NULL) PURS_RC_RETAIN(scope);
 	cont->rc = ((struct purs_rc) { purs_cont_free, 1 });
+	if (scope != NULL) PURS_RC_RETAIN(scope);
 	return (const purs_cont_t *) cont;
 }
 
@@ -90,32 +90,6 @@ struct purs_scope * purs_scope_new(int size, ...) {
 	va_end(ap);
 	scope->rc = ((struct purs_rc) { purs_scope_free, 1 });
 	return scope;
-}
-
-// -----------------------------------------------------------------------------
-// Any
-// -----------------------------------------------------------------------------
-
-inline ANY purs_any_unthunk (ANY x) {
-	ANY out = x;
-	while (out.tag == PURS_ANY_TAG_THUNK) {
-		out = out.value.thunk->fn(out.value.thunk->ctx);
-	}
-	return out;
-}
-
-inline const purs_any_tag_t purs_any_get_tag (ANY v) {
-	return v.tag;
-}
-
-inline ANY purs_any_app(ANY f, ANY v, ...) {
-	f = purs_any_unthunk(f);
-	assert(f.tag == PURS_ANY_TAG_CONT);
-	va_list args;
-	va_start(args, v);
-	ANY r = f.value.cont->fn(f.value.cont->scope, v, args);
-	va_end(args);
-	return r;
 }
 
 // -----------------------------------------------------------------------------
