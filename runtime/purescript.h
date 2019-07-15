@@ -56,6 +56,9 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 #include "vendor/utf8.h"
 #include "vendor/vec.h"
 
+#define purs_trace_any(A)\
+	printf("%s:%d: TAG=%s\n", __FILE__, __LINE__, purs_any_tag_str((A).tag))
+
 #define purs_log_error(FMT, ...)\
 	do {\
 		fprintf(stderr,\
@@ -189,6 +192,20 @@ struct purs_vec {
 	struct purs_rc rc;
 };
 
+typedef struct purs_node_record {
+	const void * key;
+	ANY value;
+	UT_hash_handle hh;
+} purs_record_node_t;
+
+typedef struct purs_record {
+	const purs_record_node_t * root;
+	struct purs_rc rc;
+} purs_record_t;
+
+// TODO: rename to 'purs_any_record_empty'
+ANY purs_record_empty;
+
 /* todo: a more efficient, non-allocating, release-mode version */
 #define purs_any_assert_tag_eq(EXPECTED, ACTUAL)\
 	purs_assert((ACTUAL) == (EXPECTED),\
@@ -201,22 +218,78 @@ ANY purs_any_null;
 
 const char * purs_any_tag_str (const purs_any_tag_t);
 
-static inline ANY purs_any_unthunk (ANY x) {
+#define PURS_ANY_RETAIN(X) {\
+		switch ((X)->tag) {\
+		case PURS_ANY_TAG_STRING:\
+			purs_rc_retain(&((X)->value.str->rc));\
+			break;\
+		default:\
+			break;\
+		}\
+	}
+
+#define PURS_ANY_RELEASE(X) {\
+		switch ((X)->tag) {\
+		case PURS_ANY_TAG_NULL:\
+		case PURS_ANY_TAG_INT:\
+		case PURS_ANY_TAG_NUM:\
+		case PURS_ANY_TAG_CHAR:\
+			break;\
+		case PURS_ANY_TAG_THUNK:\
+		case PURS_ANY_TAG_CONS:\
+		case PURS_ANY_TAG_FOREIGN:\
+			assert(0);\
+			break;\
+		case PURS_ANY_TAG_ARRAY:\
+			purs_rc_release(&((X)->value.array->rc));\
+			break;\
+		case PURS_ANY_TAG_RECORD:\
+			purs_rc_release(&((X)->value.record->rc));\
+			break;\
+		case PURS_ANY_TAG_CONT:\
+			purs_rc_release(&((X)->value.cont->rc));\
+			break;\
+		case PURS_ANY_TAG_STRING:\
+			purs_rc_release(&((X)->value.str->rc));\
+			break;\
+		}\
+	}
+
+static inline ANY purs_any_unthunk(ANY x, int * has_changed) {
 	ANY out = x;
+	if (has_changed != NULL) {
+		*has_changed = 0;
+	}
 	while (out.tag == PURS_ANY_TAG_THUNK) {
-		/* todo: free intermediate results? */
+		/* todo: thunks are not rc-ed atm, but once they are, we should
+		 *       release intermediate results.
+		 */
 		out = out.value.thunk->fn(out.value.thunk->ctx);
+		if (has_changed != NULL) {
+			*has_changed = 1;
+		}
 	}
 	return out;
 }
 
-static inline ANY purs_any_app(ANY f, ANY v, ...) {
-	f = purs_any_unthunk(f);
+static inline ANY purs_any_app(ANY _f, ANY v, ...) {
+
+	/* unthunk, if necessary */
+	int has_changed;
+	ANY f = purs_any_unthunk(_f, &has_changed);
 	purs_any_assert_tag_eq(f.tag, PURS_ANY_TAG_CONT);
+
+	/* apply the function */
 	va_list args;
 	va_start(args, v);
 	ANY r = f.value.cont->fn(f.value.cont->scope, v, args);
 	va_end(args);
+
+	/* release the intermediate result */
+	if (has_changed) {
+		PURS_ANY_RELEASE(&f);
+	}
+
 	return r;
 }
 
@@ -230,7 +303,7 @@ ANY purs_any_cons(int tag, int size, ANY* values);
 
 #define __PURS_ANY_GETTER(N, A, R, TAG)\
 	static inline R _purs_any_get_ ## N (ANY v, char * file, int line) {\
-		v = purs_any_unthunk(v);\
+		v = purs_any_unthunk(v, NULL);\
 		purs_any_assert_tag_eq(v.tag, TAG);\
 		return v.value.A;\
 	}
@@ -320,20 +393,6 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, ANY val);
 // -----------------------------------------------------------------------------
 // records
 // -----------------------------------------------------------------------------
-
-typedef struct purs_node_record {
-	const void * key;
-	ANY value;
-	UT_hash_handle hh;
-} purs_record_node_t;
-
-typedef struct purs_record {
-	const purs_record_node_t * root;
-	struct purs_rc rc;
-} purs_record_t;
-
-// TODO: rename to 'purs_any_record_empty'
-ANY purs_record_empty;
 
 const purs_record_t * purs_record_new_va(int count, ...);
 
@@ -458,43 +517,6 @@ ANY purs_thunked_deref(ANY);
 // -----------------------------------------------------------------------------
 // Any: initializers
 // -----------------------------------------------------------------------------
-
-#define PURS_ANY_RETAIN(X) {\
-		switch ((X)->tag) {\
-		case PURS_ANY_TAG_STRING:\
-			purs_rc_retain(&((X)->value.str->rc));\
-			break;\
-		default:\
-			break;\
-		}\
-	}
-
-#define PURS_ANY_RELEASE(X) {\
-		switch ((X)->tag) {\
-		case PURS_ANY_TAG_NULL:\
-		case PURS_ANY_TAG_INT:\
-		case PURS_ANY_TAG_NUM:\
-		case PURS_ANY_TAG_CHAR:\
-			break;\
-		case PURS_ANY_TAG_THUNK:\
-		case PURS_ANY_TAG_CONS:\
-		case PURS_ANY_TAG_FOREIGN:\
-			assert(0);\
-			break;\
-		case PURS_ANY_TAG_ARRAY:\
-			purs_rc_release(&((X)->value.array->rc));\
-			break;\
-		case PURS_ANY_TAG_RECORD:\
-			purs_rc_release(&((X)->value.record->rc));\
-			break;\
-		case PURS_ANY_TAG_CONT:\
-			purs_rc_release(&((X)->value.cont->rc));\
-			break;\
-		case PURS_ANY_TAG_STRING:\
-			purs_rc_release(&((X)->value.str->rc));\
-			break;\
-		}\
-	}
 
 #define PURS_ANY_INT(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_INT, .value = { .i = (X) } })
