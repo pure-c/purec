@@ -77,48 +77,42 @@ clean:
 #    $(eval $(call purs_mk_target,main,Test.Main,src test,))
 define purs_mk_target
 
-ifeq (,$(1))
-    target := main
-else
-    target := $(1)
-endif
-
-$$(target)_main_module := $(2)
+$(1)_main_module := $(2)
 
 ifeq (,$(3))
-    $$(target)_src_dirs := src
+    $(1)_src_dirs := src
 else
-    $$(target)_src_dirs := $(3)
+    $(1)_src_dirs := $(3)
 endif
 
-$$(target)_local :=\
-	$$(shell find $$($$(target)_src_dirs) -type f -name '*.purs')
+$(1)_local :=\
+	$$(shell find $$($(1)_src_dirs) -type f -name '*.purs')
 
-$$(target)_deps :=\
+$(1)_deps :=\
 	$$(foreach pkgdir,\
 		$(PACKAGE_SOURCES),\
 		$$(call rwildcard,$$(firstword $$(subst *, ,$$(pkgdir))),*.purs *.c))
 
-$$(target)_srcs := $$($$(target)_local) $$($$(target)_deps)
+$(1)_srcs := $$($(1)_local) $$($(1)_deps)
 
-$$(PUREC_WORKDIR)/$$(target)/.corefns: \
-	$$(patsubst %.h,%.purs,$$($$(target)_srcs))
+$$(PUREC_WORKDIR)/$(1)/.corefns: \
+	$$(patsubst %.h,%.purs,$$($(1)_srcs))
 	@mkdir -p $$(@D)
 	@$$(PURS) compile -g corefn -o $$(@D) $$(filter %.purs,$$^)
 	@touch $$@
 
-$$(PUREC_WORKDIR)/$$(target)/.genc: $$(PUREC_WORKDIR)/$$(target)/.corefns
+$$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
 	@mkdir -p $$(@D)
 	@$$(MAKE) -s $$@.1
 	@touch $$@
 
-$$(PUREC_WORKDIR)/$$(target)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WORKDIR)/$$(target),corefn.json))
-	@$$(PUREC) -m "$$($$(target)_main_module)" $$?
+$$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WORKDIR)/$(1),corefn.json))
+	@$$(PUREC) -m "$$($(1)_main_module)" $$?
 	@touch $$@
 
-$$(PUREC_WORKDIR)/$$(target)/.build: \
+$$(PUREC_WORKDIR)/$(1)/.build: \
 	$(PUREC_LIB) \
-	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$$(target)/*.c))
+	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
 	@$(CLANG) $$^ \
 		-L $(PUREC_LIB_DIR) \
 		-lpurec \
@@ -126,18 +120,18 @@ $$(PUREC_WORKDIR)/$$(target)/.build: \
 		-ffunction-sections \
 		$(LD_FLAGS) \
 		-Wl,$(LD_LINKER_FLAGS) \
-		-o "$$(target).out"
+		-o "$(1).out"
 	@touch $$@
 	@echo Purec build succeeded!
 
-_$$(target): $$(PUREC_WORKDIR)/$$(target)/.genc
-	@$$(MAKE) -s $$(PUREC_WORKDIR)/$$(target)/.build
+_$(1): $$(PUREC_WORKDIR)/$(1)/.genc
+	@$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.build
 
-$$(target):
-	@$$(MAKE) -s _$$(target)
-.PHONY: $$(target)
+$(1):
+	@$$(MAKE) -s _$(1)
+.PHONY: $(1)
 
-$$(target)/c:
-	@$$(MAKE) -s $$(PUREC_WORKDIR)/$$(target)/.genc
-.PHONY: $$(target)/c
+$(1)/c:
+	@$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.genc
+.PHONY: $(1)/c
 endef

@@ -8,5 +8,5 @@ include $(PUREC_DIR)/mk/target.mk
 	spago install
 main: .spago
 
-$(eval $(call purs_mk_target,main,Main,src))
 $(eval $(call purs_mk_target,lib,,src))
+$(eval $(call purs_mk_target,main,Main,src))
