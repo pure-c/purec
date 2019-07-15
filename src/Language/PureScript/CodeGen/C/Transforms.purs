@@ -1,14 +1,19 @@
 module Language.PureScript.CodeGen.C.Transforms
   ( hoistVarDecls
   , eraseLambdas
+  , releaseResources
   ) where
 
 import Prelude
 
+import Control.Monad.Error.Class (class MonadError, throwError)
 import Control.Monad.Reader (ask, runReaderT, withReaderT)
+import Control.Monad.State (execStateT)
+import Control.Monad.State as State
 import Control.Monad.Writer (runWriterT, tell)
 import Data.Array as A
 import Data.Either (Either(..))
+import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
@@ -16,14 +21,63 @@ import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST)
+import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST(..), everywhereTopDown) as AST
+import Language.PureScript.CodeGen.C.AST (AST)
+import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
 import Language.PureScript.CodeGen.C.Common (isInternalVariable)
 import Language.PureScript.CodeGen.C.Pretty as PP
+import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
+
+-- | Traverse all blocks, collecting expressions that cause heap allocations and
+-- | emitting a corresponding "free"-ing call when the block no longer needs
+-- | the variable.
+-- |
+-- | * We know that 'return;' exists the function immediately with the given
+-- |   value.
+-- | * We know that purec-generated functions must have at most a single return
+-- |   value of type 'ANY'.
+-- | * Thus, we must call 'PURS_ANY_RELEASE' on *all* variables, except the
+-- |   one returned.
+--
+-- todo: Could we remove shadowed bindings in a separate pass? keword: SSA
+-- idea: use gotos?
+--   { var ret; goto end; end: [<cleanup>...]; return ret; }
+releaseResources
+  :: ∀ m
+   . Monad m
+  => MonadSupply m
+  => MonadError CompileError m
+  => Array AST
+  -> m (Array AST)
+releaseResources = traverse go
+  where
+  go =
+    AST.everywhereTopDownM $ case _ of
+      AST.Block xs ->
+        AST.Block <<< _.out <$> do
+          execStateT <@> { vars: [], out: [] } $ do
+            for_ xs $ case _ of
+              x@(AST.VariableIntroduction v@{ name }) -> do
+                pushVar v
+                pushAst x
+              x ->
+                pushAst x
+      x ->
+        pure x
+
+  pushAst x = State.modify_ (\s -> s { out = A.snoc s.out x })
+  pushVar x = State.modify_ (\s -> s { vars = A.snoc s.vars x })
+
+-- releaseResources = traverse go
+--   where
+--   go x = execStateT <@> x $
+--     pure x
+
 
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
@@ -79,6 +133,7 @@ eraseLambdas
   :: ∀ m
    . Monad m
   => MonadSupply m
+  => MonadError CompileError m
   => String -- ^ lambda prefix
   -> Array AST
   -> m (Array AST)
@@ -370,5 +425,8 @@ eraseLambdas moduleName asts =
                     AST.Var v
               ]
           ) <>
-        [ AST.Var "$_cont"
+        [ AST.App (AST.Var "PURS_RC_RELEASE")
+            [ AST.Var "$_scope"
+            ]
+        , AST.Var "$_cont"
         ]

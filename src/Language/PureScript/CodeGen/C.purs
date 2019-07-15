@@ -35,7 +35,7 @@ import Language.PureScript.CodeGen.C.Common (freshInternalName, freshName, isInt
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Optimizer (optimize)
 import Language.PureScript.CodeGen.C.Pretty as P
-import Language.PureScript.CodeGen.C.Transforms (eraseLambdas, hoistVarDecls)
+import Language.PureScript.CodeGen.C.Transforms as T
 import Language.PureScript.CodeGen.Common (runModuleName)
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
@@ -85,11 +85,12 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
             _.moduleName <<< unwrap <$>
               moduleImports
   in runReaderT <@> { module: mod } $ do
-    decls <- do
-      decls <- A.concat <$> traverse (bindToAst true) moduleDecls
-      eraseLambdas cModuleName =<< do
-        hoistVarDecls <$>
-          traverse optimize decls
+    decls <-
+      (A.concat <$> traverse (bindToAst true) moduleDecls)
+        >>= traverse optimize
+        >>= (pure <<< T.hoistVarDecls)
+        >>= T.eraseLambdas cModuleName
+        >>= T.releaseResources
 
     let
       moduleHeader =

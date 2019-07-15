@@ -8,18 +8,7 @@
 
 static void test(void **state) {
 	(void) state; /* unused */
-	assert_int_equal(0,
-			 purs_any_get_int(purs_any_app(Main_main_$,
-						       purs_any_null)));
-	assert_int_equal(0,
-			 purs_any_get_int(purs_any_app(Main_main_$,
-						       purs_any_null)));
-	assert_int_equal(0,
-			 purs_any_get_int(purs_any_app(Main_main_$,
-						       purs_any_null)));
-	assert_int_equal(0,
-			 purs_any_get_int(purs_any_app(Main_main_$,
-						       purs_any_null)));
+	purs_any_app(Main_main_$, purs_any_null);
 }
 
 int main (void) {

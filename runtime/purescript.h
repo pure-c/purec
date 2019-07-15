@@ -136,8 +136,8 @@ static inline void purs_rc_release(const struct purs_rc *ref) {
 }
 
 /* by convetion, the rc is embedded as 'rc', making these macros possible */
-#define PURS_RC_RELEASE(X) purs_rc_release(&(X)->rc)
-#define PURS_RC_RETAIN(X)  purs_rc_retain(&(X)->rc)
+#define PURS_RC_RELEASE(X) do { if (X != NULL) purs_rc_release(&(X)->rc); } while (0)
+#define PURS_RC_RETAIN(X)  do { if (X != NULL) purs_rc_retain(&(X)->rc); } while (0)
 
 union purs_any_value {
 	/* inline values */
