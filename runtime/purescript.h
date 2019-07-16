@@ -221,8 +221,16 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 #define PURS_ANY_RETAIN(X) {\
 		switch ((X)->tag) {\
 		case PURS_ANY_TAG_STRING:\
-			purs_rc_retain(&((X)->value.str->rc));\
+			PURS_RC_RETAIN(((X)->value.str));\
 			break;\
+		case PURS_ANY_TAG_ARRAY:\
+			PURS_RC_RETAIN((X)->value.array);\
+			break;\
+		case PURS_ANY_TAG_RECORD:\
+			PURS_RC_RETAIN((X)->value.record);\
+			break;\
+		case PURS_ANY_TAG_CONT:\
+			PURS_RC_RETAIN((X)->value.cont);\
 		default:\
 			break;\
 		}\
@@ -240,6 +248,9 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 		case PURS_ANY_TAG_FOREIGN:\
 			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RELEASE for: %s\n", purs_any_tag_str((X)->tag));\
 			break;\
+		case PURS_ANY_TAG_STRING:\
+			PURS_RC_RELEASE((X)->value.str);\
+			break;\
 		case PURS_ANY_TAG_ARRAY:\
 			PURS_RC_RELEASE((X)->value.array);\
 			break;\
@@ -247,10 +258,7 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 			PURS_RC_RELEASE((X)->value.record);\
 			break;\
 		case PURS_ANY_TAG_CONT:\
-			PURS_RC_RELEASE((X)->value.cont);	\
-			break;\
-		case PURS_ANY_TAG_STRING:\
-			PURS_RC_RELEASE((X)->value.str);	\
+			PURS_RC_RELEASE((X)->value.cont);\
 			break;\
 		}\
 	}
@@ -480,14 +488,23 @@ struct purs_scope * purs_scope_new1(int size);
 /* Thunked pointer dereference: Recursive bindings support */
 #define purs_indirect_value_new() purs_new(ANY)
 #define purs_indirect_value_assign(I, V) *(I) = (V)
-#define purs_indirect_thunk_new(X) \
-	({\
-		purs_any_thunk_t * thunk = purs_malloc(sizeof (purs_any_thunk_t));\
-		thunk->ctx = ((purs_any_t){ .value = { .foreign = { .data = (X) } } }); \
-		thunk->fn = purs_thunked_deref;\
-		PURS_ANY_THUNK(thunk);\
-	})
-ANY purs_thunked_deref(ANY);
+
+static inline ANY purs_thunked_deref(ANY ctx) {
+	return *((ANY*)(ctx.value.foreign.data));
+}
+
+static inline ANY purs_indirect_thunk_new(ANY * x) {
+	purs_any_thunk_t * thunk = purs_malloc(sizeof (purs_any_thunk_t));
+	thunk->ctx = ((purs_any_t){
+		.tag = PURS_ANY_TAG_FOREIGN,
+		.value = { .foreign = { .data = x } }
+		});
+	thunk->fn = purs_thunked_deref;
+	return ((purs_any_t){
+		.tag = PURS_ANY_TAG_THUNK,
+		.value = { .thunk = thunk }
+		});
+}
 
 /* allocate a buffer to fit 'N' 'ANY's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (ANY) * N)
@@ -498,11 +515,10 @@ ANY purs_thunked_deref(ANY);
 		static ANY v;\
 		static int x = 0;\
 		if (x == 0) {\
-			x = 1;\
+			x = 0;\
 			v = INIT;\
-			/* todo: provide a way to release this */\
-			PURS_ANY_RETAIN(&v);\
 		}\
+		PURS_ANY_RETAIN(&v);\
 		return v;\
 	};\
 	purs_any_thunk_t NAME ## __thunk__ = {\

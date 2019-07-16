@@ -84,7 +84,7 @@ struct purs_scope * purs_scope_new(int size, ...) {
 	va_list ap;
 	va_start(ap, size);
 	for (i = 0; i < size; i++) {
-		bindings[i] = *va_arg(ap, ANY *);
+		bindings[i] = va_arg(ap, ANY);
 		PURS_ANY_RETAIN(&bindings[i]);
 	}
 	va_end(ap);
@@ -422,12 +422,4 @@ ANY * purs_record_find_by_key(const purs_record_t * record,
 	HASH_FIND(hh, record->root, key, len, result);
 	if (result == NULL) return NULL;
 	return &result->value;
-}
-
-// -----------------------------------------------------------------------------
-// Code-gen helpers
-// -----------------------------------------------------------------------------
-
-ANY purs_thunked_deref(ANY ctx) {
-	return *((ANY*)(ctx.value.foreign.data));
 }

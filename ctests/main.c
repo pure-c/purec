@@ -15,7 +15,7 @@ static ANY mk_prefix_cont (const char * prefix) {
 	const purs_str_t * s = purs_str_new("%s", prefix);
 	const struct purs_scope * scope = ({
 		const purs_any_t x = purs_any_string(s);
-		purs_scope_new(1, &x);
+		purs_scope_new(1, x);
 	});
 	const purs_cont_t * cont = purs_cont_new(scope, mk_prefix_cont_0);
 	PURS_RC_RELEASE(scope);
