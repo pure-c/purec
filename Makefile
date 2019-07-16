@@ -149,15 +149,14 @@ PHONY: test/tests/lib
 #   + Have a 'lib' target without an entry point in a module called 'Main'
 #   + Export a 'main' function from module 'Main'
 define mk_test_case
-name := $(1)
-test/tests/lib/$$(name):
+test/tests/lib/$(1):
 	@$(MAKE) -s clean
-	@UNIT_TESTING=1 $(MAKE) -s test/tests/lib/$$(name).0
+	@UNIT_TESTING=0 $(MAKE) -s test/tests/lib/$(1).0
 
-test/tests/lib/$$(name).0: $(PUREC_LIB)
-	@$(MAKE) -s -C "tests/$$(name)" clean
-	@$(MAKE) -s -C "tests/$$(name)" lib/c
-	@cd "tests/$$(name)" &&\
+test/tests/lib/$(1).0: $(PUREC_LIB)
+	#@$(MAKE) -s -C "tests/$(1)" clean
+	#@$(MAKE) -s -C "tests/$(1)" lib/c
+	@cd "tests/$(1)" &&\
 		$(CLANG) \
 			-I. \
 			-I../.. \
@@ -167,8 +166,8 @@ test/tests/lib/$$(name).0: $(PUREC_LIB)
 			-lpurec \
 			-lcmocka \
 			-o a.out
-	@./"tests/$$(name)/a.out"
-.PHONY: test/tests/lib/$$(name)
+	@./"tests/$(1)/a.out"
+.PHONY: test/tests/lib/$(1)
 endef
 
 $(eval $(call mk_test_case,00-basic))

@@ -8,9 +8,12 @@
 
 static void test(void **state) {
 	(void) state; /* unused */
-	purs_any_app(Main_main_$, purs_any_null);
+	ANY tmp = purs_any_app(Main_main_$, purs_any_null);
+	PURS_ANY_RELEASE(&tmp);
 }
 
+#define UNIT_TESTING
+#ifdef UNIT_TESTING
 int main (void) {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(test),
@@ -18,3 +21,8 @@ int main (void) {
 
 	return cmocka_run_group_tests(tests, NULL, NULL);
 }
+#else
+int main(void) {
+	test(NULL);
+}
+#endif

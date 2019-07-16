@@ -238,19 +238,19 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 		case PURS_ANY_TAG_THUNK:\
 		case PURS_ANY_TAG_CONS:\
 		case PURS_ANY_TAG_FOREIGN:\
-			assert(0);\
+			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RELEASE for: %s\n", purs_any_tag_str((X)->tag));\
 			break;\
 		case PURS_ANY_TAG_ARRAY:\
-			purs_rc_release(&((X)->value.array->rc));\
+			PURS_RC_RELEASE((X)->value.array);\
 			break;\
 		case PURS_ANY_TAG_RECORD:\
-			purs_rc_release(&((X)->value.record->rc));\
+			PURS_RC_RELEASE((X)->value.record);\
 			break;\
 		case PURS_ANY_TAG_CONT:\
-			purs_rc_release(&((X)->value.cont->rc));\
+			PURS_RC_RELEASE((X)->value.cont);	\
 			break;\
 		case PURS_ANY_TAG_STRING:\
-			purs_rc_release(&((X)->value.str->rc));\
+			PURS_RC_RELEASE((X)->value.str);	\
 			break;\
 		}\
 	}
@@ -500,6 +500,8 @@ ANY purs_thunked_deref(ANY);
 		if (x == 0) {\
 			x = 1;\
 			v = INIT;\
+			/* todo: provide a way to release this */\
+			PURS_ANY_RETAIN(&v);\
 		}\
 		return v;\
 	};\

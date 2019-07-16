@@ -340,7 +340,8 @@ eraseLambdas moduleName asts =
                             ]
                 in
                  A.concat
-                  [ map snd $ A.sortBy (compare `on` fst) $
+                  [ [ AST.App (AST.Var "PURS_RC_RETAIN") [ AST.Var "$_ctx" ] ]
+                  , map snd $ A.sortBy (compare `on` fst) $
                      Map.toUnfoldable bindings <#> \(name /\ i /\ mOffset) ->
                       i /\ case mOffset of
                         Nothing ->
