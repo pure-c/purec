@@ -231,6 +231,12 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 			break;\
 		case PURS_ANY_TAG_CONT:\
 			PURS_RC_RETAIN((X)->value.cont);\
+			break;\
+		case PURS_ANY_TAG_THUNK:\
+		case PURS_ANY_TAG_CONS:\
+		case PURS_ANY_TAG_FOREIGN:\
+			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RETAIN for: %s\n", purs_any_tag_str((X)->tag));\
+			break;\
 		default:\
 			break;\
 		}\
