@@ -28,6 +28,7 @@ import Data.Traversable (for, for_, traverse)
 import Data.TraversableWithIndex (traverseWithIndex)
 import Data.Tuple (snd)
 import Data.Tuple.Nested ((/\), type (/\))
+import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
@@ -684,7 +685,8 @@ exprToAst (C.Abs (C.Ann { type: typ }) ident expr) = do
       , qualifiers: []
       , variadic: false
       , arguments:
-          [{ name: argName, type: R.any }]
+          [ { name: argName, type: R.any }
+          ]
       , returnType: R.any
       , body:
           Just $

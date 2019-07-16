@@ -21,32 +21,38 @@ import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST(..), everywhereTopDown) as AST
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
 import Language.PureScript.CodeGen.C.Common (isInternalVariable)
+import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 
--- | Traverse all blocks, collecting expressions that cause heap allocations and
--- | emitting a corresponding "free"-ing call when the block no longer needs
--- | the variable.
+-- | Generate code that releases intermediate results.
 -- |
--- | * We know that 'return;' exists the function immediately with the given
--- |   value.
--- | * We know that purec-generated functions must have at most a single return
--- |   value of type 'ANY'.
--- | * Thus, we must call 'PURS_ANY_RELEASE' on *all* variables, except the
--- |   one returned.
---
--- todo: Could we remove shadowed bindings in a separate pass? keword: SSA
--- idea: use gotos?
---   { var ret; goto end; end: [<cleanup>...]; return ret; }
+-- | Step 0: Flatten all nested blocks. We should throw an 'InternalError'
+-- |         if a nested block is found. The reason is that nested blocks have
+-- |         different scoping and may return early.
+-- | Step 1: Identify all AST.App calls causing resource allocation, and extract
+-- |         those into fresh (internal) variables.
+-- | Step 2: Extract all intermediate 'purs_any_app' results to temporary
+-- |         fresh (internal) variables.
+-- | Step 3: Bind the return value to a temporary 'ANY' value and call
+-- |         PURS_ANY_RETAIN on it. This allows us to safely perform the next
+-- |         step.
+-- | Step 4: Release all previously found resource acquistions/intermediate
+-- |         'purs_any_app' results with PURS_RC_RELEASE/PURS_ANY_RELEASE
+-- |         respectively, except the return value bound in Step 3.
+-- | Step 5: Return the result bound in Step 3.
+-- |
+-- | Considerations:
+-- |   * Consider that some branches in a block may return early. In such case,
+-- |     simply free everything we learned about up to that point and return.
 releaseResources
   :: ∀ m
    . Monad m
@@ -73,16 +79,10 @@ releaseResources = traverse go
   pushAst x = State.modify_ (\s -> s { out = A.snoc s.out x })
   pushVar x = State.modify_ (\s -> s { vars = A.snoc s.vars x })
 
--- releaseResources = traverse go
---   where
---   go x = execStateT <@> x $
---     pure x
-
-
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
 hoistVarDecls :: Array AST -> Array AST
-hoistVarDecls = map go
+hoistVarDecls = identity
   where
   go =
     AST.everywhereTopDown case _ of
@@ -124,11 +124,14 @@ hoistVarDecls = map go
                   xs'
       x -> x
 
--- | Erase lambdas from the AST by capturing used bindings in a heap-allocated,
--- | buffer and emitting a top-level continuation function.
+-- | Erase lambdas from the AST by capturing used bindings into a scope data.
+-- | structure.
 -- |
 -- | XXX: we might have to run this pass *after* optimization passes ran in
 -- |      order to not capture inlined and unused variables.
+-- |
+-- | todo: does the inner lambda need to retain it's bound scope and arguments
+-- |       during every execution?
 eraseLambdas
   :: ∀ m
    . Monad m
@@ -137,7 +140,7 @@ eraseLambdas
   => String -- ^ lambda prefix
   -> Array AST
   -> m (Array AST)
-eraseLambdas moduleName asts =
+eraseLambdas moduleName asts = map collapseNestedBlocks <$>
   ado
     asts' /\ toplevels <-
       runWriterT $
@@ -340,8 +343,7 @@ eraseLambdas moduleName asts =
                             ]
                 in
                  A.concat
-                  [ [ AST.App (AST.Var "PURS_RC_RETAIN") [ AST.Var "$_ctx" ] ]
-                  , map snd $ A.sortBy (compare `on` fst) $
+                  [ map snd $ A.sortBy (compare `on` fst) $
                      Map.toUnfoldable bindings <#> \(name /\ i /\ mOffset) ->
                       i /\ case mOffset of
                         Nothing ->
@@ -380,54 +382,34 @@ eraseLambdas moduleName asts =
       id <- freshId
       in "__cont_"  <> show id <> "__"
 
-    pure $ AST.StatementExpression $
-      AST.Block $
-        [ AST.VariableIntroduction
-            { name: "$_scope"
-            , type: Type.Pointer (Type.RawType R.purs_scope_t [])
-            , qualifiers: []
-            , initialization:
-                Just $
-                  if A.null capturedBindings
-                    then AST.Null
-                    else
-                      AST.App
-                        R.purs_scope_new1 $
-                        [ AST.NumericLiteral $
-                            Left $ A.length capturedBindings
-                        ]
-            }
-        , AST.VariableIntroduction
-            { name: "$_cont"
-            , type: R.any
-            , qualifiers: []
-            , initialization:
-                Just $
-                  AST.App
-                    R.purs_any_cont
-                      [ AST.App
-                          R.purs_cont_new
-                            [ AST.Var "$_scope"
-                            , AST.Cast (Type.Pointer (R.void [ Type.Const ])) $
-                                AST.Var contFuncName
-                            ]
-                      ]
-            }
-        ] <>
-          (A.mapWithIndex <@> capturedBindings $ \i v ->
-            AST.App (AST.Var "purs_scope_capture_at")
-              [ AST.Var "$_scope"
-              , AST.NumericLiteral $ Left i
-              , if Just v == capturedScope.lhs
-                  then
-                    AST.App R.purs_indirect_thunk_new
-                      [ AST.Var "$_ivalue" ]
-                  else
-                    AST.Var v
-              ]
-          ) <>
-        [ AST.App (AST.Var "PURS_RC_RELEASE")
-            [ AST.Var "$_scope"
+    pure if A.null capturedBindings
+      then
+        AST.App
+          R.purs_any_cont
+            [ AST.App
+                R.purs_cont_new
+                  [ AST.Null
+                  , AST.Var contFuncName
+                  ]
             ]
-        , AST.Var "$_cont"
-        ]
+      else
+        AST.App
+          R.purs_any_cont
+            [ AST.App
+                R.purs_cont_new
+                  [ AST.App
+                      R.purs_scope_new $
+                      [ AST.NumericLiteral $ Left $ A.length capturedBindings ]
+                      <>
+                      (capturedBindings <#> \v ->
+                        -- todo: solve this dilemma (recursion?)
+                        if Just v == capturedScope.lhs
+                          then
+                            AST.App R.purs_indirect_thunk_new
+                              [ AST.Var "$_ivalue" ]
+                          else
+                            AST.Var v
+                      )
+                  , AST.Var contFuncName
+                  ]
+            ]

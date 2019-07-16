@@ -87,24 +87,19 @@ toBody = A.catMaybes <<< map go
   go (AST.VariableIntroduction { name, type: typ, initialization: Just initialization }) =
     go' initialization
     where
-    go' = case _ of
-      AST.Cast _ ast@(AST.App f _)
-        | f `A.elem`
-            [ R.purs_any_cons
-            , R.purs_any_int
-            , R.purs_any_num
-            , R.purs_any_string
-            , R.purs_any_record
-            , R.purs_any_array
-            ]
-        -> go' ast
-      _ ->
-        Just $
-          AST.App
-            R._PURS_ANY_THUNK_DEF
-            [ AST.Raw name
-            , initialization
-            ]
+    go' ast =
+      -- todo: int, num, string, char, and cont could be statically initialized.
+      --       Cons(tructors), arrays, and records would need more
+      --       consideration. The key problem with thunking "into" static
+      --       variables is that freeing these resources becomes tricky, as they
+      --       would need to be able to be re-initialized after the RC drops to
+      --       back to zero.
+      Just $
+        AST.App
+          R._PURS_ANY_THUNK_DEF
+          [ AST.Raw name
+          , ast
+          ]
   go _ = Nothing
 
 -- XXX: should be configurable
