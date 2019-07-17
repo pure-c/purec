@@ -623,8 +623,7 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 #define _PURS_FFI_FUNC_ENTRY(NAME)\
 	purs_cont_t NAME ## __cont__ = {\
 		.fn = NAME ## __1,\
-		.len = 0,\
-		.ctx = NULL\
+		.scope = NULL\
 	};\
 	ANY NAME = {\
 		.tag = PURS_ANY_TAG_CONT,\
@@ -637,15 +636,22 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	}
 
 #define _PURS_FFI_FUNC_CONT(NAME, CUR, NEXT)\
-	ANY NAME##__##CUR (ANY * $__super__, ANY a, va_list $__unused__) {\
-		ANY* ctx = purs_malloc_any_buf(CUR);\
+	ANY NAME##__##CUR (const purs_scope_t * $__super__, ANY a, va_list $__unused__) {\
+		purs_scope_t * scope = purs_scope_new1(CUR);\
 		if ($__super__ != NULL) {\
-			memcpy(ctx, $__super__, CUR * sizeof (ANY));\
+			memcpy(scope->bindings,\
+			       $__super__->bindings,\
+			       $__super__->size * sizeof (ANY));\
+			for (int i = 0; i < $__super__->size; i++) {\
+				PURS_ANY_RETAIN(&$__super__->bindings[i]);\
+			}\
 		}\
-		if (ctx != NULL) {\
-			ctx[CUR - 1] = a;\
+		if (scope != NULL) {\
+			scope->bindings[CUR - 1] = a;\
 		}\
-		return purs_cont(ctx, CUR, NAME##__##NEXT);\
+		const purs_cont_t * cont = purs_cont_new(scope, NAME##__##NEXT);\
+		PURS_RC_RELEASE(scope);\
+		return purs_any_cont(cont);\
 	}
 
 #define _PURS_FFI_FUNC_CONT_1_TO_2(NAME)   _PURS_FFI_FUNC_CONT(NAME,  1,  2)
@@ -663,23 +669,23 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 #define PURS_FFI_FUNC_CONTEXT $__super__
 
 #define PURS_FFI_FUNC_1(NAME, A1, BODY)\
-	ANY NAME##__1 (ANY * $__super__, ANY A1, va_list $__unused__) {\
+	ANY NAME##__1 (const purs_scope_t * $__super__, ANY A1, va_list $__unused__) {\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_2(NAME, A1, A2, BODY)\
-	ANY NAME##__2 (ANY * $__super__, ANY A2, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
+	ANY NAME##__2 (const purs_scope_t * $__super__, ANY A2, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_3(NAME, A1, A2, A3, BODY)\
-	ANY NAME##__3 (ANY * $__super__, ANY A3, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
+	ANY NAME##__3 (const purs_scope_t * $__super__, ANY A3, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
@@ -687,10 +693,10 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4, BODY)\
-	ANY NAME##__4 (ANY * $__super__, ANY A4, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
+	ANY NAME##__4 (const purs_scope_t * $__super__, ANY A4, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
@@ -699,11 +705,11 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5, BODY)\
-	ANY NAME##__5 (ANY * $__super__, ANY A5, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
+	ANY NAME##__5 (const purs_scope_t * $__super__, ANY A5, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
@@ -713,12 +719,12 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_6(NAME, A1, A2, A3, A4, A5, A6, BODY)\
-	ANY NAME##__6 (ANY * $__super__, ANY A6, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
-		ANY A5 = ((ANY*)$__super__)[4];\
+	ANY NAME##__6 (const purs_scope_t * $__super__, ANY A6, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
+		ANY A5 = $__super__->bindings[4];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
@@ -729,13 +735,13 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_7(NAME, A1, A2, A3, A4, A5, A6, A7, BODY)\
-	ANY NAME##__7 (ANY * $__super__, ANY A7, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
-		ANY A5 = ((ANY*)$__super__)[4];\
-		ANY A6 = ((ANY*)$__super__)[5];\
+	ANY NAME##__7 (const purs_scope_t * $__super__, ANY A7, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
+		ANY A5 = $__super__->bindings[4];\
+		ANY A6 = $__super__->bindings[5];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_6_TO_7(NAME);\
@@ -747,14 +753,14 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8, BODY)\
-	ANY NAME##__8 (ANY * $__super__, ANY A8, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
-		ANY A5 = ((ANY*)$__super__)[4];\
-		ANY A6 = ((ANY*)$__super__)[5];\
-		ANY A7 = ((ANY*)$__super__)[6];\
+	ANY NAME##__8 (const purs_scope_t * $__super__, ANY A8, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
+		ANY A5 = $__super__->bindings[4];\
+		ANY A6 = $__super__->bindings[5];\
+		ANY A7 = $__super__->bindings[6];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_7_TO_8(NAME);\
@@ -767,15 +773,15 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY)\
-	ANY NAME##__9 (ANY * $__super__, ANY A9, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
-		ANY A5 = ((ANY*)$__super__)[4];\
-		ANY A6 = ((ANY*)$__super__)[5];\
-		ANY A7 = ((ANY*)$__super__)[6];\
-		ANY A8 = ((ANY*)$__super__)[7];\
+	ANY NAME##__9 (const purs_scope_t * $__super__, ANY A9, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
+		ANY A5 = $__super__->bindings[4];\
+		ANY A6 = $__super__->bindings[5];\
+		ANY A7 = $__super__->bindings[6];\
+		ANY A8 = $__super__->bindings[7];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_8_TO_9(NAME);\
@@ -789,16 +795,16 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY)\
-	ANY NAME##__10 (ANY * $__super__, ANY A10, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
-		ANY A5 = ((ANY*)$__super__)[4];\
-		ANY A6 = ((ANY*)$__super__)[5];\
-		ANY A7 = ((ANY*)$__super__)[6];\
-		ANY A8 = ((ANY*)$__super__)[7];\
-		ANY A9 = ((ANY*)$__super__)[8];\
+	ANY NAME##__10 (const purs_scope_t * $__super__, ANY A10, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
+		ANY A5 = $__super__->bindings[4];\
+		ANY A6 = $__super__->bindings[5];\
+		ANY A7 = $__super__->bindings[6];\
+		ANY A8 = $__super__->bindings[7];\
+		ANY A9 = $__super__->bindings[8];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_9_TO_10(NAME);\
@@ -813,17 +819,17 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY)\
-	ANY NAME##__11 (ANY * $__super__, ANY A11, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
-		ANY A5 = ((ANY*)$__super__)[4];\
-		ANY A6 = ((ANY*)$__super__)[5];\
-		ANY A7 = ((ANY*)$__super__)[6];\
-		ANY A8 = ((ANY*)$__super__)[7];\
-		ANY A9 = ((ANY*)$__super__)[8];\
-		ANY A10 = ((ANY*)$__super__)[9];\
+	ANY NAME##__11 (const purs_scope_t * $__super__, ANY A11, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
+		ANY A5 = $__super__->bindings[4];\
+		ANY A6 = $__super__->bindings[5];\
+		ANY A7 = $__super__->bindings[6];\
+		ANY A8 = $__super__->bindings[7];\
+		ANY A9 = $__super__->bindings[8];\
+		ANY A10 = $__super__->bindings[9];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_10_TO_11(NAME);\
@@ -839,18 +845,18 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME)
 
 #define PURS_FFI_FUNC_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY)\
-	ANY NAME##__12 (ANY * $__super__, ANY A12, va_list $__unused__) {\
-		ANY A1 = ((ANY*)$__super__)[0];\
-		ANY A2 = ((ANY*)$__super__)[1];\
-		ANY A3 = ((ANY*)$__super__)[2];\
-		ANY A4 = ((ANY*)$__super__)[3];\
-		ANY A5 = ((ANY*)$__super__)[4];\
-		ANY A6 = ((ANY*)$__super__)[5];\
-		ANY A7 = ((ANY*)$__super__)[6];\
-		ANY A8 = ((ANY*)$__super__)[7];\
-		ANY A9 = ((ANY*)$__super__)[8];\
-		ANY A10 = ((ANY*)$__super__)[9];\
-		ANY A11 = ((ANY*)$__super__)[10];\
+	ANY NAME##__12 (const purs_scope_t * $__super__, ANY A12, va_list $__unused__) {\
+		ANY A1 = $__super__->bindings[0];\
+		ANY A2 = $__super__->bindings[1];\
+		ANY A3 = $__super__->bindings[2];\
+		ANY A4 = $__super__->bindings[3];\
+		ANY A5 = $__super__->bindings[4];\
+		ANY A6 = $__super__->bindings[5];\
+		ANY A7 = $__super__->bindings[6];\
+		ANY A8 = $__super__->bindings[7];\
+		ANY A9 = $__super__->bindings[8];\
+		ANY A10 = $__super__->bindings[9];\
+		ANY A11 = $__super__->bindings[10];\
 		BODY;\
 	}\
 	_PURS_FFI_FUNC_CONT_11_TO_12(NAME);\

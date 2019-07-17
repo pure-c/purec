@@ -66,6 +66,7 @@ static void purs_scope_free(const struct purs_rc *ref) {
 }
 
 struct purs_scope * purs_scope_new1(int size) {
+	if (size == 0) return NULL;
 	struct purs_scope * scope = purs_new(struct purs_scope);
 	ANY* bindings = purs_malloc(sizeof (ANY) * size);
 	scope->size = size;
@@ -76,6 +77,7 @@ struct purs_scope * purs_scope_new1(int size) {
 }
 
 struct purs_scope * purs_scope_new(int size, ...) {
+	if (size == 0) return NULL;
 	struct purs_scope * scope = purs_new(struct purs_scope);
 	ANY* bindings = purs_malloc(sizeof (ANY) * size);
 	scope->size = size;
