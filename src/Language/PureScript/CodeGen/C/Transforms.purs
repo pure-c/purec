@@ -6,15 +6,14 @@ module Language.PureScript.CodeGen.C.Transforms
 
 import Prelude
 
-import Control.Monad.Error.Class (class MonadError, throwError)
+import Control.Monad.Error.Class (class MonadError)
 import Control.Monad.Reader (ask, runReaderT, withReaderT)
-import Control.Monad.State (evalState, execState, execStateT, runStateT)
+import Control.Monad.State (runStateT)
 import Control.Monad.State as State
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (runWriterT, tell)
 import Data.Array as A
 import Data.Either (Either(..))
-import Data.Foldable (for_)
 import Data.Function (on)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
@@ -22,16 +21,14 @@ import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Debug.Trace (traceM)
+import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST (AST(..), everywhereTopDown) as AST
-import Language.PureScript.CodeGen.C.AST (AST, Type(..))
-import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
 import Language.PureScript.CodeGen.C.Common (freshInternalName, isInternalVariable)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
-import Language.PureScript.CodeGen.CompileError (CompileError(..))
+import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 
@@ -55,6 +52,14 @@ import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 -- | Considerations:
 -- |   * Consider that some branches in a block may return early. In such case,
 -- |     simply free everything we learned about up to that point and return.
+-- |
+-- | Future work:
+-- | * Currently we need to allocate a stack variable for every capturing every
+-- |   temporary variable. However, since 'ANY' values are fat, this might
+-- |   cause pressure on available stack memory for sufficiently large programs
+-- |   (speculating here.) We could look into a way to improve upon this,
+-- |   perhaps by building a more intelligent dependency graph and reduing the.
+-- |   number of introduced variables on the stack.
 releaseResources
   :: ∀ m
    . Monad m
@@ -62,9 +67,23 @@ releaseResources
   => MonadError CompileError m
   => Array AST
   -> m (Array AST)
-releaseResources = traverse (go [])
+releaseResources = map (map cleanup) <<< traverse (go [])
   where
-  fnTable = case _ of
+  cleanup =
+    everywhere case _ of
+      AST.Block xs ->
+        case A.unsnoc xs of
+          Just { init, last } ->
+            AST.Block $
+              (init # A.filter case _ of
+                AST.Var _ -> false
+                _ -> true
+              ) <> [ last ]
+          Nothing ->
+            AST.Block xs
+      x -> x
+
+  allocatedType = case _ of
     AST.Var "purs_any_app"       -> Just R.any
     AST.Var "purs_vec_new_va"    -> Just arrayType
     AST.Var "purs_vec_copy"      -> Just arrayType
@@ -75,28 +94,46 @@ releaseResources = traverse (go [])
     AST.Var "purs_cont_new"      -> Just contType
     _                            -> Nothing
 
-  contType   = Type.Pointer (Type.RawType "purs_cont_t" [ Type.Const ])
+  contType   = Type.Pointer (Type.RawType "purs_cont_t"   [ Type.Const ])
   recordType = Type.Pointer (Type.RawType "purs_record_t" [ Type.Const ])
-  stringType = Type.Pointer (Type.RawType "purs_str_t" [ Type.Const ])
-  arrayType  = Type.Pointer (Type.RawType "purs_vec_t" [ Type.Const ])
+  stringType = Type.Pointer (Type.RawType "purs_str_t"    [ Type.Const ])
+  arrayType  = Type.Pointer (Type.RawType "purs_vec_t"    [ Type.Const ])
 
   go parentVars = case _ of
     AST.Block xs -> do
-      out /\ vars <- do
-        runStateT <@> [] $
+      -- build up a new block, collect new variables we should introduce, and
+      -- indicate whether or not the block has returned. The latter is necessary
+      -- to ensure we are still releasing temporary variables introduced in the
+      -- block, as they are about to leave the scope.
+      out /\ { vars, hasReturned } <- do
+        runStateT <@> { vars: [], hasReturned: false } $
           let
             go' =
               case _ of
+                -- enter a new context. the block is - itself - responsible
+                -- for clean up.
                 x@(AST.Block _) -> do
-                  vars <- State.get
+                  { vars } <- State.get
                   lift $ go (parentVars <> vars) x
+
+                -- deal with potential resource allocations, which are *always*
+                -- due to applying some function.
+                -- we capture the result of the function in a fresh, internal
+                -- name that we can release later.
                 x@(AST.App n args) -> do
                   n'    <- go' n
                   args' <- traverse go' args
-                  case fnTable n' of
+                  case allocatedType n' of
                     Just typ -> do
                       name' <- lift freshInternalName
-                      State.modify_ (A.snoc <@> { name: name', type: typ })
+                      State.modify_ \state ->
+                        state
+                          { vars =
+                               A.snoc state.vars
+                                { name: name'
+                                , type: typ
+                                }
+                          }
                       pure $
                         AST.StatementExpression $
                           AST.Block
@@ -105,12 +142,14 @@ releaseResources = traverse (go [])
                             ]
                     Nothing ->
                       pure $ AST.App n' args'
-                AST.VariableIntroduction x -> ado
-                  initialization' <- traverse go' x.initialization
-                  in AST.VariableIntroduction $ x { initialization = initialization' }
+
+                -- deal with returning. we must release all variables we
+                -- collected, *including* any variables collected in our parent
+                -- scopes, since we won't be coming back.
                 AST.Return x -> do
-                  x'   <- go' x
-                  vars <- State.get
+                  x'       <- go' x
+                  { vars } <- State.get
+                  State.modify_ (_ { hasReturned = true })
                   tmp  <- lift freshInternalName
                   pure $
                     AST.Block $
@@ -120,15 +159,18 @@ releaseResources = traverse (go [])
                           , qualifiers: []
                           , initialization: Just x'
                           }
+                        -- we must *retain* the result value, since it's
+                        -- impossible to know which temporary variable the
+                        -- final return value was collected as, so it would be
+                        -- freed before returning by the release calls generated
+                        -- below.
                       , AST.App (AST.Var "PURS_ANY_RETAIN")
                           [ AST.App R.purs_address_of
                               [ AST.Var tmp ]
                           ]
                       ]
                       <>
-                      -- generate release calls for all introduced variables
-                      -- todo: do not release our return value!
-                      (vars <#> \v ->
+                      ((parentVars <> vars) <#> \v ->
                         if v.type == R.any
                           then
                             AST.App (AST.Var "PURS_ANY_RELEASE")
@@ -142,6 +184,12 @@ releaseResources = traverse (go [])
                       <>
                       [ AST.Return $ AST.Var tmp
                       ]
+
+                AST.VariableIntroduction x -> ado
+                  initialization' <- traverse go' x.initialization
+                  in AST.VariableIntroduction $
+                      x { initialization = initialization'
+                        }
                 AST.Unary o a ->
                   AST.Unary o <$> go' a
                 AST.Binary o a b ->
@@ -165,15 +213,15 @@ releaseResources = traverse (go [])
                   AST.While <$> go' a <*> go' b
                 AST.IfElse a b c ->
                   AST.IfElse <$> go' a <*> go' b <*> traverse go' c
-                -- AST.StatementExpression a ->
-                --   AST.StatementExpression <$> go' a
+                AST.StatementExpression a ->
+                  AST.StatementExpression <$> go' a
                 x ->
                   pure x
           in
             traverse go' xs
       pure $
         AST.Block $
-          A.concat
+          A.concat $
             [ vars <#> \var ->
                 AST.VariableIntroduction
                   { name: var.name
@@ -181,11 +229,72 @@ releaseResources = traverse (go [])
                   , qualifiers: []
                   , initialization: Nothing
                   }
-            , out
+            , out # A.filter case _ of
+                AST.Var _ -> false
+                _         -> true
+            , -- if the last statement was a AST.Var, we were likely in a
+              -- statement expression. therefore, we must retain it's value
+              -- before freeing resources introduced in the scope.
+              fromMaybe [] $
+                case A.last out of
+                  Just (x@(AST.Var name)) ->
+                    Just
+                      [ AST.App (AST.Var "PURS_ANY_RETAIN")
+                          [ AST.App R.purs_address_of
+                              [ AST.Var name ]
+                          ]
+                      , x
+                      ]
+                  _ -> Nothing
+            , if not hasReturned
+                then
+                  -- we're leaving scope, release all vars introduced in this scope
+                  -- before leaving it.
+                  (vars <#> \v ->
+                    if v.type == R.any
+                      then
+                        AST.App (AST.Var "PURS_ANY_RELEASE")
+                          [ AST.App R.purs_address_of [ AST.Var v.name ]
+                          ]
+                      else
+                        AST.App (AST.Var "PURS_RC_RELEASE")
+                          [ AST.Var v.name
+                          ]
+                  ) <>
+                  -- if the last statement was a AST.Var, we were likely in a
+                  -- statement expression. therefore, make sure we place it back
+                  -- at the end of the block.
+                  maybe [] A.singleton
+                    case A.last out of
+                      Just (x@(AST.Var _)) -> Just x
+                      _                    -> Nothing
+                else
+                  []
             ]
+
+    -- top-level variable introductions.
     AST.VariableIntroduction v@{ initialization: Just x@(AST.Block _) } -> do
       ast' <- go parentVars x
       pure $ AST.VariableIntroduction $ v { initialization = Just ast' }
+
+    -- top-level block-less variable introductions.
+    -- we turn those into state-ment expressions.
+    AST.VariableIntroduction v@{ initialization: Just x } -> do
+      tmp  <- freshInternalName
+      ast' <-
+        go parentVars $
+          AST.Block
+            [ AST.VariableIntroduction $ v { name = tmp }
+            , AST.Var tmp
+            ]
+      pure $
+        AST.VariableIntroduction $
+          v
+            { initialization =
+                Just $
+                  AST.StatementExpression ast'
+            }
+
     AST.Function f@{ body: Just x@(AST.Block _) } -> do
       ast' <- go parentVars x
       pure
@@ -203,9 +312,6 @@ releaseResources = traverse (go [])
                       ] }
     x ->
       pure x
-
-  -- pushAst x = State.modify_ (\s -> s { out = A.snoc s.out x })
-  -- pushVar x = State.modify_ (A.snoc <@> x)
 
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
