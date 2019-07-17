@@ -515,16 +515,34 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 /* allocate a buffer to fit 'N' 'ANY's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (ANY) * N)
 
+/**
+ * XXX: Static thunks technically leak memory when they are first forced. For
+ *      values known at compile time, we could - in theory - allocate the
+ *      structure as data in the binary. However, for mere reason of simplicity
+ *      in implementation, we thunk them into heap-allocated memory.
+ *      To avoid 'libcmocka' reporting these "leaks", we simply do not hold on
+ *      to the results.
+ */
+#ifdef UNIT_TESTING
+#define _PURS_ANY_THUNK_INIT(x, v, INIT)\
+	v = INIT;
+#else
+#define _PURS_ANY_THUNK_INIT(x, v, INIT)\
+	if (x == 0) {\
+		x = 1;\
+		v = INIT;\
+		PURS_ANY_RETAIN(&v); /* never free */\
+	} else {\
+		PURS_ANY_RETAIN(&v);\
+	}
+#endif // UNIT_TESTING
+
 /* declare a thunked top-level value. */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
 	static ANY NAME ## __thunk_fn__ (ANY __unused__1) { \
 		static ANY v;\
 		static int x = 0;\
-		if (x == 0) {\
-			x = 0;\
-			v = INIT;\
-		}\
-		PURS_ANY_RETAIN(&v);\
+		_PURS_ANY_THUNK_INIT(x, v, INIT);\
 		return v;\
 	};\
 	purs_any_thunk_t NAME ## __thunk__ = {\

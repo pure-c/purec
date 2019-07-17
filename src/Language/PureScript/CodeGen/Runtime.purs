@@ -45,6 +45,9 @@ module Language.PureScript.CodeGen.Runtime
   , purs_address_of
   , purs_derefence
 
+    -- cont
+  , purs_cont_t
+
     -- scope
   , purs_scope_t
   , purs_scope_new
@@ -101,6 +104,9 @@ any = Type.Any []
 
 purs_record_t :: String
 purs_record_t = "purs_record_t"
+
+purs_cont_t :: String
+purs_cont_t = "purs_cont_t"
 
 purs_scope_t :: String
 purs_scope_t = "purs_scope_t"

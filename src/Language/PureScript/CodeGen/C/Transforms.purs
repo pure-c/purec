@@ -8,8 +8,9 @@ import Prelude
 
 import Control.Monad.Error.Class (class MonadError, throwError)
 import Control.Monad.Reader (ask, runReaderT, withReaderT)
-import Control.Monad.State (execStateT)
+import Control.Monad.State (evalState, execState, execStateT, runStateT)
 import Control.Monad.State as State
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (runWriterT, tell)
 import Data.Array as A
 import Data.Either (Either(..))
@@ -21,12 +22,13 @@ import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
+import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST(..), everywhereTopDown) as AST
-import Language.PureScript.CodeGen.C.AST (AST)
+import Language.PureScript.CodeGen.C.AST (AST, Type(..))
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
-import Language.PureScript.CodeGen.C.Common (isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshInternalName, isInternalVariable)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
@@ -60,24 +62,150 @@ releaseResources
   => MonadError CompileError m
   => Array AST
   -> m (Array AST)
-releaseResources = traverse go
+releaseResources = traverse (go [])
   where
-  go =
-    AST.everywhereTopDownM $ case _ of
-      AST.Block xs ->
-        AST.Block <<< _.out <$> do
-          execStateT <@> { vars: [], out: [] } $ do
-            for_ xs $ case _ of
-              x@(AST.VariableIntroduction v@{ name }) -> do
-                pushVar v
-                pushAst x
-              x ->
-                pushAst x
-      x ->
-        pure x
+  fnTable = case _ of
+    AST.Var "purs_any_app"       -> Just R.any
+    AST.Var "purs_vec_new_va"    -> Just arrayType
+    AST.Var "purs_vec_copy"      -> Just arrayType
+    AST.Var "purs_vec_splice"    -> Just arrayType
+    AST.Var "purs_vec_concat"    -> Just arrayType
+    AST.Var "purs_str_new"       -> Just stringType
+    AST.Var "purs_record_new_va" -> Just recordType
+    AST.Var "purs_cont_new"      -> Just contType
+    _                            -> Nothing
 
-  pushAst x = State.modify_ (\s -> s { out = A.snoc s.out x })
-  pushVar x = State.modify_ (\s -> s { vars = A.snoc s.vars x })
+  contType   = Type.Pointer (Type.RawType "purs_cont_t" [ Type.Const ])
+  recordType = Type.Pointer (Type.RawType "purs_record_t" [ Type.Const ])
+  stringType = Type.Pointer (Type.RawType "purs_str_t" [ Type.Const ])
+  arrayType  = Type.Pointer (Type.RawType "purs_vec_t" [ Type.Const ])
+
+  go parentVars = case _ of
+    AST.Block xs -> do
+      out /\ vars <- do
+        runStateT <@> [] $
+          let
+            go' =
+              case _ of
+                x@(AST.Block _) -> do
+                  vars <- State.get
+                  lift $ go (parentVars <> vars) x
+                x@(AST.App n args) -> do
+                  n'    <- go' n
+                  args' <- traverse go' args
+                  case fnTable n' of
+                    Just typ -> do
+                      name' <- lift freshInternalName
+                      State.modify_ (A.snoc <@> { name: name', type: typ })
+                      pure $
+                        AST.StatementExpression $
+                          AST.Block
+                            [ AST.Assignment (AST.Var name') (AST.App n' args')
+                            , AST.Var name'
+                            ]
+                    Nothing ->
+                      pure $ AST.App n' args'
+                AST.VariableIntroduction x -> ado
+                  initialization' <- traverse go' x.initialization
+                  in AST.VariableIntroduction $ x { initialization = initialization' }
+                AST.Return x -> do
+                  x'   <- go' x
+                  vars <- State.get
+                  tmp  <- lift freshInternalName
+                  pure $
+                    AST.Block $
+                      [ AST.VariableIntroduction
+                          { name: tmp
+                          , type: R.any
+                          , qualifiers: []
+                          , initialization: Just x'
+                          }
+                      , AST.App (AST.Var "PURS_ANY_RETAIN")
+                          [ AST.App R.purs_address_of
+                              [ AST.Var tmp ]
+                          ]
+                      ]
+                      <>
+                      -- generate release calls for all introduced variables
+                      -- todo: do not release our return value!
+                      (vars <#> \v ->
+                        if v.type == R.any
+                          then
+                            AST.App (AST.Var "PURS_ANY_RELEASE")
+                              [ AST.App R.purs_address_of [ AST.Var v.name ]
+                              ]
+                          else
+                            AST.App (AST.Var "PURS_RC_RELEASE")
+                              [ AST.Var v.name
+                              ]
+                      )
+                      <>
+                      [ AST.Return $ AST.Var tmp
+                      ]
+                AST.Unary o a ->
+                  AST.Unary o <$> go' a
+                AST.Binary o a b ->
+                  AST.Binary o <$> go' a <*> go' b
+                AST.ArrayLiteral as ->
+                  AST.ArrayLiteral <$> traverse go' as
+                AST.Indexer a b ->
+                  AST.Indexer <$> go' a <*> go' b
+                AST.ObjectLiteral as ->
+                  AST.ObjectLiteral <$> for as \{ key, value } -> ado
+                    key'   <- go' key
+                    value' <- go' value
+                    in { key: key', value: value' }
+                AST.Accessor a b ->
+                  AST.Accessor <$> go' a <*> go' b
+                AST.Cast a b ->
+                  AST.Cast a <$> go' b
+                AST.Assignment a b ->
+                  AST.Assignment <$> go' a <*> go' b
+                AST.While a b ->
+                  AST.While <$> go' a <*> go' b
+                AST.IfElse a b c ->
+                  AST.IfElse <$> go' a <*> go' b <*> traverse go' c
+                -- AST.StatementExpression a ->
+                --   AST.StatementExpression <$> go' a
+                x ->
+                  pure x
+          in
+            traverse go' xs
+      pure $
+        AST.Block $
+          A.concat
+            [ vars <#> \var ->
+                AST.VariableIntroduction
+                  { name: var.name
+                  , type: var.type
+                  , qualifiers: []
+                  , initialization: Nothing
+                  }
+            , out
+            ]
+    AST.VariableIntroduction v@{ initialization: Just x@(AST.Block _) } -> do
+      ast' <- go parentVars x
+      pure $ AST.VariableIntroduction $ v { initialization = Just ast' }
+    AST.Function f@{ body: Just x@(AST.Block _) } -> do
+      ast' <- go parentVars x
+      pure
+        if false -- todo: remove or move into a debug transform
+          then AST.Function $ f { body = Just ast' }
+          else AST.Function $
+            f { body =
+                  Just $
+                    AST.Block
+                      [ AST.App (AST.Var "printf")
+                          [ AST.StringLiteral "> fn=%s\n"
+                          , AST.StringLiteral (fromMaybe "<anon>" f.name)
+                          ]
+                      , ast'
+                      ] }
+    x ->
+      pure x
+
+  -- pushAst x = State.modify_ (\s -> s { out = A.snoc s.out x })
+  -- pushVar x = State.modify_ (A.snoc <@> x)
 
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
@@ -382,8 +510,8 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
       id <- freshId
       in "__cont_"  <> show id <> "__"
 
-    pure if A.null capturedBindings
-      then
+    if A.null capturedBindings
+      then pure $
         AST.App
           R.purs_any_cont
             [ AST.App
@@ -392,24 +520,46 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                   , AST.Var contFuncName
                   ]
             ]
-      else
-        AST.App
-          R.purs_any_cont
-            [ AST.App
-                R.purs_cont_new
-                  [ AST.App
-                      R.purs_scope_new $
-                      [ AST.NumericLiteral $ Left $ A.length capturedBindings ]
-                      <>
-                      (capturedBindings <#> \v ->
-                        -- todo: solve this dilemma (recursion?)
-                        if Just v == capturedScope.lhs
-                          then
-                            AST.App R.purs_indirect_thunk_new
-                              [ AST.Var "$_ivalue" ]
-                          else
-                            AST.Var v
-                      )
-                  , AST.Var contFuncName
-                  ]
+      else ado
+        scopeVarName <- freshInternalName
+        contVarName  <- freshInternalName
+        in AST.StatementExpression $
+          AST.Block
+            [ AST.VariableIntroduction
+                { name: scopeVarName
+                , type: Type.Pointer (Type.RawType R.purs_scope_t [ Type.Const ])
+                , qualifiers: []
+                , initialization:
+                    Just $
+                      AST.App
+                          R.purs_scope_new $
+                          [ AST.NumericLiteral $ Left $ A.length capturedBindings ]
+                          <>
+                          (capturedBindings <#> \v ->
+                            -- todo: solve this dilemma (recursion?)
+                            if Just v == capturedScope.lhs
+                              then
+                                AST.App R.purs_indirect_thunk_new
+                                  [ AST.Var "$_ivalue" ]
+                              else
+                                AST.Var v
+                          )
+                }
+            , AST.VariableIntroduction
+                { name: contVarName
+                , type: R.any
+                , qualifiers: []
+                , initialization:
+                    Just $
+                      AST.App
+                        R.purs_any_cont
+                          [ AST.App
+                              R.purs_cont_new
+                                [ AST.Var scopeVarName
+                                , AST.Var contFuncName
+                                ]
+                          ]
+                }
+            , AST.App (AST.Var "PURS_RC_RELEASE") [ AST.Var scopeVarName ]
+            , AST.Var contVarName
             ]
