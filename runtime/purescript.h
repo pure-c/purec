@@ -126,12 +126,16 @@ struct purs_rc {
     ((type *)((char *)(ptr) - offsetof(type, member)))
 
 static inline void purs_rc_retain(const struct purs_rc *ref) {
-	((struct purs_rc *)ref)->count++;
+	if (((struct purs_rc *)ref)->count != -1 /* stack */) {
+		((struct purs_rc *)ref)->count++;
+	}
 }
 
 static inline void purs_rc_release(const struct purs_rc *ref) {
-	if (--((struct purs_rc *)ref)->count == 0) {
-		ref->free_fn(ref);
+	if (((struct purs_rc *)ref)->count != -1 /* stack */) {
+		if (--((struct purs_rc *)ref)->count == 0) {
+			ref->free_fn(ref);
+		}
 	}
 }
 
@@ -623,7 +627,8 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 #define _PURS_FFI_FUNC_ENTRY(NAME)\
 	purs_cont_t NAME ## __cont__ = {\
 		.fn = NAME ## __1,\
-		.scope = NULL\
+		.scope = NULL,\
+		.rc = { .count = -1 }\
 	};\
 	ANY NAME = {\
 		.tag = PURS_ANY_TAG_CONT,\
@@ -646,9 +651,7 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 				PURS_ANY_RETAIN(&$__super__->bindings[i]);\
 			}\
 		}\
-		if (scope != NULL) {\
-			scope->bindings[CUR - 1] = a;\
-		}\
+		scope->bindings[CUR - 1] = a;\
 		const purs_cont_t * cont = purs_cont_new(scope, NAME##__##NEXT);\
 		PURS_RC_RELEASE(scope);\
 		return purs_any_cont(cont);\

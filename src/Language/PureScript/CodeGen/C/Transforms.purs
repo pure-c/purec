@@ -164,6 +164,15 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                           }
                       ]
                       <>
+                      case x of
+                          AST.StatementExpression _ ->
+                            []
+                          _ ->
+                            [ AST.App (AST.Var "PURS_ANY_RETAIN")
+                              [ AST.App R.purs_address_of
+                                  [ AST.Var tmp ]
+                              ] ]
+                      <>
                       ((parentVars <> allocVars) <#> \v ->
                         if v.type == R.any
                           then
@@ -640,7 +649,15 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                                 AST.App R.purs_indirect_thunk_new
                                   [ AST.Var "$_ivalue" ]
                               else
-                                AST.Var v
+                                AST.StatementExpression $
+                                  AST.Block
+                                    [ AST.App (AST.Var "PURS_ANY_RETAIN")
+                                        [ AST.App R.purs_address_of
+                                            [ AST.Var v
+                                            ]
+                                        ]
+                                    , AST.Var v
+                                    ]
                           )
                 }
             , AST.VariableIntroduction

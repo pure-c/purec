@@ -2,7 +2,7 @@ CLANG ?= clang
 CFLAGS ?=
 WITH_GC ?=
 
-SHELL := /bin/bash
+SHELL := /bin/bash --init-file ./.functions.sh
 SHELLFLAGS := -eo pipefail
 
 PURS := PATH=$$PATH:node_modules/.bin purs
@@ -25,7 +25,7 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-TESTS = $(shell ls tests)
+TESTS = $(shell cd tests && find . -maxdepth 1 ! -path . -type d -exec basename {} \;)
 
 ifdef WITH_GC
 CFLAGS += \
@@ -123,19 +123,20 @@ deps/bwdgc:
 #-------------------------------------------------------------------------------
 
 test/c:
-	@$(MAKE) -s clean
+	@$(MAKE) -s clean &> /dev/null
 	@UNIT_TESTING=1 $(MAKE) -s test/c.0
 PHONY: test/c
 
-test/c.0: $(PUREC_LIB)
+test/c.0:
+	@make -s $(PUREC_LIB) | prefixed "test/c.0"
 	@$(CLANG) \
 		-I. \
 		-L. \
 		ctests/main.c \
 		-lpurec \
 		-lcmocka \
-		-o ctests/a.out
-	@./ctests/a.out
+		-o ctests/a.out &> /dev/null
+	@./ctests/a.out &> /dev/null
 .PHONY: test/c.0
 
 test/tests/lib:
@@ -153,9 +154,10 @@ test/tests/lib/$(1):
 	@$(MAKE) -s clean
 	@UNIT_TESTING=0 $(MAKE) -s test/tests/lib/$(1).0
 
-test/tests/lib/$(1).0: $(PUREC_LIB)
-	#@$(MAKE) -s -C "tests/$(1)" clean
-	#@$(MAKE) -s -C "tests/$(1)" lib/c
+test/tests/lib/$(1).0:
+	@make -s $(PUREC_LIB) &> /dev/null
+	@$(MAKE) -s -C "tests/$(1)" clean
+	@$(MAKE) -s -C "tests/$(1)" lib/c
 	@cd "tests/$(1)" &&\
 		$(CLANG) \
 			-I. \
@@ -170,11 +172,12 @@ test/tests/lib/$(1).0: $(PUREC_LIB)
 .PHONY: test/tests/lib/$(1)
 endef
 
-$(eval $(call mk_test_case,00-basic))
+# generate test targets
+$(foreach t,$(TESTS),$(eval $(call mk_test_case,$(t))))
 
-test/tests/lib.0: $(PUREC_LIB)
+test/tests/lib.0:
 	@set -e; for t in $(TESTS); do\
-		$(MAKE) -s "test/tests/lib/$$t";\
+		$(MAKE) -s "test/tests/lib/$$t" &> /dev/null;\
 	done
 .PHONY: test/tests/lib.0
 
@@ -201,14 +204,12 @@ test/upstream: upstream/tests/support/bower_components
 .PHONY: test/pulp
 
 test:
-	@echo 'test: c-tests'
+	@echo '=== test: c-tests ==================================================='
 	@$(MAKE) -s test/c
-	@echo 'test: tests/lib'
+	@echo '=== test: tests/lib ================================================='
 	@$(MAKE) -s test/tests/lib
-	@echo 'test: tests/main'
-	@$(MAKE) -s test/tests/main
-	@echo 'running upstream tests...'
-	@$(MAKE) -s test/upstream
+	@echo '=== test: upstream =================================================='
+	@$(MAKE) -s test/upstream &> /dev/null
 	@echo 'success!'
 .PHONY: test
 
