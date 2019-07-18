@@ -336,8 +336,9 @@ static void purs_record_free(const struct purs_rc *ref) {
 	purs_record_t * x = container_of(ref, purs_record_t, rc);
 	const purs_record_node_t * e, * tmp;
 	HASH_ITER(hh, x->root, e, tmp) {
-		PURS_ANY_RELEASE(&e->value);
 		HASH_DEL(x->root, (purs_record_node_t *) e);
+		PURS_ANY_RELEASE(&e->value);
+		free((void*) e->key);
 		purs_free((purs_record_node_t *) e);
 	}
 	purs_free(x);

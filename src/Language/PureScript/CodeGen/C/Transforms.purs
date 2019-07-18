@@ -105,16 +105,16 @@ releaseResources = map (map cleanup) <<< traverse (go [])
       -- indicate whether or not the block has returned. The latter is necessary
       -- to ensure we are still releasing temporary variables introduced in the
       -- block, as they are about to leave the scope.
-      out /\ { vars, hasReturned } <- do
-        runStateT <@> { vars: [], hasReturned: false } $
+      out /\ { allocVars, hasReturned } <- do
+        runStateT <@> { allocVars: [], hasReturned: false } $
           let
             go' =
               case _ of
                 -- enter a new context. the block is - itself - responsible
                 -- for clean up.
                 x@(AST.Block _) -> do
-                  { vars } <- State.get
-                  lift $ go (parentVars <> vars) x
+                  { allocVars } <- State.get
+                  lift $ go (parentVars <> allocVars) x
 
                 -- deal with potential resource allocations, which are *always*
                 -- due to applying some function.
@@ -128,8 +128,8 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                       name' <- lift freshInternalName
                       State.modify_ \state ->
                         state
-                          { vars =
-                               A.snoc state.vars
+                          { allocVars =
+                               A.snoc state.allocVars
                                 { name: name'
                                 , type: typ
                                 }
@@ -143,12 +143,15 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                     Nothing ->
                       pure $ AST.App n' args'
 
+                AST.StatementExpression a  ->
+                  AST.StatementExpression <$> go' a
+
                 -- deal with returning. we must release all variables we
                 -- collected, *including* any variables collected in our parent
                 -- scopes, since we won't be coming back.
                 AST.Return x -> do
                   x'       <- go' x
-                  { vars } <- State.get
+                  { allocVars } <- State.get
                   State.modify_ (_ { hasReturned = true })
                   tmp  <- lift freshInternalName
                   pure $
@@ -159,18 +162,9 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                           , qualifiers: []
                           , initialization: Just x'
                           }
-                        -- we must *retain* the result value, since it's
-                        -- impossible to know which temporary variable the
-                        -- final return value was collected as, so it would be
-                        -- freed before returning by the release calls generated
-                        -- below.
-                      , AST.App (AST.Var "PURS_ANY_RETAIN")
-                          [ AST.App R.purs_address_of
-                              [ AST.Var tmp ]
-                          ]
                       ]
                       <>
-                      ((parentVars <> vars) <#> \v ->
+                      ((parentVars <> allocVars) <#> \v ->
                         if v.type == R.any
                           then
                             AST.App (AST.Var "PURS_ANY_RELEASE")
@@ -213,8 +207,6 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                   AST.While <$> go' a <*> go' b
                 AST.IfElse a b c ->
                   AST.IfElse <$> go' a <*> go' b <*> traverse go' c
-                AST.StatementExpression a ->
-                  AST.StatementExpression <$> go' a
                 x ->
                   pure x
           in
@@ -222,7 +214,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
       pure $
         AST.Block $
           A.concat $
-            [ vars <#> \var ->
+            [ allocVars <#> \var ->
                 AST.VariableIntroduction
                   { name: var.name
                   , type: var.type
@@ -248,9 +240,9 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                   _ -> Nothing
             , if not hasReturned
                 then
-                  -- we're leaving scope, release all vars introduced in this scope
-                  -- before leaving it.
-                  (vars <#> \v ->
+                  -- we're leaving scope, release all vars introduced in this
+                  -- scope before leaving it.
+                  (allocVars <#> \v ->
                     if v.type == R.any
                       then
                         AST.App (AST.Var "PURS_ANY_RELEASE")
@@ -278,7 +270,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
       pure $ AST.VariableIntroduction $ v { initialization = Just ast' }
 
     -- top-level block-less variable introductions.
-    -- we turn those into state-ment expressions.
+    -- we turn those into statement expressions.
     AST.VariableIntroduction v@{ initialization: Just x } -> do
       tmp  <- freshInternalName
       ast' <-

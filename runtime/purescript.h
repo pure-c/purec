@@ -523,27 +523,27 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
  *      To avoid 'libcmocka' reporting these "leaks", we simply do not hold on
  *      to the results.
  */
-#ifdef UNIT_TESTING
-#define _PURS_ANY_THUNK_INIT(x, v, INIT)\
-	v = INIT;
+#ifndef CACHE_TOPLEVEL_THUNKS
+#define _PURS_ANY_THUNK_INIT(INIT)\
+	return INIT;
 #else
-#define _PURS_ANY_THUNK_INIT(x, v, INIT)\
+#define _PURS_ANY_THUNK_INIT(INIT)\
+	static ANY v;\
+	static int x = 0;\
 	if (x == 0) {\
 		x = 1;\
 		v = INIT;\
 		PURS_ANY_RETAIN(&v); /* never free */\
 	} else {\
 		PURS_ANY_RETAIN(&v);\
-	}
+	}\
+	return v;
 #endif // UNIT_TESTING
 
 /* declare a thunked top-level value. */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
 	static ANY NAME ## __thunk_fn__ (ANY __unused__1) { \
-		static ANY v;\
-		static int x = 0;\
-		_PURS_ANY_THUNK_INIT(x, v, INIT);\
-		return v;\
+		_PURS_ANY_THUNK_INIT(INIT);\
 	};\
 	purs_any_thunk_t NAME ## __thunk__ = {\
 		.fn = NAME ## __thunk_fn__,\
