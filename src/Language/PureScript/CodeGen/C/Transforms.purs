@@ -26,7 +26,7 @@ import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
-import Language.PureScript.CodeGen.C.Common (freshInternalName, isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshInternalName, freshInternalName', isInternalVariable)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.CompileError (CompileError)
@@ -123,7 +123,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                   args' <- traverse go' args
                   case allocatedType n' of
                     Just typ -> do
-                      name' <- lift freshInternalName
+                      name' <- lift $ freshInternalName' "fnret"
                       State.modify_ \state ->
                         state
                           { allocVars =
@@ -141,17 +141,20 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                     Nothing ->
                       pure $ AST.App n' args'
 
-                AST.StatementExpression a  ->
-                  AST.StatementExpression <$> go' a
+                -- avoid entering a new isolated context for statement
+                -- expressions, since they might not return and can be used as
+                -- rhs values to purs_any_app, etc.
+                AST.StatementExpression (AST.Block xs') ->
+                  AST.StatementExpression <<< AST.Block <$> traverse go' xs'
 
                 -- deal with returning. we must release all variables we
                 -- collected, *including* any variables collected in our parent
                 -- scopes, since we won't be coming back.
                 AST.Return x -> do
-                  x'       <- go' x
+                  x' <- go' x
                   { allocVars } <- State.get
                   State.modify_ (_ { hasReturned = true })
-                  tmp  <- lift freshInternalName
+                  tmp  <- lift $ freshInternalName' "ret"
                   pure $
                     AST.Block $
                       [ AST.VariableIntroduction
@@ -162,14 +165,10 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                           }
                       ]
                       <>
-                      case x of
-                          AST.StatementExpression _ ->
-                            []
-                          _ ->
-                            [ AST.App (AST.Var "PURS_ANY_RETAIN")
-                              [ AST.App R.purs_address_of
-                                  [ AST.Var tmp ]
-                              ] ]
+                      [ AST.App (AST.Var "PURS_ANY_RETAIN")
+                        [ AST.App R.purs_address_of
+                            [ AST.Var tmp ]
+                        ] ]
                       <>
                       ((parentVars <> allocVars) <#> \v ->
                         if v.type == R.any
@@ -285,7 +284,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     -- top-level block-less variable introductions.
     -- we turn those into statement expressions.
     AST.VariableIntroduction v@{ initialization: Just x } -> do
-      tmp  <- freshInternalName
+      tmp  <- freshInternalName' "alloc"
       ast' <-
         go parentVars $
           AST.Block
@@ -620,8 +619,8 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                   ]
             ]
       else ado
-        scopeVarName <- freshInternalName
-        contVarName  <- freshInternalName
+        scopeVarName <- freshInternalName' "scope"
+        contVarName  <- freshInternalName' "cont"
         in AST.StatementExpression $
           AST.Block
             [ AST.VariableIntroduction

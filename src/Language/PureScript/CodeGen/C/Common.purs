@@ -7,6 +7,7 @@ module Language.PureScript.CodeGen.C.Common
   , dotsTo
   , freshName
   , freshInternalName
+  , freshInternalName'
   , isInternalVariable
   , allM
   , allM'
@@ -63,6 +64,16 @@ freshName
 freshName = ado
   id <- freshId
   in "$value" <> show id
+
+freshInternalName'
+  :: ∀ m
+   . Functor m
+  => MonadSupply m
+  => String
+  -> m String
+freshInternalName' label = ado
+  id <- freshId
+  in "$_" <> label <> show id
 
 freshInternalName
   :: ∀ m

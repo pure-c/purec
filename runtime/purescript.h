@@ -460,6 +460,7 @@ ANY * purs_record_find_by_key(const purs_record_t *,
 /* Tail-call optimization generation */
 struct tco_state {
 	int done;
+	int size;
 	purs_any_t * args;
 };
 
@@ -467,14 +468,30 @@ struct tco_state {
 	({\
 		struct tco_state x;\
 		x.done = 0;\
+		x.size = N;\
 		x.args = purs_malloc(sizeof (ANY) * N);\
 		x;\
 	})
+#define purs_tco_state_free(S) do {\
+	for (int i = 0; i < S.size; i++) {\
+		PURS_ANY_RELEASE(&S.args[i]);\
+	}\
+	purs_free(S.args);\
+} while (0)
 #define purs_tco_is_done(X) (X.done == 1)
 #define purs_tco_set_done(X) (((struct tco_state *) X)->done = 1)
 #define purs_tco_get_arg(X, I) (((struct tco_state *) X)->args[I])
-#define purs_tco_set_arg(X, I, V) (X.args[I] = V)
-#define purs_tco_mut_arg(X, I, V) (((struct tco_state *) X)->args[I] = V)
+#define purs_tco_set_arg(X, I, V) do {\
+		ANY __v__ = (V);\
+		PURS_ANY_RETAIN(&__v__);\
+		X.args[I] = __v__;\
+	} while (0)
+#define purs_tco_mut_arg(X, I, V) do {\
+		ANY __v__ = (V);\
+		PURS_ANY_RELEASE(&((struct tco_state *) X)->args[I]);\
+		PURS_ANY_RETAIN(&__v__);\
+		((struct tco_state *) X)->args[I] = __v__;\
+	} while (0)
 #define purs_foreign_get_data(X) (X.data)
 
 /* Captured scope generation */

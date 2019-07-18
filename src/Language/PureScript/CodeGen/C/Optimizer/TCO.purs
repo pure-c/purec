@@ -203,6 +203,7 @@ tco = AST.everywhere convert
                       ]
                   ]
             ]
+      , AST.App (AST.Var "purs_tco_state_free") [ AST.Var tcoState ]
       , AST.Return $ AST.Var tcoResult
       ]
 
