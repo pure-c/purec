@@ -19,7 +19,6 @@
 #else
 #ifdef UNIT_TESTING
 extern void mock_assert(const int result, const char *const expression, const char *const file, const int line);
-#undef assert
 #define assert(A) mock_assert((A), #A, __FILE__, __LINE__)
 #define purs_assert(A, FMT, ...)\
 	do {\
@@ -279,11 +278,10 @@ static inline ANY purs_any_unthunk(ANY x, int * has_changed) {
 		*has_changed = 0;
 	}
 	while (out.tag == PURS_ANY_TAG_THUNK) {
-		/* todo: thunks are not rc-ed atm, but once they are, we should
-		 *       release intermediate results.
-		 */
 		out = out.value.thunk->fn(out.value.thunk->ctx);
 		if (has_changed != NULL) {
+			/* todo: consider nested thunks */
+			assert(*has_changed == 0);
 			*has_changed = 1;
 		}
 	}

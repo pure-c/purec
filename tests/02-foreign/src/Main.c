@@ -2,11 +2,10 @@
 #include "Main.h"
 
 PURS_FFI_FUNC_1(Main_newBuffer, _, {
-		return purs_any_int(1);
-	/* struct buf * buf = purs_new(struct buf); */
-	/* buf->data = NULL; */
-	/* buf->size = 0; */
-	/* return purs_any_foreign(NULL, buf); */
+	struct buf * buf = purs_new(struct buf);
+	buf->data = NULL;
+	buf->size = 0;
+	return purs_any_foreign(NULL, buf);
 });
 
 PURS_FFI_FUNC_2(Main_bufferSize, x, _, {

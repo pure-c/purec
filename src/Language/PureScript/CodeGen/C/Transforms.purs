@@ -21,8 +21,9 @@ import Data.Set as Set
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST (AST(..), everywhereTopDown) as AST
+import Language.PureScript.CodeGen.C.AST (AST, everywhere)
+import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
 import Language.PureScript.CodeGen.C.Common (freshInternalName, isInternalVariable)
@@ -83,6 +84,8 @@ releaseResources = map (map cleanup) <<< traverse (go [])
             AST.Block xs
       x -> x
 
+  -- note: we purposely omit 'purs_scope_t' as that one is fully managed by
+  --       the 'eraseLambdas' transform.
   allocatedType = case _ of
     AST.Var "purs_any_app"       -> Just R.any
     AST.Var "purs_vec_new_va"    -> Just arrayType
@@ -93,11 +96,6 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_record_new_va" -> Just recordType
     AST.Var "purs_cont_new"      -> Just contType
     _                            -> Nothing
-
-  contType   = Type.Pointer (Type.RawType "purs_cont_t"   [ Type.Const ])
-  recordType = Type.Pointer (Type.RawType "purs_record_t" [ Type.Const ])
-  stringType = Type.Pointer (Type.RawType "purs_str_t"    [ Type.Const ])
-  arrayType  = Type.Pointer (Type.RawType "purs_vec_t"    [ Type.Const ])
 
   go parentVars = case _ of
     AST.Block xs -> do
@@ -188,11 +186,17 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                       [ AST.Return $ AST.Var tmp
                       ]
 
-                AST.VariableIntroduction x -> ado
-                  initialization' <- traverse go' x.initialization
-                  in AST.VariableIntroduction $
-                      x { initialization = initialization'
-                        }
+                AST.VariableIntroduction x ->
+                  -- XXX do not recurse into scope assignments!
+                  --     this assumption is tightly coupled to the
+                  --     'eraseLambdas' transforms.
+                  if x.type == scopeType
+                    then pure $ AST.VariableIntroduction x
+                    else ado
+                      initialization' <- traverse go' x.initialization
+                      in AST.VariableIntroduction $
+                          x { initialization = initialization'
+                            }
                 AST.Unary o a ->
                   AST.Unary o <$> go' a
                 AST.Binary o a b ->
@@ -296,21 +300,9 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                   AST.StatementExpression ast'
             }
 
-    AST.Function f@{ body: Just x@(AST.Block _) } -> do
+    AST.Function f@{ body: Just x@(AST.Block _) } -> ado
       ast' <- go parentVars x
-      pure
-        if false -- todo: remove or move into a debug transform
-          then AST.Function $ f { body = Just ast' }
-          else AST.Function $
-            f { body =
-                  Just $
-                    AST.Block
-                      [ AST.App (AST.Var "printf")
-                          [ AST.StringLiteral "> fn=%s\n"
-                          , AST.StringLiteral (fromMaybe "<anon>" f.name)
-                          ]
-                      , ast'
-                      ] }
+      in AST.Function $ f { body = Just ast' }
     x ->
       pure x
 
@@ -634,7 +626,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
           AST.Block
             [ AST.VariableIntroduction
                 { name: scopeVarName
-                , type: Type.Pointer (Type.RawType R.purs_scope_t [ Type.Const ])
+                , type: scopeType
                 , qualifiers: []
                 , initialization:
                     Just $
@@ -644,20 +636,14 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                           <>
                           (capturedBindings <#> \v ->
                             -- todo: solve this dilemma (recursion?)
+                            -- todo: do we need to retain these? should this be
+                            --       handeled by 'releaseResources' transform?
                             if Just v == capturedScope.lhs
                               then
                                 AST.App R.purs_indirect_thunk_new
                                   [ AST.Var "$_ivalue" ]
                               else
-                                AST.StatementExpression $
-                                  AST.Block
-                                    [ AST.App (AST.Var "PURS_ANY_RETAIN")
-                                        [ AST.App R.purs_address_of
-                                            [ AST.Var v
-                                            ]
-                                        ]
-                                    , AST.Var v
-                                    ]
+                                AST.Var v
                           )
                 }
             , AST.VariableIntroduction
@@ -678,3 +664,19 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
             , AST.App (AST.Var "PURS_RC_RELEASE") [ AST.Var scopeVarName ]
             , AST.Var contVarName
             ]
+
+contType :: AST.Type
+contType = Type.Pointer (Type.RawType "purs_cont_t"   [ Type.Const ])
+
+recordType :: AST.Type
+recordType = Type.Pointer (Type.RawType "purs_record_t" [ Type.Const ])
+
+
+stringType :: AST.Type
+stringType = Type.Pointer (Type.RawType "purs_str_t"    [ Type.Const ])
+
+arrayType :: AST.Type
+arrayType = Type.Pointer (Type.RawType "purs_vec_t"    [ Type.Const ])
+
+scopeType :: AST.Type
+scopeType = Type.Pointer (Type.RawType "purs_scope_t"  [ Type.Const ])

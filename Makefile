@@ -2,7 +2,7 @@ CLANG ?= clang
 CFLAGS ?=
 WITH_GC ?=
 
-SHELL := /bin/bash --init-file ./.functions.sh
+SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
 
 PURS := PATH=$$PATH:node_modules/.bin purs
@@ -34,11 +34,12 @@ CFLAGS += \
 	-D 'vec_realloc=GC_realloc' \
 	-D 'vec_free(x)=NULL' \
 	-D 'vec_malloc=GC_malloc'
-else
+endif
+
 ifdef UNIT_TESTING
 CFLAGS += \
+	-g \
 	-D UNIT_TESTING
-endif
 endif
 
 $(BWDGC_LIB):
@@ -123,26 +124,30 @@ deps/bwdgc:
 #-------------------------------------------------------------------------------
 
 test/c:
-	@$(MAKE) -s clean &> /dev/null
+	@$(MAKE) -s clean
 	@UNIT_TESTING=1 $(MAKE) -s test/c.0
 PHONY: test/c
 
 test/c.0:
-	@make -s $(PUREC_LIB) | prefixed "test/c.0"
+	@make -s $(PUREC_LIB)
 	@$(CLANG) \
+		-g \
 		-I. \
 		-L. \
 		ctests/main.c \
 		-lpurec \
 		-lcmocka \
-		-o ctests/a.out &> /dev/null
-	@./ctests/a.out &> /dev/null
+		-o ctests/a.out
+	@./ctests/a.out
 .PHONY: test/c.0
 
-test/tests/lib:
+test/tests.0: | $(foreach t,$(TESTS),test/tests/$(t))
+.PHONY: test/tests.0
+
+test/tests:
 	@$(MAKE) -s clean
-	@UNIT_TESTING=1 $(MAKE) -s test/tests/lib.0
-PHONY: test/tests/lib
+	@UNIT_TESTING=1 $(MAKE) -s test/tests.0
+PHONY: test/tests
 
 # compile each project under 'tests/' as a library, load and execute via
 # cmocka.
@@ -150,16 +155,17 @@ PHONY: test/tests/lib
 #   + Have a 'lib' target without an entry point in a module called 'Main'
 #   + Export a 'main' function from module 'Main'
 define mk_test_case
-test/tests/lib/$(1):
+test/tests/$(1):
 	@$(MAKE) -s clean
-	@UNIT_TESTING=0 $(MAKE) -s test/tests/lib/$(1).0
+	@UNIT_TESTING=1 $(MAKE) -s test/tests/$(1).0
 
-test/tests/lib/$(1).0:
+test/tests/$(1).0:
 	@make -s $(PUREC_LIB) &> /dev/null
 	@$(MAKE) -s -C "tests/$(1)" clean
 	@$(MAKE) -s -C "tests/$(1)" lib/c
 	@cd "tests/$(1)" &&\
 		$(CLANG) \
+			-g \
 			-I. \
 			-I../.. \
 			-L../.. \
@@ -169,17 +175,11 @@ test/tests/lib/$(1).0:
 			-lcmocka \
 			-o a.out
 	@./"tests/$(1)/a.out"
-.PHONY: test/tests/lib/$(1)
+.PHONY: test/tests/$(1)
 endef
 
 # generate test targets
 $(foreach t,$(TESTS),$(eval $(call mk_test_case,$(t))))
-
-test/tests/lib.0:
-	@set -e; for t in $(TESTS); do\
-		$(MAKE) -s "test/tests/lib/$$t" &> /dev/null;\
-	done
-.PHONY: test/tests/lib.0
 
 test/tests/main:
 	@$(MAKE) -s clean
@@ -206,10 +206,10 @@ test/upstream: upstream/tests/support/bower_components
 test:
 	@echo '=== test: c-tests ==================================================='
 	@$(MAKE) -s test/c
-	@echo '=== test: tests/lib ================================================='
-	@$(MAKE) -s test/tests/lib
+	@echo '=== test: tests ====================================================='
+	@$(MAKE) -s test/tests
 	@echo '=== test: upstream =================================================='
-	@$(MAKE) -s test/upstream &> /dev/null
+	@$(MAKE) -s test/upstream
 	@echo 'success!'
 .PHONY: test
 
