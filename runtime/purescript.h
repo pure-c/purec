@@ -19,6 +19,7 @@
 #else
 #ifdef UNIT_TESTING
 extern void mock_assert(const int result, const char *const expression, const char *const file, const int line);
+#undef assert
 #define assert(A) mock_assert((A), #A, __FILE__, __LINE__)
 #define purs_assert(A, FMT, ...)\
 	do {\
@@ -281,11 +282,12 @@ static inline ANY purs_any_unthunk(ANY x, int * has_changed) {
 	if (has_changed != NULL) {
 		*has_changed = 0;
 	}
+	ANY last = purs_any_null;
 	while (out.tag == PURS_ANY_TAG_THUNK) {
 		out = out.value.thunk->fn(out.value.thunk->ctx);
+		PURS_ANY_RELEASE(last);
+		last = out;
 		if (has_changed != NULL) {
-			/* todo: consider nested thunks */
-			assert(*has_changed == 0);
 			*has_changed = 1;
 		}
 	}
@@ -614,31 +616,43 @@ struct purs_scope * purs_scope_new1(int size);
 // -----------------------------------------------------------------------------
 
 /* Thunked pointer dereference: Recursive bindings support */
-#define purs_indirect_value_assign(I, V) {\
-		*I = (V);\
-		PURS_ANY_RETAIN(V);\
-	};
-
-static void purs_indirect_thunk_free(const struct purs_rc *ref) {
-	purs_thunk_t * thunk = container_of(ref, purs_thunk_t, rc);
-	ANY any = *((ANY*)thunk->ctx);
-	PURS_ANY_RELEASE(any);
-	purs_free(thunk->ctx);
-	purs_free(thunk);
+static inline void purs_indirect_value_assign(ANY * x, ANY v) {
+	*x = v;
+	PURS_ANY_RETAIN(v);
 }
 
-static inline ANY purs_thunked_deref(void * ctx) {
+static inline void purs_indirect_value_free(ANY * x) {
+	if (x != NULL) {
+		ANY y = *x;
+		PURS_ANY_RELEASE(y);
+	}
+	purs_free(x);
+}
+
+static inline ANY * purs_indirect_value_new() {
+	ANY * x = purs_new(ANY);
+	x->tag = PURS_ANY_TAG_NULL;
+	x->value = (purs_any_value_t){};
+	return x;
+}
+
+static inline ANY purs_indirect_thunk_deref(void * ctx) {
 	ANY any = *((ANY*)(ctx));
-	PURS_ANY_RETAIN(any); /* purs_any_unthunk will release! */
+	PURS_ANY_RETAIN(any); /* user will release! */
 	return any;
 }
 
-#define purs_indirect_value_new() purs_new(ANY)
+static void purs_indirect_thunk_free(const struct purs_rc *ref) {
+	purs_thunk_t * thunk = container_of(ref, purs_thunk_t, rc);
+	purs_indirect_value_free((ANY *) thunk->ctx);
+	purs_free(thunk);
+}
 
+/* takes ownership of 'x' */
 static inline ANY purs_indirect_thunk_new(ANY * x) {
 	purs_thunk_t * thunk = purs_malloc(sizeof (purs_thunk_t));
 	thunk->ctx = x;
-	thunk->fn = purs_thunked_deref;
+	thunk->fn = purs_indirect_thunk_deref;
 	thunk->rc = ((struct purs_rc) { purs_indirect_thunk_free, 1 });
 	return PURS_ANY_THUNK(thunk);
 }

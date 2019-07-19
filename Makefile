@@ -134,7 +134,7 @@ test/c:
 PHONY: test/c
 
 test/c.0:
-	@make -s $(PUREC_LIB)
+	@UNIT_TESTING=1 make -s $(PUREC_LIB)
 	@$(CLANG) \
 		-g \
 		-I. \
@@ -143,7 +143,7 @@ test/c.0:
 		-lpurec \
 		-lcmocka \
 		-o ctests/a.out > /dev/null
-	@./ctests/a.out > /dev/null
+	@./ctests/a.out
 .PHONY: test/c.0
 
 test/tests.0: | $(foreach t,$(TESTS),test/tests/$(t))
@@ -183,7 +183,7 @@ test/tests/$(1).0:
 			-lcmocka \
 			-o a.out > /dev/null
 	@echo "tests/$(1): run ouput"
-	@./"tests/$(1)/a.out" > /dev/null
+	@./"tests/$(1)/a.out"
 	@echo "tests/$(1): check for leaks"
 	@valgrind -q > /dev/null \
 		--error-exitcode=1 \

@@ -1,8 +1,10 @@
+#undef UNIT_TESTING
 #include <stdarg.h>
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
 
+#define UNIT_TESTING
 #include "runtime/purescript.h"
 
 static ANY mk_prefix_cont_0(const struct purs_scope * scope, ANY arg, va_list _) {
@@ -202,6 +204,57 @@ static void purs_any_concat_test(void **state) {
 	}
 }
 
+static void purs_indirect_thunk_test(void **state) {
+	(void) state; /* unused */
+
+	{ /* unassigned/null */
+		ANY * ivalue = purs_indirect_value_new();
+		ANY ithunk = purs_indirect_thunk_new(ivalue);
+		int has_changed;
+		ANY val = purs_any_unthunk(ithunk, &has_changed);
+		assert_int_equal(has_changed, 1);
+		assert_int_equal(val.tag, PURS_ANY_TAG_NULL);
+		PURS_ANY_RELEASE(ithunk);
+	}
+
+	{ /* retained results */
+
+		ANY arr;
+		{ /* allocate array */
+			const purs_str_t * str = purs_str_new("fooba");
+			arr = purs_any_array(purs_vec_new_va(1, purs_any_string(str)));
+			PURS_RC_RELEASE(str);
+		}
+
+		ANY ithunk;
+		{ /* create and fill thunk */
+			ANY * ivalue = purs_indirect_value_new();
+			ithunk = purs_indirect_thunk_new(ivalue /* move */);
+			purs_indirect_value_assign(ivalue, arr);
+		}
+
+		{ /* force the thunk */
+			int has_changed;
+			ANY val = purs_any_unthunk(ithunk, &has_changed);
+			assert_int_equal(has_changed, 1);
+			assert_int_equal(val.tag, PURS_ANY_TAG_ARRAY);
+			PURS_ANY_RELEASE(val);
+		}
+
+		PURS_ANY_RELEASE(arr);
+		PURS_ANY_RELEASE(ithunk);
+	}
+}
+
+static void purs_indirect_value_test(void **state) {
+	(void) state; /* unused */
+	ANY * ivalue = purs_indirect_value_new();
+	const purs_cont_t * cont = purs_cont_new(NULL, NULL);
+	purs_indirect_value_assign(ivalue, purs_any_cont(cont));
+	PURS_RC_RELEASE(cont);
+	purs_indirect_value_free(ivalue);
+}
+
 int main (void) {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(leak_string_test),
@@ -211,6 +264,8 @@ int main (void) {
 		cmocka_unit_test(purs_scope_new1_test),
 		cmocka_unit_test(purs_any_concat_test),
 		cmocka_unit_test(purs_vec_concat_test),
+		cmocka_unit_test(purs_indirect_value_test),
+		cmocka_unit_test(purs_indirect_thunk_test),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

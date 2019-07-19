@@ -2,7 +2,6 @@ module Main where
 
 data Unit = Unit
 type Effect a = Unit -> a
-data Maybe a = Just a | Nothing
 
 chain :: Effect Int -> Effect Int -> Effect Int
 chain a b = \_ ->

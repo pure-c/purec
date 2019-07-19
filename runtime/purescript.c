@@ -114,8 +114,8 @@ ANY purs_any_infinity = PURS_ANY_NUM(PURS_INFINITY);
 ANY purs_any_neg_infinity = PURS_ANY_NUM(-PURS_INFINITY);
 
 int purs_any_eq(ANY x, ANY y) {
-	x = purs_any_unthunk(x, NULL);
-	y = purs_any_unthunk(y, NULL);
+	x = purs_any_unthunk(x, NULL) /* todo: has changed? */;
+	y = purs_any_unthunk(y, NULL) /* todo: has changed? */;
 
 	/* special treatment for NaN on LHS */
 	if (purs_any_is_NaN(x) &&
@@ -157,8 +157,8 @@ int purs_any_eq(ANY x, ANY y) {
  Concatenate two dyanmic values into a new dynamic value
 */
 ANY purs_any_concat(ANY x, ANY y) {
-	x = purs_any_unthunk(x, NULL);
-	y = purs_any_unthunk(y, NULL);
+	x = purs_any_unthunk(x, NULL) /* todo: has changed? */;
+	y = purs_any_unthunk(y, NULL) /* todo: has changed? */;
 
 	assert(x.tag != PURS_ANY_TAG_NULL);
 	assert(y.tag != PURS_ANY_TAG_NULL);
@@ -178,6 +178,8 @@ ANY purs_any_concat(ANY x, ANY y) {
 	default:
 		purs_assert(0, "cannot concat %s", purs_any_tag_str(x.tag));
 	}
+
+	return purs_any_null /* never reached */;
 }
 
 // -----------------------------------------------------------------------------
