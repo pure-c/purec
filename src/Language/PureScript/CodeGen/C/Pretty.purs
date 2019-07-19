@@ -13,6 +13,7 @@ import Control.Monad.Reader (ReaderT, ask, local, runReaderT)
 import Control.Monad.Writer (WriterT, execWriterT, tell)
 import Data.Array as A
 import Data.Bifunctor (rmap)
+import Data.Tuple.Nested ((/\))
 import Data.Either (Either(..))
 import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Identity (Identity)
@@ -165,20 +166,42 @@ prettyPrintAst (AST.Cast typ ast) = do
   emit ")"
 prettyPrintAst (AST.App fnAst argsAsts) = do
   prettyPrintAst fnAst
+  let
+    -- note: this is a crude way to improve readability of some of the generated
+    --       code by avoiding line feeds for functions that will likely only
+    --       take few, short arguments.
+    lf' /\ indent' =
+      let noop = pure unit /\ pure unit
+      in case fnAst of
+        AST.Var "purs_cont_new"           -> noop
+        AST.Var "purs_scope_new"          -> noop
+        AST.Var "PURS_ANY_RETAIN"         -> noop
+        AST.Var "PURS_ANY_RELEASE"        -> noop
+        AST.Var "PURS_RC_RETAIN"          -> noop
+        AST.Var "PURS_RC_RELEASE"         -> noop
+        AST.Var "purs_any_num"            -> noop
+        AST.Var "purs_any_string"         -> noop
+        AST.Var "purs_any_int"            -> noop
+        AST.Var "purs_indirect_thunk_new" -> noop
+        AST.Var "purs_any_eq_int"         -> noop
+        AST.Var "purs_any_get_int"        -> noop
+        AST.Var "purs_any_get_num"        -> noop
+        AST.Var "purs_any_get_array"      -> noop
+        _ -> lf /\ indent
   case A.unsnoc argsAsts of
     Nothing ->
       emit "()"
     Just { init, last } -> do
       emit "("
-      lf
+      lf'
       withNextIndent do
         for_ init \ast -> do
-          indent *> prettyPrintAst ast
+          indent' *> prettyPrintAst ast
           emit ","
-          lf
-        indent *> prettyPrintAst last
-      lf
-      indent *> emit ")"
+          lf'
+        indent' *> prettyPrintAst last
+      lf'
+      indent' *> emit ")"
 prettyPrintAst (AST.Assignment l r) = do
   prettyPrintAst l
   emit " = "
