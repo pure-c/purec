@@ -124,12 +124,12 @@ deps/bwdgc:
 #-------------------------------------------------------------------------------
 
 test/c:
-	@$(MAKE) -s clean
+	@$(MAKE) -s clean > /dev/null
 	@UNIT_TESTING=1 $(MAKE) -s test/c.0
 PHONY: test/c
 
 test/c.0:
-	@make -s $(PUREC_LIB)
+	@make -s $(PUREC_LIB) &> /dev/null
 	@$(CLANG) \
 		-g \
 		-I. \
@@ -137,8 +137,8 @@ test/c.0:
 		ctests/main.c \
 		-lpurec \
 		-lcmocka \
-		-o ctests/a.out
-	@./ctests/a.out
+		-o ctests/a.out > /dev/null
+	@./ctests/a.out > /dev/null
 .PHONY: test/c.0
 
 test/tests.0: | $(foreach t,$(TESTS),test/tests/$(t))
@@ -160,21 +160,30 @@ test/tests/$(1):
 	@UNIT_TESTING=1 $(MAKE) -s test/tests/$(1).0
 
 test/tests/$(1).0:
+	@echo "tests/$(1): start"
 	@make -s $(PUREC_LIB) &> /dev/null
-	@$(MAKE) -s -C "tests/$(1)" clean
-	@$(MAKE) -s -C "tests/$(1)" lib/c
+	@echo "tests/$(1): clean"
+	@$(MAKE) -s -C "tests/$(1)" clean > /dev/null
+	@echo "tests/$(1): compile PureScript to C"
+	@$(MAKE) -s -C "tests/$(1)" main/c > /dev/null
+	@echo "tests/$(1): compile C"
 	@cd "tests/$(1)" &&\
 		$(CLANG) \
 			-g \
 			-I. \
 			-I../.. \
 			-L../.. \
-			../main.stub.c \
-			./.purec-work/lib/*.c \
+			./.purec-work/main/*.c \
 			-lpurec \
 			-lcmocka \
-			-o a.out
-	@./"tests/$(1)/a.out"
+			-o a.out > /dev/null
+	@echo "tests/$(1): run ouput"
+	@./"tests/$(1)/a.out" > /dev/null
+	@echo "tests/$(1): check for leaks"
+	@valgrind -q > /dev/null \
+		--error-exitcode=1 \
+		--leak-check=full \
+		./"tests/$(1)/a.out"
 .PHONY: test/tests/$(1)
 endef
 
