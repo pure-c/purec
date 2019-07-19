@@ -87,15 +87,16 @@ releaseResources = map (map cleanup) <<< traverse (go [])
   -- note: we purposely omit 'purs_scope_t' as that one is fully managed by
   --       the 'eraseLambdas' transform.
   allocatedType = case _ of
-    AST.Var "purs_any_app"       -> Just R.any
-    AST.Var "purs_vec_new_va"    -> Just arrayType
-    AST.Var "purs_vec_copy"      -> Just arrayType
-    AST.Var "purs_vec_splice"    -> Just arrayType
-    AST.Var "purs_vec_concat"    -> Just arrayType
-    AST.Var "purs_str_new"       -> Just stringType
-    AST.Var "purs_record_new_va" -> Just recordType
-    AST.Var "purs_cont_new"      -> Just contType
-    _                            -> Nothing
+    AST.Var "purs_any_app"            -> Just R.any
+    AST.Var "purs_vec_new_va"         -> Just arrayType
+    AST.Var "purs_vec_copy"           -> Just arrayType
+    AST.Var "purs_vec_splice"         -> Just arrayType
+    AST.Var "purs_vec_concat"         -> Just arrayType
+    AST.Var "purs_str_new"            -> Just stringType
+    AST.Var "purs_record_new_va"      -> Just recordType
+    AST.Var "purs_cont_new"           -> Just contType
+    AST.Var "purs_indirect_thunk_new" -> Just R.any
+    _                                 -> Nothing
 
   go parentVars = case _ of
     AST.Block xs -> do
@@ -166,15 +167,15 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                       ]
                       <>
                       [ AST.App (AST.Var "PURS_ANY_RETAIN")
-                        [ AST.App R.purs_address_of
-                            [ AST.Var tmp ]
-                        ] ]
+                        [ AST.Var tmp
+                        ]
+                      ]
                       <>
                       ((parentVars <> allocVars) <#> \v ->
                         if v.type == R.any
                           then
                             AST.App (AST.Var "PURS_ANY_RELEASE")
-                              [ AST.App R.purs_address_of [ AST.Var v.name ]
+                              [ AST.Var v.name
                               ]
                           else
                             AST.App (AST.Var "PURS_RC_RELEASE")
@@ -244,9 +245,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                   Just (x@(AST.Var name)) ->
                     Just
                       [ AST.App (AST.Var "PURS_ANY_RETAIN")
-                          [ AST.App R.purs_address_of
-                              [ AST.Var name ]
-                          ]
+                          [ AST.Var name ]
                       , x
                       ]
                   _ -> Nothing
@@ -258,7 +257,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                     if v.type == R.any
                       then
                         AST.App (AST.Var "PURS_ANY_RELEASE")
-                          [ AST.App R.purs_address_of [ AST.Var v.name ]
+                          [ AST.Var v.name
                           ]
                       else
                         AST.App (AST.Var "PURS_RC_RELEASE")

@@ -25,7 +25,12 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-TESTS = $(shell cd tests && find . -maxdepth 1 ! -path . -type d -exec basename {} \;)
+# TESTS = $(shell cd tests && find . -maxdepth 1 ! -path . -type d -exec basename {} \; | sort)
+TESTS = \
+    00-basic \
+    01-partialfuns \
+    04-memory \
+    03-mutrec
 
 ifdef WITH_GC
 CFLAGS += \
@@ -129,7 +134,7 @@ test/c:
 PHONY: test/c
 
 test/c.0:
-	@make -s $(PUREC_LIB) &> /dev/null
+	@make -s $(PUREC_LIB)
 	@$(CLANG) \
 		-g \
 		-I. \
@@ -157,7 +162,7 @@ PHONY: test/tests
 define mk_test_case
 test/tests/$(1):
 	@$(MAKE) -s clean
-	@UNIT_TESTING=1 $(MAKE) -s test/tests/$(1).0
+	@UNIT_TESTING=0 $(MAKE) -s test/tests/$(1).0
 
 test/tests/$(1).0:
 	@echo "tests/$(1): start"
@@ -218,8 +223,8 @@ test:
 	@echo '=== test: tests ====================================================='
 	@$(MAKE) -s test/tests
 	@echo '=== test: upstream =================================================='
-	@$(MAKE) -s test/upstream
-	@echo 'success!'
+	@#$(MAKE) -s test/upstream
+	@#echo 'success!'
 .PHONY: test
 
 #-------------------------------------------------------------------------------

@@ -85,11 +85,11 @@ typedef struct purs_vec purs_vec_t;
 typedef struct purs_any purs_any_t;
 typedef struct purs_record purs_record_t;
 typedef struct purs_cont purs_cont_t;
-typedef struct purs_any_thunk purs_any_thunk_t;
+typedef struct purs_thunk purs_thunk_t;
 typedef struct purs_any_cons purs_any_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef struct purs_scope purs_scope_t;
-typedef ANY (purs_any_thunk_fun_t)(ANY ctx);
+typedef ANY (purs_thunk_fun_t)(void * ctx);
 typedef ANY (purs_cont_fun_t)(const struct purs_scope *, ANY, va_list);
 typedef struct purs_foreign purs_foreign_t;
 typedef struct purs_str purs_str_t;
@@ -139,8 +139,8 @@ static inline void purs_rc_release(const struct purs_rc *ref) {
 }
 
 /* by convetion, the rc is embedded as 'rc', making these macros possible */
-#define PURS_RC_RELEASE(X) do { if (X != NULL) purs_rc_release(&(X)->rc); } while (0)
-#define PURS_RC_RETAIN(X)  do { if (X != NULL) purs_rc_retain(&(X)->rc); } while (0)
+#define PURS_RC_RELEASE(X) do { if (X != NULL) purs_rc_release(&(X->rc)); } while (0)
+#define PURS_RC_RETAIN(X)  do { if (X != NULL) purs_rc_retain(&(X->rc)); } while (0)
 
 union purs_any_value {
 	/* inline values */
@@ -152,7 +152,7 @@ union purs_any_value {
 	/* self-referential, and other values */
 	const purs_cont_t * cont;
 	purs_any_cons_t * cons;
-	purs_any_thunk_t * thunk;
+	purs_thunk_t * thunk;
 	const purs_record_t * record;
 	const purs_str_t * str;
 	const purs_vec_t * array;
@@ -163,9 +163,9 @@ struct purs_any {
 	purs_any_value_t value;
 };
 
-struct purs_any_thunk {
-	purs_any_thunk_fun_t * fn;
-	ANY ctx;
+struct purs_thunk {
+	purs_thunk_fun_t * fn;
+	void * ctx;
 	struct purs_rc rc;
 };
 
@@ -222,23 +222,25 @@ ANY purs_any_null;
 const char * purs_any_tag_str (const purs_any_tag_t);
 
 #define PURS_ANY_RETAIN(X) {\
-		switch ((X)->tag) {\
+		switch ((X).tag) {\
 		case PURS_ANY_TAG_STRING:\
-			PURS_RC_RETAIN(((X)->value.str));\
+			PURS_RC_RETAIN(((X).value.str));\
 			break;\
 		case PURS_ANY_TAG_ARRAY:\
-			PURS_RC_RETAIN((X)->value.array);\
+			PURS_RC_RETAIN((X).value.array);\
 			break;\
 		case PURS_ANY_TAG_RECORD:\
-			PURS_RC_RETAIN((X)->value.record);\
+			PURS_RC_RETAIN((X).value.record);\
 			break;\
 		case PURS_ANY_TAG_CONT:\
-			PURS_RC_RETAIN((X)->value.cont);\
+			PURS_RC_RETAIN((X).value.cont);\
 			break;\
 		case PURS_ANY_TAG_THUNK:\
+			PURS_RC_RETAIN((X).value.thunk);\
+			break;\
 		case PURS_ANY_TAG_CONS:\
 		case PURS_ANY_TAG_FOREIGN:\
-			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RETAIN for: %s\n", purs_any_tag_str((X)->tag));\
+			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RETAIN for: %s\n", purs_any_tag_str((X).tag));\
 			break;\
 		default:\
 			break;\
@@ -246,28 +248,30 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 	}
 
 #define PURS_ANY_RELEASE(X) {\
-		switch ((X)->tag) {\
+		switch ((X).tag) {\
 		case PURS_ANY_TAG_NULL:\
 		case PURS_ANY_TAG_INT:\
 		case PURS_ANY_TAG_NUM:\
 		case PURS_ANY_TAG_CHAR:\
 			break;\
-		case PURS_ANY_TAG_THUNK:\
 		case PURS_ANY_TAG_CONS:\
 		case PURS_ANY_TAG_FOREIGN:\
-			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RELEASE for: %s\n", purs_any_tag_str((X)->tag));\
+			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RELEASE for: %s\n", purs_any_tag_str((X).tag));\
+			break;\
+		case PURS_ANY_TAG_THUNK:\
+			PURS_RC_RELEASE((X).value.thunk);\
 			break;\
 		case PURS_ANY_TAG_STRING:\
-			PURS_RC_RELEASE((X)->value.str);\
+			PURS_RC_RELEASE((X).value.str);\
 			break;\
 		case PURS_ANY_TAG_ARRAY:\
-			PURS_RC_RELEASE((X)->value.array);\
+			PURS_RC_RELEASE((X).value.array);\
 			break;\
 		case PURS_ANY_TAG_RECORD:\
-			PURS_RC_RELEASE((X)->value.record);\
+			PURS_RC_RELEASE((X).value.record);\
 			break;\
 		case PURS_ANY_TAG_CONT:\
-			PURS_RC_RELEASE((X)->value.cont);\
+			PURS_RC_RELEASE((X).value.cont);\
 			break;\
 		}\
 	}
@@ -303,7 +307,7 @@ static inline ANY purs_any_app(ANY _f, ANY v, ...) {
 
 	/* release the intermediate result */
 	if (has_changed) {
-		PURS_ANY_RELEASE(&f);
+		PURS_ANY_RELEASE(f);
 	}
 
 	return r;
@@ -330,7 +334,7 @@ __PURS_ANY_GETTER(char, chr, utf8_int32_t, PURS_ANY_TAG_CHAR)
 __PURS_ANY_GETTER(foreign, foreign, purs_foreign_t, PURS_ANY_TAG_FOREIGN)
 __PURS_ANY_GETTER(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
 __PURS_ANY_GETTER(cons, cons, const purs_any_cons_t *, PURS_ANY_TAG_CONS)
-__PURS_ANY_GETTER(thunk, thunk, const purs_any_thunk_t *, PURS_ANY_TAG_THUNK)
+__PURS_ANY_GETTER(thunk, thunk, const purs_thunk_t *, PURS_ANY_TAG_THUNK)
 __PURS_ANY_GETTER(record, record, const purs_record_t *, PURS_ANY_TAG_RECORD)
 __PURS_ANY_GETTER(string, str, const purs_str_t *, PURS_ANY_TAG_STRING)
 __PURS_ANY_GETTER(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
@@ -474,7 +478,7 @@ struct tco_state {
 	})
 #define purs_tco_state_free(S) do {\
 	for (int i = 0; i < S.size; i++) {\
-		PURS_ANY_RELEASE(&S.args[i]);\
+		PURS_ANY_RELEASE(S.args[i]);\
 	}\
 	purs_free(S.args);\
 } while (0)
@@ -483,13 +487,13 @@ struct tco_state {
 #define purs_tco_get_arg(X, I) (((struct tco_state *) X)->args[I])
 #define purs_tco_set_arg(X, I, V) do {\
 		ANY __v__ = (V);\
-		PURS_ANY_RETAIN(&__v__);\
+		PURS_ANY_RETAIN(__v__);\
 		X.args[I] = __v__;\
 	} while (0)
 #define purs_tco_mut_arg(X, I, V) do {\
 		ANY __v__ = (V);\
-		PURS_ANY_RELEASE(&((struct tco_state *) X)->args[I]);\
-		PURS_ANY_RETAIN(&__v__);\
+		PURS_ANY_RELEASE(((struct tco_state *) X)->args[I]);\
+		PURS_ANY_RETAIN(__v__);\
 		((struct tco_state *) X)->args[I] = __v__;\
 	} while (0)
 #define purs_foreign_get_data(X) (X.data)
@@ -509,27 +513,6 @@ struct purs_scope * purs_scope_new1(int size);
 
 /* todo: remove this! */
 #define purs_cons_get_tag(V) V->tag
-
-/* Thunked pointer dereference: Recursive bindings support */
-#define purs_indirect_value_new() purs_new(ANY)
-#define purs_indirect_value_assign(I, V) *(I) = (V)
-
-static inline ANY purs_thunked_deref(ANY ctx) {
-	return *((ANY*)(ctx.value.foreign.data));
-}
-
-static inline ANY purs_indirect_thunk_new(ANY * x) {
-	purs_any_thunk_t * thunk = purs_malloc(sizeof (purs_any_thunk_t));
-	thunk->ctx = ((purs_any_t){
-		.tag = PURS_ANY_TAG_FOREIGN,
-		.value = { .foreign = { .data = x } }
-		});
-	thunk->fn = purs_thunked_deref;
-	return ((purs_any_t){
-		.tag = PURS_ANY_TAG_THUNK,
-		.value = { .thunk = thunk }
-		});
-}
 
 /* allocate a buffer to fit 'N' 'ANY's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (ANY) * N)
@@ -552,21 +535,22 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	if (x == 0) {\
 		x = 1;\
 		v = INIT;\
-		PURS_ANY_RETAIN(&v); /* never free */\
+		PURS_ANY_RETAIN(v); /* never free */\
 	} else {\
-		PURS_ANY_RETAIN(&v);\
+		PURS_ANY_RETAIN(v);\
 	}\
 	return v;
 #endif // UNIT_TESTING
 
 /* declare a thunked top-level value. */
 #define PURS_ANY_THUNK_DEF(NAME, INIT)\
-	static ANY NAME ## __thunk_fn__ (ANY __unused__1) { \
+	static ANY NAME ## __thunk_fn__ (void * __unused__1) { \
 		_PURS_ANY_THUNK_INIT(INIT);\
 	};\
-	purs_any_thunk_t NAME ## __thunk__ = {\
+	purs_thunk_t NAME ## __thunk__ = {\
 		.fn = NAME ## __thunk_fn__,\
-		.ctx = { .tag = PURS_ANY_TAG_NULL }\
+		.ctx = NULL,\
+		.rc = { NULL, -1 }\
 	};\
 	ANY NAME = {\
 		.tag = PURS_ANY_TAG_THUNK,\
@@ -623,6 +607,41 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 #define purs_any_record PURS_ANY_RECORD
 #define purs_any_cont PURS_ANY_CONT
 #define purs_any_string PURS_ANY_STRING
+#define purs_any_thunk PURS_ANY_THUNK
+
+// -----------------------------------------------------------------------------
+// Code-gen helpers (pt. 2)
+// -----------------------------------------------------------------------------
+
+/* Thunked pointer dereference: Recursive bindings support */
+#define purs_indirect_value_assign(I, V) {\
+		*I = (V);\
+		PURS_ANY_RETAIN(V);\
+	};
+
+static void purs_indirect_thunk_free(const struct purs_rc *ref) {
+	purs_thunk_t * thunk = container_of(ref, purs_thunk_t, rc);
+	ANY any = *((ANY*)thunk->ctx);
+	PURS_ANY_RELEASE(any);
+	purs_free(thunk->ctx);
+	purs_free(thunk);
+}
+
+static inline ANY purs_thunked_deref(void * ctx) {
+	ANY any = *((ANY*)(ctx));
+	PURS_ANY_RETAIN(any); /* purs_any_unthunk will release! */
+	return any;
+}
+
+#define purs_indirect_value_new() purs_new(ANY)
+
+static inline ANY purs_indirect_thunk_new(ANY * x) {
+	purs_thunk_t * thunk = purs_malloc(sizeof (purs_thunk_t));
+	thunk->ctx = x;
+	thunk->fn = purs_thunked_deref;
+	thunk->rc = ((struct purs_rc) { purs_indirect_thunk_free, 1 });
+	return PURS_ANY_THUNK(thunk);
+}
 
 // -----------------------------------------------------------------------------
 // FFI helpers
@@ -663,7 +682,7 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 			       $__super__->bindings,\
 			       $__super__->size * sizeof (ANY));\
 			for (int i = 0; i < $__super__->size; i++) {\
-				PURS_ANY_RETAIN(&$__super__->bindings[i]);\
+				PURS_ANY_RETAIN($__super__->bindings[i]);\
 			}\
 		}\
 		scope->bindings[CUR - 1] = a;\

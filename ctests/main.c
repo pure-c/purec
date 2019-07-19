@@ -28,11 +28,11 @@ static void leak_cont_test(void **state) {
 	ANY cont = mk_prefix_cont("foo: ");
 	const purs_str_t * s = purs_str_new("bar");
 	ANY output = purs_any_app(cont, purs_any_string(s));
-	PURS_ANY_RELEASE(&output);
+	PURS_ANY_RELEASE(output);
 	output = purs_any_app(cont, purs_any_string(s));
-	PURS_ANY_RELEASE(&output);
+	PURS_ANY_RELEASE(output);
 	PURS_RC_RELEASE(s);
-	PURS_ANY_RELEASE(&cont);
+	PURS_ANY_RELEASE(cont);
 }
 
 static void purs_scope_new1_test(void **state) {
@@ -91,9 +91,9 @@ static void purs_vec_concat_test(void **state) {
 	const purs_vec_t * v2 = purs_vec_new_va(2, s2, s3);
 	const purs_vec_t * v3 = purs_vec_concat(v1, v2);
 
-	PURS_ANY_RELEASE(&s1);
-	PURS_ANY_RELEASE(&s2);
-	PURS_ANY_RELEASE(&s3);
+	PURS_ANY_RELEASE(s1);
+	PURS_ANY_RELEASE(s2);
+	PURS_ANY_RELEASE(s3);
 
 	assert_int_equal(v1->length, 1);
 	assert_int_equal(v2->length, 2);
@@ -175,10 +175,10 @@ static void purs_any_concat_test(void **state) {
 		ANY a = purs_any_string(purs_str_new("a"));
 		ANY b = purs_any_string(purs_str_new("b"));
 		ANY ab = purs_any_concat(a, b);
-		PURS_ANY_RELEASE(&b);
-		PURS_ANY_RELEASE(&a);
+		PURS_ANY_RELEASE(b);
+		PURS_ANY_RELEASE(a);
 		assert_string_equal(purs_any_get_string(ab)->data, "ab");
-		PURS_ANY_RELEASE(&ab);
+		PURS_ANY_RELEASE(ab);
 	}
 
 	/* test: arrays */
@@ -190,15 +190,15 @@ static void purs_any_concat_test(void **state) {
 		const purs_vec_t * v2 = purs_vec_new_va(3, b, a, c);
 		ANY v1v2 = purs_any_concat(purs_any_array(v1),
 					   purs_any_array(v2));
-		PURS_ANY_RELEASE(&a);
-		PURS_ANY_RELEASE(&b);
-		PURS_ANY_RELEASE(&c);
+		PURS_ANY_RELEASE(a);
+		PURS_ANY_RELEASE(b);
+		PURS_ANY_RELEASE(c);
 		PURS_RC_RELEASE(v1);
 		PURS_RC_RELEASE(v2);
 		assert_string_equal(purs_any_get_string(a)->data, "a"); /* should not seg-fault */
 		assert_string_equal(purs_any_get_string(b)->data, "b"); /* should not seg-fault */
 		assert_string_equal(purs_any_get_string(c)->data, "c"); /* should not seg-fault */
-		PURS_ANY_RELEASE(&v1v2);
+		PURS_ANY_RELEASE(v1v2);
 	}
 }
 
