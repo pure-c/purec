@@ -74,7 +74,6 @@ module Language.PureScript.CodeGen.Runtime
   , purs_record_t
   , purs_record_empty
   , purs_record_find_by_key
-  , purs_record_copy_shallow
   , purs_record_add_multi
   , purs_record_new_va
 
@@ -177,9 +176,6 @@ purs_record_new_va = AST.Var "purs_record_new_va"
 
 purs_record_find_by_key :: AST
 purs_record_find_by_key = AST.Var "purs_record_find_by_key"
-
-purs_record_copy_shallow :: AST
-purs_record_copy_shallow = AST.Var "purs_record_copy_shallow"
 
 purs_record_add_multi :: AST
 purs_record_add_multi = AST.Var "purs_record_add_multi"

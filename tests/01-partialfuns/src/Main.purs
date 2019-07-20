@@ -20,6 +20,10 @@ main :: Effect Int
 main =
   let
     f = const [ 0, 1 ]
+    f' = const [ 2, 3 ]
+    r = { a: [ f Unit ] }
+    h = const (\_ -> (r { a = [ f' Unit ] }))
+    g = h Unit
   in (\_ ->
         case f 0 of
           [ 0, 1 ] -> 0
@@ -32,3 +36,15 @@ main =
         case f 2 of
           [ 0, 1 ] -> 0
           _        -> 1)
+  >> (\_ ->
+        case g 2 of
+          { a: [ [ 2, 3 ] ] } -> 0
+          _                   -> 1)
+  >> (\_ ->
+        case g 3 of
+          { a: [ [ 2, 3 ] ] } -> 0
+          _                   -> 1)
+  >> (\_ ->
+        case r of
+          { a: [ [ 0, 1 ] ] } -> 0
+          _                   -> 1)

@@ -22,10 +22,10 @@ testString _ =
 
 testRecord :: Effect Int
 testRecord _ =
-  let r = { a: 1, b: 2, c: 0 }
+  let r = { a: 1, b: 2, c: [0] }
   in
-    case r of
-      { a: 1, b: 2, c: 0 } ->
+    case r { c = [5] } of
+      { a: 1, b: 2, c: [5] } ->
         0
       _ ->
         1
