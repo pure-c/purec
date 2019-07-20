@@ -58,6 +58,7 @@ module Language.PureScript.CodeGen.Runtime
 
     -- constructors
   , purs_cons_t
+  , purs_cons_new
   , purs_cons_get_tag
 
     -- arrays
@@ -113,6 +114,9 @@ purs_scope_t = "purs_scope_t"
 
 purs_cons_t :: String
 purs_cons_t = "purs_cons_t"
+
+purs_cons_new :: AST
+purs_cons_new = AST.Var "purs_cons_new"
 
 purs_any_num_one :: AST
 purs_any_num_one = AST.Var "purs_any_num_one"

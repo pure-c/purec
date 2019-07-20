@@ -1,7 +1,7 @@
 #include "runtime/purescript.h"
 
 // -----------------------------------------------------------------------------
-// Any: allocate
+// Continuations
 // -----------------------------------------------------------------------------
 
 static void purs_cont_free(const struct purs_rc *ref) {
@@ -12,7 +12,7 @@ static void purs_cont_free(const struct purs_rc *ref) {
 
 const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
 				  purs_cont_fun_t * fn) {
-	purs_cont_t * cont = purs_malloc(sizeof (purs_cont_t));
+	purs_cont_t * cont = purs_new(purs_cont_t);
 	cont->fn = fn;
 	cont->scope = scope;
 	cont->rc = ((struct purs_rc) { purs_cont_free, 1 });
@@ -20,15 +20,37 @@ const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
 	return (const purs_cont_t *) cont;
 }
 
-/* todo: treat. */
-ANY purs_any_cons(int tag, int size, ANY* values) {
-	ANY v;
-	v.tag = PURS_ANY_TAG_CONS;
-	v.value.cons = purs_malloc(sizeof (purs_any_cons_t));
-	v.value.cons->tag = tag;
-	v.value.cons->size = size;
-	v.value.cons->values = values;
-	return v;
+// -----------------------------------------------------------------------------
+// Constructors
+// -----------------------------------------------------------------------------
+
+static void purs_cons_free(const struct purs_rc *ref) {
+	purs_cons_t * x = container_of(ref, purs_cons_t, rc);
+	for (int i = 0; i < x->size; i++) {
+		PURS_ANY_RELEASE(x->values[i]);
+	}
+	purs_free(x->values);
+	purs_free(x);
+}
+
+const purs_cons_t * purs_cons_new(int tag, int size, ...) {
+	purs_cons_t * cons = purs_new(purs_cons_t);
+	cons->tag = tag;
+	cons->size = size;
+	if (size <= 0) {
+		cons->values = NULL;
+	} else {
+	    cons->values = purs_malloc(sizeof (ANY) * size);
+	}
+	va_list ap;
+	va_start(ap, size);
+	for (int i = 0; i < size; i++) {
+		cons->values[i] = va_arg(ap, ANY);
+		PURS_ANY_RETAIN(cons->values[i]);
+	}
+	va_end(ap);
+	cons->rc = ((struct purs_rc) { purs_cons_free, 1 });
+	return (const purs_cons_t *) cons;
 }
 
 // -----------------------------------------------------------------------------
@@ -114,23 +136,29 @@ ANY purs_any_infinity = PURS_ANY_NUM(PURS_INFINITY);
 ANY purs_any_neg_infinity = PURS_ANY_NUM(-PURS_INFINITY);
 
 int purs_any_eq(ANY x, ANY y) {
-	x = purs_any_unthunk(x, NULL) /* todo: has changed? */;
-	y = purs_any_unthunk(y, NULL) /* todo: has changed? */;
+	int ret = 0;
+	int x_has_changed;
+	int y_has_changed;
+	x = purs_any_unthunk(x, &x_has_changed);
+	y = purs_any_unthunk(y, &y_has_changed);
 
 	/* special treatment for NaN on LHS */
 	if (purs_any_is_NaN(x) &&
 		(y.tag == PURS_ANY_TAG_NUM || y.tag == PURS_ANY_TAG_INT)) {
-		return 0;
+		ret = 0;
+		goto end;
 	}
 
 	/* special treatment for NaN on RHS */
 	if (purs_any_is_NaN(y) &&
 		(x.tag == PURS_ANY_TAG_NUM || x.tag == PURS_ANY_TAG_INT)) {
-		return 0;
+		ret = 0;
+		goto end;
 	}
 
 	if (x.tag == PURS_ANY_TAG_NULL || y.tag == PURS_ANY_TAG_NULL) {
-		return 0;
+		ret = 0;
+		goto end;
 	} else {
 		purs_assert(
 			x.tag == y.tag,
@@ -140,25 +168,37 @@ int purs_any_eq(ANY x, ANY y) {
 
 		switch (x.tag) {
 		case PURS_ANY_TAG_INT:
-			return purs_any_get_int(x) == purs_any_get_int(y);
+			ret = purs_any_get_int(x) == purs_any_get_int(y);
+			goto end;
 		case PURS_ANY_TAG_NUM:
-			return purs_any_get_num(x) == purs_any_get_num(y);
+			ret = purs_any_get_num(x) == purs_any_get_num(y);
+			goto end;
 		case PURS_ANY_TAG_STRING:
-			return (utf8cmp(purs_any_get_string(x), purs_any_get_string(y)) == 0);
+			ret = (utf8cmp(purs_any_get_string(x), purs_any_get_string(y)) == 0);
+			goto end;
 		case PURS_ANY_TAG_CHAR:
-			return purs_any_get_char(x) == purs_any_get_char(y);
+			ret = purs_any_get_char(x) == purs_any_get_char(y);
+			goto end;
 		default:
-			return 0;
+			ret = 0;
+			goto end;
 		}
 	}
+ end:
+	if (x_has_changed) PURS_ANY_RELEASE(x);
+	if (y_has_changed) PURS_ANY_RELEASE(y);
+	return ret;
 }
 
 /**
  Concatenate two dyanmic values into a new dynamic value
 */
 ANY purs_any_concat(ANY x, ANY y) {
-	x = purs_any_unthunk(x, NULL) /* todo: has changed? */;
-	y = purs_any_unthunk(y, NULL) /* todo: has changed? */;
+	ANY ret;
+	int x_has_changed;
+	int y_has_changed;
+	x = purs_any_unthunk(x, &x_has_changed);
+	y = purs_any_unthunk(y, &y_has_changed);
 
 	assert(x.tag != PURS_ANY_TAG_NULL);
 	assert(y.tag != PURS_ANY_TAG_NULL);
@@ -166,20 +206,27 @@ ANY purs_any_concat(ANY x, ANY y) {
 
 	switch(x.tag) {
 	case PURS_ANY_TAG_STRING: {
-		return purs_any_string(purs_str_new("%s%s",
-						    purs_any_get_string(x)->data,
-						    purs_any_get_string(y)->data));
+		ret = purs_any_string(purs_str_new("%s%s",
+						   purs_any_get_string(x)->data,
+						   purs_any_get_string(y)->data));
+		goto end;
 	}
 	case PURS_ANY_TAG_ARRAY: {
 		const purs_vec_t * x_vec = purs_any_get_array(x);
 		const purs_vec_t * y_vec = purs_any_get_array(y);
-		return purs_any_array(purs_vec_concat(x_vec, y_vec));
+		ret = purs_any_array(purs_vec_concat(x_vec, y_vec));
+		goto end;
 	}
 	default:
 		purs_assert(0, "cannot concat %s", purs_any_tag_str(x.tag));
 	}
 
 	return purs_any_null /* never reached */;
+
+ end:
+	if (x_has_changed) PURS_ANY_RELEASE(x);
+	if (y_has_changed) PURS_ANY_RELEASE(y);
+	return ret;
 }
 
 // -----------------------------------------------------------------------------

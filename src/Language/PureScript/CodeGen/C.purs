@@ -565,12 +565,8 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
             [
               AST.IfElse
                 (AST.Binary AST.EqualTo
-                  (AST.App
-                    R.purs_cons_get_tag
-                    [ AST.App
-                        R.purs_any_get_cons
-                        [ AST.Var varName
-                        ]
+                  (AST.App (AST.Var "purs_any_force_cons_tag")
+                    [ AST.Var varName
                     ]
                   )
                   (AST.Var tag)
@@ -602,15 +598,9 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
   finalLambda <- do
     argName     <- identToVarName lastArg
     valuesName  <- freshInternalName
-    assignments <-
-      traverseWithIndex <@> fields $ \i v -> ado
-        name <- identToVarName v
-        in
-          AST.Assignment
-            (AST.Indexer
-              (AST.NumericLiteral (Left i))
-              (AST.Var valuesName))
-            (AST.Var name)
+    fieldVars <-
+      for fields $ \v ->
+        AST.Var <$> identToVarName v
     pure $
      AST.Function
       { name: Nothing
@@ -620,25 +610,14 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
       , returnType: R.any
       , body: Just $
           AST.Block $
-            [ AST.VariableIntroduction
-                { name: valuesName
-                , type: Type.Pointer R.any
-                , qualifiers: []
-                , initialization:
-                    Just $
-                      AST.App
-                        R.purs_malloc_any_buf
-                        [ AST.NumericLiteral $ Left $ A.length fields
-                        ]
-                }
-            ] <> assignments <> [
-              AST.Return $
+            [ AST.Return $
                 AST.App R.purs_any_cons
-                  [ AST.Var $
-                      safeConstructorName $
-                        qualifiedVarName moduleName constructorName
-                  , AST.NumericLiteral $ Left $ A.length fields
-                  , AST.Var valuesName
+                  [ AST.App R.purs_cons_new $
+                      [ AST.Var $
+                          safeConstructorName $
+                            qualifiedVarName moduleName constructorName
+                      , AST.NumericLiteral $ Left $ A.length fields
+                      ] <> fieldVars
                   ]
             ]
       }
@@ -666,12 +645,11 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
     constructorName' =
       safeConstructorName $ qualifiedVarName moduleName constructorName
   pure $
-    AST.App
-      R.purs_any_cons
-        [ AST.Var constructorName'
-        , AST.NumericLiteral $ Left 0
-        , AST.Null
-        ]
+    AST.App R.purs_any_cons
+      [ AST.App R.purs_cons_new
+          [ AST.Var constructorName'
+          , AST.NumericLiteral $ Left 0
+          ] ]
 exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
   f   <- exprToAst ident
   arg <- exprToAst expr

@@ -95,6 +95,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_str_new"            -> Just stringType
     AST.Var "purs_record_new_va"      -> Just recordType
     AST.Var "purs_cont_new"           -> Just contType
+    AST.Var "purs_cons_new"           -> Just consType
     AST.Var "purs_indirect_thunk_new" -> Just R.any
     _                                 -> Nothing
 
@@ -662,6 +663,9 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
             , AST.App (AST.Var "PURS_RC_RELEASE") [ AST.Var scopeVarName ]
             , AST.Var contVarName
             ]
+
+consType :: AST.Type
+consType = Type.Pointer (Type.RawType "purs_cons_t"   [ Type.Const ])
 
 contType :: AST.Type
 contType = Type.Pointer (Type.RawType "purs_cont_t"   [ Type.Const ])

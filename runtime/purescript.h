@@ -82,12 +82,13 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 #define purs_any_int_t int32_t
 #define purs_any_num_t double
 
+typedef utf8_int32_t purs_any_char_t;
 typedef struct purs_vec purs_vec_t;
 typedef struct purs_any purs_any_t;
 typedef struct purs_record purs_record_t;
 typedef struct purs_cont purs_cont_t;
 typedef struct purs_thunk purs_thunk_t;
-typedef struct purs_any_cons purs_any_cons_t;
+typedef struct purs_cons purs_cons_t;
 typedef union purs_any_value purs_any_value_t;
 typedef struct purs_scope purs_scope_t;
 typedef ANY (purs_thunk_fun_t)(void * ctx);
@@ -140,20 +141,26 @@ static inline void purs_rc_release(const struct purs_rc *ref) {
 }
 
 /* by convetion, the rc is embedded as 'rc', making these macros possible */
-#define PURS_RC_RELEASE(X) do { if (X != NULL) purs_rc_release(&(X->rc)); } while (0)
-#define PURS_RC_RETAIN(X)  do { if (X != NULL) purs_rc_retain(&(X->rc)); } while (0)
+#define PURS_RC_RELEASE(X) do { if ((X) != NULL) purs_rc_release(&((X)->rc)); } while (0)
+#define PURS_RC_RETAIN(X) do  { if ((X) != NULL)  purs_rc_retain(&((X)->rc)); } while (0)
+
+/* all "base"-compatible structures must have their "rc" field in the same
+   position as "_purs_rc_base." */
+struct _purs_rc_base { struct purs_rc rc; };
+#define PURS_RC_BASE_RELEASE(X) PURS_RC_RELEASE((struct _purs_rc_base *) X)
+#define PURS_RC_BASE_RETAIN(X) PURS_RC_RETAIN((struct _purs_rc_base *) X)
 
 union purs_any_value {
 	/* inline values */
 	purs_any_int_t i;
 	purs_any_num_t n;
-	utf8_int32_t chr;
+	purs_any_char_t chr;
 	purs_foreign_t foreign;
 
 	/* self-referential, and other values */
 	const purs_cont_t * cont;
-	purs_any_cons_t * cons;
-	purs_thunk_t * thunk;
+	const purs_cons_t * cons;
+	const purs_thunk_t * thunk;
 	const purs_record_t * record;
 	const purs_str_t * str;
 	const purs_vec_t * array;
@@ -165,35 +172,35 @@ struct purs_any {
 };
 
 struct purs_thunk {
+	struct purs_rc rc;
 	purs_thunk_fun_t * fn;
 	void * ctx;
-	struct purs_rc rc;
 };
 
 struct purs_cont {
+	struct purs_rc rc;
 	purs_cont_fun_t * fn;
 	const struct purs_scope * scope; /* todo: inline? */
-	struct purs_rc rc;
 };
 
-struct purs_any_cons {
+struct purs_cons {
+	struct purs_rc rc;
 	int tag;
 	int size;
 	ANY * values;
-	struct purs_rc rc;
 };
 
 struct purs_str {
-	char * data;
 	struct purs_rc rc;
+	char * data;
 };
 
 /* a reference-counted vec_t(...) */
 struct purs_vec {
+	struct purs_rc rc;
 	ANY * data;
 	int length;
 	int capacity;
-	struct purs_rc rc;
 };
 
 typedef struct purs_node_record {
@@ -203,8 +210,8 @@ typedef struct purs_node_record {
 } purs_record_node_t;
 
 typedef struct purs_record {
-	const purs_record_node_t * root;
 	struct purs_rc rc;
+	const purs_record_node_t * root;
 } purs_record_t;
 
 // TODO: rename to 'purs_any_record_empty'
@@ -240,6 +247,8 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 			PURS_RC_RETAIN((X).value.thunk);\
 			break;\
 		case PURS_ANY_TAG_CONS:\
+			PURS_RC_RETAIN((X).value.cons);\
+			break;\
 		case PURS_ANY_TAG_FOREIGN:\
 			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RETAIN for: %s\n", purs_any_tag_str((X).tag));\
 			break;\
@@ -250,14 +259,11 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 
 #define PURS_ANY_RELEASE(X) {\
 		switch ((X).tag) {\
-		case PURS_ANY_TAG_NULL:\
-		case PURS_ANY_TAG_INT:\
-		case PURS_ANY_TAG_NUM:\
-		case PURS_ANY_TAG_CHAR:\
-			break;\
-		case PURS_ANY_TAG_CONS:\
 		case PURS_ANY_TAG_FOREIGN:\
 			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RELEASE for: %s\n", purs_any_tag_str((X).tag));\
+			break;\
+		case PURS_ANY_TAG_CONS:\
+			PURS_RC_RELEASE((X).value.cons);\
 			break;\
 		case PURS_ANY_TAG_THUNK:\
 			PURS_RC_RELEASE((X).value.thunk);\
@@ -273,6 +279,8 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 			break;\
 		case PURS_ANY_TAG_CONT:\
 			PURS_RC_RELEASE((X).value.cont);\
+			break;\
+		default:\
 			break;\
 		}\
 	}
@@ -320,44 +328,89 @@ static inline const purs_any_tag_t purs_any_get_tag (ANY v) {
 	return v.tag;
 }
 
-/* todo: treat! */
-ANY purs_any_cons(int tag, int size, ANY* values);
-
-#define __PURS_ANY_GETTER(N, A, R, TAG)\
+#define __PURS_ANY_GET(N, A, R, TAG)\
 	static inline R _purs_any_get_ ## N (ANY v, char * file, int line) {\
-		v = purs_any_unthunk(v, NULL);\
 		purs_any_assert_tag_eq(v.tag, TAG);\
 		return v.value.A;\
 	}
 
-__PURS_ANY_GETTER(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
-__PURS_ANY_GETTER(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
-__PURS_ANY_GETTER(char, chr, utf8_int32_t, PURS_ANY_TAG_CHAR)
-__PURS_ANY_GETTER(foreign, foreign, purs_foreign_t, PURS_ANY_TAG_FOREIGN)
-__PURS_ANY_GETTER(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
-__PURS_ANY_GETTER(cons, cons, const purs_any_cons_t *, PURS_ANY_TAG_CONS)
-__PURS_ANY_GETTER(thunk, thunk, const purs_thunk_t *, PURS_ANY_TAG_THUNK)
-__PURS_ANY_GETTER(record, record, const purs_record_t *, PURS_ANY_TAG_RECORD)
-__PURS_ANY_GETTER(string, str, const purs_str_t *, PURS_ANY_TAG_STRING)
-__PURS_ANY_GETTER(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
+__PURS_ANY_GET(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
+__PURS_ANY_GET(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
+__PURS_ANY_GET(char, chr, purs_any_char_t, PURS_ANY_TAG_CHAR)
+__PURS_ANY_GET(foreign, foreign, purs_foreign_t, PURS_ANY_TAG_FOREIGN)
+__PURS_ANY_GET(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
+__PURS_ANY_GET(cons, cons, const purs_cons_t *, PURS_ANY_TAG_CONS)
+__PURS_ANY_GET(thunk, thunk, const purs_thunk_t *, PURS_ANY_TAG_THUNK)
+__PURS_ANY_GET(record, record, const purs_record_t *, PURS_ANY_TAG_RECORD)
+__PURS_ANY_GET(string, str, const purs_str_t *, PURS_ANY_TAG_STRING)
+__PURS_ANY_GET(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 
 /* todo: generate faster, unsafe variants */
-#define purs_any_get_int(A) _purs_any_get_int((A), __FILE__, __LINE__)
-#define purs_any_get_num(A) _purs_any_get_num((A), __FILE__, __LINE__)
-#define purs_any_get_char(A) _purs_any_get_char((A), __FILE__, __LINE__)
+#define purs_any_get_int(A)     _purs_any_get_int((A), __FILE__, __LINE__)
+#define purs_any_get_num(A)     _purs_any_get_num((A), __FILE__, __LINE__)
+#define purs_any_get_char(A)    _purs_any_get_char((A), __FILE__, __LINE__)
 #define purs_any_get_foreign(A) _purs_any_get_foreign((A), __FILE__, __LINE__)
-#define purs_any_get_cont(A) _purs_any_get_cont((A), __FILE__, __LINE__)
-#define purs_any_get_cons(A) _purs_any_get_cons((A), __FILE__, __LINE__)
-#define purs_any_get_thunk(A) _purs_any_get_thunk((A), __FILE__, __LINE__)
-#define purs_any_get_record(A) _purs_any_get_record((A), __FILE__, __LINE__)
-#define purs_any_get_string(A) _purs_any_get_string((A), __FILE__, __LINE__)
-#define purs_any_get_array(A) _purs_any_get_array((A), __FILE__, __LINE__)
+#define purs_any_get_cont(A)    _purs_any_get_cont((A), __FILE__, __LINE__)
+#define purs_any_get_cons(A)    _purs_any_get_cons((A), __FILE__, __LINE__)
+#define purs_any_get_thunk(A)   _purs_any_get_thunk((A), __FILE__, __LINE__)
+#define purs_any_get_record(A)  _purs_any_get_record((A), __FILE__, __LINE__)
+#define purs_any_get_string(A)  _purs_any_get_string((A), __FILE__, __LINE__)
+#define purs_any_get_array(A)   _purs_any_get_array((A), __FILE__, __LINE__)
+
+#define __PURS_ANY_FORCE_COPY(N, A, R, TAG)\
+	static inline R _purs_any_force_ ## N (ANY v, char * file, int line) {\
+		int was_forced;\
+		v = purs_any_unthunk(v, &was_forced);\
+		purs_any_assert_tag_eq(v.tag, TAG);\
+		R r = v.value.A;\
+		if (was_forced) PURS_ANY_RELEASE(v);\
+		return r;\
+	}
+
+#define __PURS_ANY_FORCE_RETAIN(N, A, R, TAG)\
+	static inline R _purs_any_force_ ## N (ANY v, char * file, int line) {\
+		int was_forced;\
+		v = purs_any_unthunk(v, &was_forced);\
+		purs_any_assert_tag_eq(v.tag, TAG);\
+		R r = v.value.A;\
+		PURS_RC_BASE_RETAIN(r);\
+		if (was_forced) PURS_ANY_RELEASE(v);\
+		return r;\
+	}
+
+__PURS_ANY_FORCE_COPY(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
+__PURS_ANY_FORCE_COPY(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
+__PURS_ANY_FORCE_COPY(char, chr, purs_any_char_t, PURS_ANY_TAG_CHAR)
+__PURS_ANY_FORCE_COPY(foreign, foreign, purs_foreign_t, PURS_ANY_TAG_FOREIGN)
+
+__PURS_ANY_FORCE_RETAIN(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
+__PURS_ANY_FORCE_RETAIN(cons, cons, const purs_cons_t *, PURS_ANY_TAG_CONS)
+__PURS_ANY_FORCE_RETAIN(thunk, thunk, const purs_thunk_t *, PURS_ANY_TAG_THUNK)
+__PURS_ANY_FORCE_RETAIN(record, record, const purs_record_t *, PURS_ANY_TAG_RECORD)
+__PURS_ANY_FORCE_RETAIN(string, str, const purs_str_t *, PURS_ANY_TAG_STRING)
+__PURS_ANY_FORCE_RETAIN(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
+
+/* todo: generate faster, unsafe variants */
+#define purs_any_force_int(A)     _purs_any_force_int((A), __FILE__, __LINE__)
+#define purs_any_force_num(A)     _purs_any_force_num((A), __FILE__, __LINE__)
+#define purs_any_force_char(A)    _purs_any_force_char((A), __FILE__, __LINE__)
+#define purs_any_force_foreign(A) _purs_any_force_foreign((A), __FILE__, __LINE__)
+#define purs_any_force_cont(A)    _purs_any_force_cont((A), __FILE__, __LINE__)
+#define purs_any_force_cons(A)    _purs_any_force_cons((A), __FILE__, __LINE__)
+#define purs_any_force_thunk(A)   _purs_any_force_thunk((A), __FILE__, __LINE__)
+#define purs_any_force_record(A)  _purs_any_force_record((A), __FILE__, __LINE__)
+#define purs_any_force_string(A)  _purs_any_force_string((A), __FILE__, __LINE__)
+#define purs_any_force_array(A)   _purs_any_force_array((A), __FILE__, __LINE__)
+
+/* access the cons tag directly. */
+__PURS_ANY_FORCE_COPY(cons_tag, cons->tag, int, PURS_ANY_TAG_CONS)
+#define purs_any_force_cons_tag(A) _purs_any_force_cons_tag((A), __FILE__, __LINE__)
 
 // -----------------------------------------------------------------------------
 // Any: built-in functions
 // -----------------------------------------------------------------------------
 
-static inline int purs_any_eq_char (ANY x, utf8_int32_t y) {
+static inline int purs_any_eq_char (ANY x, purs_any_char_t y) {
 	return purs_any_get_char(x) == y;
 }
 
@@ -381,6 +434,12 @@ ANY purs_any_concat(ANY, ANY);
 // -----------------------------------------------------------------------------
 
 const purs_cont_t * purs_cont_new(const struct purs_scope *, purs_cont_fun_t *);
+
+// -----------------------------------------------------------------------------
+// Data constructors
+// -----------------------------------------------------------------------------
+
+const purs_cons_t * purs_cons_new(int tag, int size, ...);
 
 // -----------------------------------------------------------------------------
 // strings
@@ -502,9 +561,9 @@ struct tco_state {
 
 /* Captured scope generation */
 struct purs_scope {
+	struct purs_rc rc;
 	int size;
 	ANY* bindings;
-	struct purs_rc rc;
 };
 
 #define purs_scope_binding_at(S, N) ((S)->bindings[(N)])
@@ -600,6 +659,9 @@ struct purs_scope * purs_scope_new1(int size);
 #define PURS_ANY_CONT(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_CONT, .value = { .cont = (X) } })
 
+#define PURS_ANY_CONS(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_CONS, .value = { .cons = (X) } })
+
 /* DEPRECATED: two versions for compat/historical reasons only */
 #define purs_any_int PURS_ANY_INT
 #define purs_any_num PURS_ANY_NUM
@@ -608,6 +670,7 @@ struct purs_scope * purs_scope_new1(int size);
 #define purs_any_array PURS_ANY_ARRAY
 #define purs_any_record PURS_ANY_RECORD
 #define purs_any_cont PURS_ANY_CONT
+#define purs_any_cons PURS_ANY_CONS
 #define purs_any_string PURS_ANY_STRING
 #define purs_any_thunk PURS_ANY_THUNK
 

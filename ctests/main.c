@@ -246,6 +246,30 @@ static void purs_indirect_thunk_test(void **state) {
 	}
 }
 
+static void purs_cons_test(void **state) {
+	(void) state; /* unused */
+
+	{ /* empty */
+		const purs_cons_t * cons = purs_cons_new(1, 0, NULL);
+		assert_null(cons->values);
+		PURS_RC_RELEASE(cons);
+	}
+
+	{ /* non-empty */
+		const purs_vec_t * vec = purs_vec_new_va(1, purs_any_int(1));
+		const purs_cons_t * cons = purs_cons_new(1, 1, purs_any_array(vec));
+		PURS_RC_RELEASE(vec);
+		PURS_RC_RELEASE(cons);
+	}
+
+	{ /* non-empty, wrapped */
+		const purs_vec_t * vec = purs_vec_new_va(1, purs_any_int(1));
+		ANY cons = purs_any_cons(purs_cons_new(1, 1, purs_any_array(vec)));
+		PURS_RC_RELEASE(vec);
+		PURS_ANY_RELEASE(cons);
+	}
+}
+
 static void purs_indirect_value_test(void **state) {
 	(void) state; /* unused */
 	ANY * ivalue = purs_indirect_value_new();
@@ -266,6 +290,7 @@ int main (void) {
 		cmocka_unit_test(purs_vec_concat_test),
 		cmocka_unit_test(purs_indirect_value_test),
 		cmocka_unit_test(purs_indirect_thunk_test),
+		cmocka_unit_test(purs_cons_test),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

@@ -30,6 +30,7 @@ TESTS = \
     00-basic \
     01-partialfuns \
     04-memory \
+    05-datacons \
     03-mutrec
 
 ifdef WITH_GC
@@ -166,7 +167,7 @@ test/tests/$(1):
 
 test/tests/$(1).0:
 	@echo "tests/$(1): start"
-	@make -s $(PUREC_LIB) &> /dev/null
+	@make -s $(PUREC_LIB) > /dev/null
 	@echo "tests/$(1): clean"
 	@$(MAKE) -s -C "tests/$(1)" clean > /dev/null
 	@echo "tests/$(1): compile PureScript to C"
