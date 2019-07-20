@@ -155,11 +155,7 @@ test/tests:
 	@UNIT_TESTING=1 $(MAKE) -s test/tests.0
 PHONY: test/tests
 
-# compile each project under 'tests/' as a library, load and execute via
-# cmocka.
-# note: this necessitates *all* projects under test to:
-#   + Have a 'lib' target without an entry point in a module called 'Main'
-#   + Export a 'main' function from module 'Main'
+# compile each project under 'tests', run it, and check for leaks using valgrind
 define mk_test_case
 test/tests/$(1):
 	@$(MAKE) -s clean
