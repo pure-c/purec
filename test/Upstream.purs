@@ -79,15 +79,16 @@ default: premain
 
 PUREC_DIR := ../..
 include $(PUREC_DIR)/mk/target.mk
-
+SPAGO := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin spago
+PURS := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin purs
 SHELL := /bin/bash
-
 srcs := $(addprefix ../../,$(shell cat sources))
 
 premain: $(srcs)
 	@touch $^ || { :; }
-	@cp "$(PUREC_DIR)"/upstream/tests/support/psc-package.json .
-	@psc-package install
+	@cp "$(PUREC_DIR)"/package-sets/* .
+	@cp "$(PUREC_DIR)"/upstream/tests/support/spago.dhall .
+	@$(SPAGO) install
 	@$(MAKE) -s main
 
 $(eval $(call purs_mk_target,main,Main,$(srcs)))

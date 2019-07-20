@@ -16,7 +16,8 @@
   "devDependencies": {
     "bower": "^1.8.4",
     "pulp": "^12.3.0",
-    "purescript": "^0.12.5"
+    "purescript": "^0.12.5",
+    "spago": "^0.8.5"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

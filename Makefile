@@ -7,6 +7,7 @@ SHELLFLAGS := -eo pipefail
 
 PURS := PATH=$$PATH:node_modules/.bin purs
 PULP := PATH=$$PATH:node_modules/.bin pulp
+SPAGO := PATH=$$PATH:node_modules/.bin spago
 
 PUREC_JS := purec.js
 PUREC := node $(PUREC_JS)
@@ -209,7 +210,7 @@ test/tests/main.0:
 	done
 .PHONY: test/tests/main.0
 
-test/upstream: upstream/tests/support/bower_components
+test/upstream:
 	@$(MAKE) -s clean
 	@$(PULP) test > /dev/null
 .PHONY: test/pulp
