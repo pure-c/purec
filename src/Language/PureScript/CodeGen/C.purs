@@ -492,7 +492,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                           AST.App R.purs_derefence
                             [ AST.App R.purs_record_find_by_key
                                 [ AST.App
-                                    R.purs_any_get_record
+                                    R.purs_any_force_record
                                     [ AST.Var varName ]
                                 , AST.StringLiteral prop
                                 ]
@@ -679,7 +679,7 @@ exprToAst (C.Accessor _ k exp) = ado
     AST.App R.purs_derefence
       [ AST.App R.purs_record_find_by_key
           [ AST.App
-              R.purs_any_get_record
+              R.purs_any_force_record
               [ valueAst ]
           , AST.StringLiteral k
           ]
@@ -691,7 +691,7 @@ exprToAst (C.ObjectUpdate _ o ps) = ado
   in
     AST.App R.purs_any_record
       [ AST.App R.purs_record_add_multi $
-          [ AST.App R.purs_any_get_record [ valueAst ]
+          [ AST.App R.purs_any_force_record [ valueAst ]
           , AST.NumericLiteral (Left $ A.length sts)
           ] <> do
             A.concat $ sts <#> \(n /\ v) ->

@@ -98,6 +98,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_cons_new"           -> Just consType
     AST.Var "purs_indirect_thunk_new" -> Just R.any
     AST.Var "purs_record_add_multi"   -> Just recordType
+    AST.Var "purs_any_force_record"   -> Just recordType
     _                                 -> Nothing
 
   go parentVars = case _ of

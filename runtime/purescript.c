@@ -264,7 +264,7 @@ static void purs_vec_free(const struct purs_rc *ref) {
 	purs_free(x);
 }
 
-static inline purs_vec_t * purs_vec_new() {
+const purs_vec_t * purs_vec_new() {
 	purs_vec_t * o = purs_new(purs_vec_t);
 	o->data = NULL;
 	o->length = 0;
@@ -292,7 +292,7 @@ const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs,
 		return NULL;
 	} else {
 		int length = lhs->length + rhs->length;
-		purs_vec_t * o = purs_vec_new();
+		purs_vec_t * o = (purs_vec_t *) purs_vec_new();
 		o->data = vec_malloc(sizeof (ANY) * length);
 		o->length = length;
 		o->capacity = length;
@@ -310,7 +310,7 @@ const purs_vec_t * purs_vec_new_va (int count, ...) {
 		return NULL;
 	}
 
-	purs_vec_t * o = purs_vec_new();
+	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
 
 	o->data = vec_malloc(sizeof (ANY) * count);
 	o->length = count;
@@ -331,7 +331,7 @@ static const purs_vec_t * _purs_vec_copy (const purs_vec_t * vec) {
 	if (purs_vec_is_empty(vec)) {
 		return NULL;
 	} else {
-		purs_vec_t * o = purs_vec_new();
+		purs_vec_t * o = (purs_vec_t *) purs_vec_new();
 		o->length = vec->length;
 		o->capacity = vec->capacity;
 		o->data = vec_malloc(sizeof (ANY) * vec->capacity);

@@ -32,7 +32,8 @@ TESTS = \
     01-partialfuns \
     04-memory \
     05-datacons \
-    03-mutrec
+    06-typeclasses \
+    10-prelude
 
 ifdef WITH_GC
 CFLAGS += \
