@@ -113,8 +113,9 @@ $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WOR
 $$(PUREC_WORKDIR)/$(1)/.build: \
 	$(PUREC_LIB) \
 	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
-	@$(CLANG) $$^ \
+	$(CLANG) $$^ \
 		-L $(PUREC_LIB_DIR) \
+		-L $(PUREC_LIB_DIR)/runtime \
 		-lpurec \
 		-lm \
 		-ffunction-sections \
