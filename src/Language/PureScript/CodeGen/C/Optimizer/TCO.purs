@@ -27,7 +27,7 @@ tco = AST.everywhere convert
   convert
     x@(AST.App
        (AST.Var "purs_indirect_value_assign")
-       [ v@(AST.Var internalIdent), (fn@AST.Function _)
+       [ v@(AST.Var internalIdent), (fn@(AST.Function _))
        ])
     | Just name <- Str.stripPrefix (wrap "$_indirect_") internalIdent =
     let

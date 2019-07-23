@@ -148,10 +148,10 @@ compileModule isMain corefn = do
   let
 
     { module:
-        mod@C.Module
+        mod@(C.Module
           { moduleName
           , modulePath: C.FilePath modulePath
-          }
+          })
     } =
       core
 

@@ -25,6 +25,9 @@ else
 LD_LINKER_FLAGS += -gc-sections
 endif
 
+.spago:
+	spago install
+
 ## Not all environments support globstar (** dir pattern)
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
@@ -116,10 +119,12 @@ $$(PUREC_WORKDIR)/$(1)/.build: \
 	$(CLANG) $$^ \
 		-L $(PUREC_LIB_DIR) \
 		-L $(PUREC_LIB_DIR)/runtime \
+		$($(1)_CFLAGS) \
 		-lpurec \
 		-lm \
 		-ffunction-sections \
 		$(LD_FLAGS) \
+		$($(1)_LD_FLAGS) \
 		-Wl,$(LD_LINKER_FLAGS) \
 		-o "$(1).out"
 	@touch $$@
@@ -128,11 +133,11 @@ $$(PUREC_WORKDIR)/$(1)/.build: \
 _$(1): $$(PUREC_WORKDIR)/$(1)/.genc
 	@$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.build
 
-$(1):
+$(1): .spago
 	@$$(MAKE) -s _$(1)
 .PHONY: $(1)
 
-$(1)/c:
+$(1)/c: .spago
 	@$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.genc
 .PHONY: $(1)/c
 endef

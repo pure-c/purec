@@ -110,10 +110,10 @@ inlineVariables = AST.everywhereM
         pure $ A.reverse acc
       Just
         ({ head:
-            head@AST.VariableIntroduction
+            head@(AST.VariableIntroduction
               { name
               , initialization: Just ast
-              }
+              })
         , tail
         }) -> do
           canBeInlined <-

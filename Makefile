@@ -141,6 +141,7 @@ test/c.0:
 	@$(CLANG) \
 		-g \
 		-I. \
+		-Iruntime \
 		-L. \
 		ctests/main.c \
 		-lpurec \
@@ -175,10 +176,12 @@ test/tests/$(1).0:
 		$(CLANG) \
 			-g \
 			-I. \
+			-I../../runtime \
 			-I../.. \
 			-L../.. \
 			./.purec-work/main/*.c \
 			-lpurec \
+			-lm \
 			-lcmocka \
 			-o a.out > /dev/null
 	@echo "tests/$(1): run ouput"

@@ -279,6 +279,17 @@ static void purs_indirect_value_test(void **state) {
 	purs_indirect_value_free(ivalue);
 }
 
+static void purs_string_test(void **state) {
+	(void) state; /* unused */
+	const purs_str_t * x = purs_str_new("test");
+	ANY y = purs_any_string(x);
+	const purs_str_t * z = purs_any_force_string(y);
+	assert_string_equal("test", z->data);
+	PURS_RC_RELEASE(z);
+	assert_string_equal("test", x->data);
+	PURS_RC_RELEASE(x);
+}
+
 int main (void) {
 	const struct CMUnitTest tests[] = {
 		cmocka_unit_test(leak_string_test),
@@ -291,6 +302,7 @@ int main (void) {
 		cmocka_unit_test(purs_indirect_value_test),
 		cmocka_unit_test(purs_indirect_thunk_test),
 		cmocka_unit_test(purs_cons_test),
+		cmocka_unit_test(purs_string_test),
 	};
 
 	return cmocka_run_group_tests(tests, NULL, NULL);

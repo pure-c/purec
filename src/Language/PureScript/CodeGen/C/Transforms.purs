@@ -418,7 +418,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
       AST.Function x@{ name, arguments, body: Just body } ->
         withReaderT (\s -> s { isTopLevel = false, depth = s.depth + 1 }) $
           eraseLambda { arguments, body }
-      ast@AST.VariableIntroduction x@{ name, initialization, type: typ } -> do
+      ast@(AST.VariableIntroduction x@{ name, initialization, type: typ }) -> do
        currentScope <- ask
        withReaderT (_ { function = Just name }) do
         if currentScope.isTopLevel
@@ -437,7 +437,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
         xs' <- A.reverse <<< snd <$>
           A.foldM (\(scope /\ asts') ->
             case _ of
-              ast@AST.VariableIntroduction { name, type: typ }
+              ast@(AST.VariableIntroduction { name, type: typ })
                 | not currentScope.isTopLevel && not (isInternalVariable name) ->
                 let
                   scope' =

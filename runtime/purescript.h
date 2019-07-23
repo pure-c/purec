@@ -404,7 +404,17 @@ __PURS_ANY_FORCE_RETAIN(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 
 /* access the cons tag directly. */
 __PURS_ANY_FORCE_COPY(cons_tag, cons->tag, int, PURS_ANY_TAG_CONS)
-#define purs_any_force_cons_tag(A) _purs_any_force_cons_tag((A), __FILE__, __LINE__)
+#define purs_any_force_cons_tag(A) \
+	_purs_any_force_cons_tag((A), __FILE__, __LINE__)
+
+__PURS_ANY_FORCE_COPY(array_length,\
+		      array == NULL\
+			? 0\
+			: v.value.array->length,\
+		      int,\
+		      PURS_ANY_TAG_ARRAY)
+#define purs_any_force_array_length(A) \
+	_purs_any_force_array_length((A), __FILE__, __LINE__)
 
 // -----------------------------------------------------------------------------
 // Any: built-in functions
@@ -461,7 +471,8 @@ const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 const purs_vec_t * purs_vec_splice (const purs_vec_t *, int start, int count);
 const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs, const purs_vec_t * rhs);
 
-#define purs_vec_foreach(v, var, iter) vec_foreach(v, var, iter)
+#define purs_vec_length(v) ((v == NULL) ? 0 : v->length)
+#define purs_vec_foreach(v, var, iter) if (v != NULL) vec_foreach(v, var, iter)
 #define purs_vec_reserve(v, n) vec_reserve(v, n)
 #define purs_vec_push_mut(v, x) vec_push(v, x)
 #define purs_vec_pusharr_mut(v, arr, count) vec_pusharr(v, arr, count)
@@ -760,10 +771,11 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 			       $__super__->bindings,\
 			       $__super__->size * sizeof (ANY));\
 			for (int i = 0; i < $__super__->size; i++) {\
-				PURS_ANY_RETAIN($__super__->bindings[i]);\
+				PURS_ANY_RETAIN(scope->bindings[i]);\
 			}\
 		}\
 		scope->bindings[CUR - 1] = a;\
+		PURS_ANY_RETAIN(scope->bindings[CUR - 1]);\
 		const purs_cont_t * cont = purs_cont_new(scope, NAME##__##NEXT);\
 		PURS_RC_RELEASE(scope);\
 		return purs_any_cont(cont);\

@@ -159,7 +159,7 @@ bindToAst isTopLevel (C.Rec vals) = ado
       let
         asts' =
           asts <#> case _ of
-            ast@AST.VariableIntroduction { name, type: typ, initialization: Just init }
+            ast@(AST.VariableIntroduction { name, type: typ, initialization: Just init })
              | not (isInternalVariable name) ->
               { indirInit:
                   Just $
@@ -464,9 +464,8 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
             [ AST.IfElse
                 (AST.Binary
                   AST.EqualTo
-                  (AST.Accessor
-                    (AST.Raw "length")
-                    (AST.App R.purs_any_get_array [ AST.Var varName ]))
+                  (AST.App (AST.Var "purs_any_force_array_length")
+                    [ AST.Var varName ])
                   (AST.NumericLiteral $ Left (A.length binders)))
                 (AST.Block ast)
                 Nothing

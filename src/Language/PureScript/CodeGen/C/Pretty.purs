@@ -329,16 +329,16 @@ withNextIndent =
   local (\st -> st { indent = st.indent + 2 })
 
 encodeChar :: Char -> String
-encodeChar '\0' = "\\0"
-encodeChar '\b' = "\\b"
-encodeChar '\t' = "\\t"
-encodeChar '\n' = "\\n"
-encodeChar '\v' = "\\v"
-encodeChar '\f' = "\\f"
-encodeChar '\r' = "\\r"
-encodeChar '"'  = "\\\""
-encodeChar '\'' = "\\'"
-encodeChar '\\' = "\\\\"
+encodeChar '\x00' = "\\0"
+encodeChar '\x08' = "\\b"
+encodeChar '\x09' = "\\t"
+encodeChar '\x0A' = "\\n"
+encodeChar '\x0B' = "\\v"
+encodeChar '\x0C' = "\\f"
+encodeChar '\x0D' = "\\r"
+encodeChar '"'    = "\\\""
+encodeChar '\x27' = "\\'"
+encodeChar '\x57' = "\\\\"
 -- TODO (implement: ctrl chrs):
 -- encodeChar c | isControl c = T.pack $ "\\x" ++ showHex (fromEnum c) ""
 encodeChar c = CodeUnits.singleton c

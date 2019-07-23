@@ -342,6 +342,7 @@ static const purs_vec_t * _purs_vec_copy (const purs_vec_t * vec) {
 
 const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {
 	const purs_vec_t * copy = _purs_vec_copy(vec);
+	if (copy == NULL) return NULL /* empty */;
 	for (int i = 0; i < copy->length; i++) {
 		PURS_ANY_RETAIN(copy->data[i]);
 	}
