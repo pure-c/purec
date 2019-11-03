@@ -560,6 +560,7 @@ static inline int purs_any_get_main_rc_compat(purs_any_t v) {
 			    "program did not return unit or int, value=(%s)\n",
 			    s);
 		free(s); /* for good measure */
+		return -1; /* silence warning */
 	}
 	}
 }
