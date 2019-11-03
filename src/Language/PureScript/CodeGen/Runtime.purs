@@ -57,7 +57,10 @@ module Language.PureScript.CodeGen.Runtime
   , _PURS_ANY_THUNK_DECL
   , _PURS_ANY_THUNK_DEF
 
-    -- constructors
+    -- foreign
+  , purs_foreign_new
+
+    -- data constructors
   , purs_cons_t
   , purs_cons_new
   , purs_cons_get_tag
@@ -210,6 +213,9 @@ purs_any_cons = AST.Var "purs_any_cons"
 
 purs_any_foreign :: AST
 purs_any_foreign = AST.Var "purs_any_foreign"
+
+purs_foreign_new :: AST
+purs_foreign_new = AST.Var "purs_foreign_new"
 
 purs_any_int :: AST
 purs_any_int = AST.Var "purs_any_int"

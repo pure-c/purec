@@ -581,7 +581,7 @@ struct tco_state {
 		PURS_ANY_RETAIN(__v__);\
 		((struct tco_state *) X)->args[I] = __v__;\
 	} while (0)
-#define purs_foreign_get_data(X) (X.data)
+#define purs_foreign_get_data(X) (X->data)
 
 /* Captured scope generation */
 struct purs_scope {

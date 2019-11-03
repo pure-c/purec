@@ -26,7 +26,7 @@ const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
 
 static void purs_foreign_free(const struct purs_rc *ref) {
 	purs_foreign_t * x = container_of(ref, purs_foreign_t, rc);
-	x->finalize_cb(x->tag, x->data);
+	if (x->finalize_cb) x->finalize_cb(x->tag, x->data);
 	purs_free(x);
 }
 

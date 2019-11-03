@@ -198,8 +198,11 @@ tco = AST.everywhere convert
                 AST.App R.purs_any_app
                   [ AST.Var tcoLoop
                   , AST.App R.purs_any_foreign
-                      [ AST.Null
-                      , AST.App R.purs_address_of [ AST.Var tcoState ]
+                      [ AST.App R.purs_foreign_new
+                          [ AST.Null
+                          , AST.App R.purs_address_of [ AST.Var tcoState ]
+                          , AST.Null
+                          ]
                       ]
                   ]
             ]

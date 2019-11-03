@@ -93,6 +93,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_vec_splice"         -> Just arrayType
     AST.Var "purs_vec_concat"         -> Just arrayType
     AST.Var "purs_str_new"            -> Just stringType
+    AST.Var "purs_foreign_new"        -> Just foreignType
     AST.Var "purs_record_new_va"      -> Just recordType
     AST.Var "purs_cont_new"           -> Just contType
     AST.Var "purs_cons_new"           -> Just consType
@@ -667,20 +668,22 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
             ]
 
 consType :: AST.Type
-consType = Type.Pointer (Type.RawType "purs_cons_t"   [ Type.Const ])
+consType = Type.Pointer (Type.RawType "purs_cons_t" [ Type.Const ])
 
 contType :: AST.Type
-contType = Type.Pointer (Type.RawType "purs_cont_t"   [ Type.Const ])
+contType = Type.Pointer (Type.RawType "purs_cont_t" [ Type.Const ])
 
 recordType :: AST.Type
 recordType = Type.Pointer (Type.RawType "purs_record_t" [ Type.Const ])
 
+foreignType :: AST.Type
+foreignType = Type.Pointer (Type.RawType "purs_foreign_t" [ Type.Const ])
 
 stringType :: AST.Type
-stringType = Type.Pointer (Type.RawType "purs_str_t"    [ Type.Const ])
+stringType = Type.Pointer (Type.RawType "purs_str_t" [ Type.Const ])
 
 arrayType :: AST.Type
-arrayType = Type.Pointer (Type.RawType "purs_vec_t"    [ Type.Const ])
+arrayType = Type.Pointer (Type.RawType "purs_vec_t" [ Type.Const ])
 
 scopeType :: AST.Type
-scopeType = Type.Pointer (Type.RawType "purs_scope_t"  [ Type.Const ])
+scopeType = Type.Pointer (Type.RawType "purs_scope_t" [ Type.Const ])
