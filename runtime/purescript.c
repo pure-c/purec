@@ -432,6 +432,7 @@ const purs_record_t * purs_record_new_va(int count, ...) {
 /* create a shallow copy of the record
  */
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
+	if (source == NULL) return NULL;
 	const purs_record_node_t * src, * tmp;
 	purs_record_t * x = purs_new(purs_record_t);
 	x->root = NULL;
@@ -460,7 +461,14 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source,
 		return source;
 	}
 
-	purs_record_t * copy = (purs_record_t *) purs_record_copy_shallow(source);
+	purs_record_t * copy;
+	if (source == NULL) {
+	    copy = purs_new(purs_record_t);
+	    copy->root = NULL;
+	    copy->rc = ((struct purs_rc) { purs_record_free, 1 });
+	} else {
+	    copy = (purs_record_t *) purs_record_copy_shallow(source);
+	}
 	va_list args;
 	va_start(args, count);
 	_purs_record_add_multi_mut(copy, count, args);
