@@ -223,15 +223,19 @@ ANY purs_record_empty;
 
 /* todo: a more efficient, non-allocating, release-mode version */
 #define purs_any_assert_tag_eq(EXPECTED, ACTUAL)\
-	purs_assert((ACTUAL) == (EXPECTED),\
+	purs_assert((EXPECTED) == (ACTUAL),\
 		    "expected tag: %s, but got: %s",\
-		    purs_any_tag_str((ACTUAL)),\
-		    purs_any_tag_str((EXPECTED)))
+		    purs_any_tag_str((EXPECTED)),\
+		    purs_any_tag_str((ACTUAL)))
 
 ANY purs_any_null;
 #define purs_any_is_null(x) (x.tag == PURS_ANY_TAG_NULL)
 
 const char * purs_any_tag_str (const purs_any_tag_t);
+
+static inline void purs_debug(purs_any_t v, char** out) {
+	asprintf(out, "tag=%s", purs_any_tag_str(v.tag));
+}
 
 #define PURS_ANY_RETAIN(X) {\
 		switch ((X).tag) {\
@@ -311,7 +315,7 @@ static inline ANY purs_any_app(ANY _f, ANY v, ...) {
 	/* unthunk, if necessary */
 	int has_changed;
 	ANY f = purs_any_unthunk(_f, &has_changed);
-	purs_any_assert_tag_eq(f.tag, PURS_ANY_TAG_CONT);
+	purs_any_assert_tag_eq(PURS_ANY_TAG_CONT, f.tag);
 
 	/* apply the function */
 	va_list args;
@@ -334,7 +338,7 @@ static inline const purs_any_tag_t purs_any_get_tag (ANY v) {
 
 #define __PURS_ANY_GET(N, A, R, TAG)\
 	static inline R _purs_any_get_ ## N (ANY v, char * file, int line) {\
-		purs_any_assert_tag_eq(v.tag, TAG);\
+		purs_any_assert_tag_eq(TAG, v.tag);\
 		return v.value.A;\
 	}
 
@@ -365,7 +369,7 @@ __PURS_ANY_GET(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 	static inline R _purs_any_force_ ## N (ANY v, char * file, int line) {\
 		int was_forced;\
 		v = purs_any_unthunk(v, &was_forced);\
-		purs_any_assert_tag_eq(v.tag, TAG);\
+		purs_any_assert_tag_eq(TAG, v.tag);\
 		R r = v.value.A;\
 		if (was_forced) PURS_ANY_RELEASE(v);\
 		return r;\
@@ -375,7 +379,7 @@ __PURS_ANY_GET(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 	static inline R _purs_any_force_ ## N (ANY v, char * file, int line) {\
 		int was_forced;\
 		v = purs_any_unthunk(v, &was_forced);\
-		purs_any_assert_tag_eq(v.tag, TAG);\
+		purs_any_assert_tag_eq(TAG, v.tag);\
 		R r = v.value.A;\
 		PURS_RC_BASE_RETAIN(r);\
 		if (was_forced) PURS_ANY_RELEASE(v);\
@@ -543,6 +547,23 @@ ANY * purs_record_find_by_key(const purs_record_t *,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
+static inline int purs_any_get_main_rc_compat(purs_any_t v) {
+	switch(v.tag) {
+	case PURS_ANY_TAG_NULL:
+		return 0;
+	case PURS_ANY_TAG_INT:
+		return purs_any_force_int(v);
+	default: {
+		char* s;
+		purs_debug(v, &s);
+		purs_assert(0,
+			    "program did not return unit or int, value=(%s)\n",
+			    s);
+		free(s); /* for good measure */
+	}
+	}
+}
+
 #define purs_address_of(V) &V
 #define purs_derefence(V) *V
 
@@ -648,6 +669,9 @@ struct purs_scope * purs_scope_new1(int size);
 // Any: initializers
 // -----------------------------------------------------------------------------
 
+#define PURS_ANY_NULL\
+	((purs_any_t){ .tag = PURS_ANY_TAG_NULL })
+
 #define PURS_ANY_INT(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_INT, .value = { .i = (X) } })
 
@@ -745,7 +769,7 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	ANY NAME ## _$
 
 #define PURS_FFI_VALUE(NAME, INIT)\
-	static const purs_any_t NAME ## _$ = INIT
+	purs_any_t NAME ## _$ = INIT
 
 // -----------------------------------------------------------------------------
 // FFI: fixed-arity curried functions
