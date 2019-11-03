@@ -112,11 +112,6 @@ typedef enum {
 } purs_any_tag_t;
 #define PURS_ANY_TAGS_TOT 10 /* Keep this in Sync! */
 
-struct purs_foreign {
-	void * tag;
-	void * data;
-};
-
 /* a reference-counted structure */
 struct purs_rc {
 	void (*free_fn)(const struct purs_rc *);
@@ -147,6 +142,7 @@ static inline void purs_rc_release(const struct purs_rc *ref) {
 /* all "base"-compatible structures must have their "rc" field in the same
    position as "_purs_rc_base." */
 struct _purs_rc_base { struct purs_rc rc; };
+#define PURS_RC_BASE_FIELDS struct purs_rc rc;
 #define PURS_RC_BASE_RELEASE(X) PURS_RC_RELEASE((struct _purs_rc_base *) X)
 #define PURS_RC_BASE_RETAIN(X) PURS_RC_RETAIN((struct _purs_rc_base *) X)
 
@@ -155,9 +151,9 @@ union purs_any_value {
 	purs_any_int_t i;
 	purs_any_num_t n;
 	purs_any_char_t chr;
-	purs_foreign_t foreign;
 
 	/* self-referential, and other values */
+	const purs_foreign_t * foreign;
 	const purs_cont_t * cont;
 	const purs_cons_t * cons;
 	const purs_thunk_t * thunk;
@@ -172,32 +168,40 @@ struct purs_any {
 };
 
 struct purs_thunk {
-	struct purs_rc rc;
+	PURS_RC_BASE_FIELDS
 	purs_thunk_fun_t * fn;
 	void * ctx;
 };
 
 struct purs_cont {
-	struct purs_rc rc;
+	PURS_RC_BASE_FIELDS
 	purs_cont_fun_t * fn;
 	const struct purs_scope * scope; /* todo: inline? */
 };
 
 struct purs_cons {
-	struct purs_rc rc;
+	PURS_RC_BASE_FIELDS
 	int tag;
 	int size;
 	ANY * values;
 };
 
 struct purs_str {
-	struct purs_rc rc;
+	PURS_RC_BASE_FIELDS
 	char * data;
 };
 
-/* a reference-counted vec_t(...) */
+typedef void (*purs_foreign_finalizer)(void* tag, void* data);
+
+struct purs_foreign {
+	PURS_RC_BASE_FIELDS
+	void * tag;
+	void * data;
+	purs_foreign_finalizer finalize_cb;
+};
+
 struct purs_vec {
-	struct purs_rc rc;
+	PURS_RC_BASE_FIELDS
 	ANY * data;
 	int length;
 	int capacity;
@@ -250,7 +254,7 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 			PURS_RC_RETAIN((X).value.cons);\
 			break;\
 		case PURS_ANY_TAG_FOREIGN:\
-			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RETAIN for: %s\n", purs_any_tag_str((X).tag));\
+			PURS_RC_RETAIN((X).value.foreign);\
 			break;\
 		default:\
 			break;\
@@ -260,7 +264,7 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 #define PURS_ANY_RELEASE(X) {\
 		switch ((X).tag) {\
 		case PURS_ANY_TAG_FOREIGN:\
-			fprintf(stderr, "WARN: Todo: Implement PURS_ANY_RELEASE for: %s\n", purs_any_tag_str((X).tag));\
+			PURS_RC_RELEASE((X).value.foreign);\
 			break;\
 		case PURS_ANY_TAG_CONS:\
 			PURS_RC_RELEASE((X).value.cons);\
@@ -337,7 +341,7 @@ static inline const purs_any_tag_t purs_any_get_tag (ANY v) {
 __PURS_ANY_GET(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
 __PURS_ANY_GET(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
 __PURS_ANY_GET(char, chr, purs_any_char_t, PURS_ANY_TAG_CHAR)
-__PURS_ANY_GET(foreign, foreign, purs_foreign_t, PURS_ANY_TAG_FOREIGN)
+__PURS_ANY_GET(foreign, foreign, const purs_foreign_t *, PURS_ANY_TAG_FOREIGN)
 __PURS_ANY_GET(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
 __PURS_ANY_GET(cons, cons, const purs_cons_t *, PURS_ANY_TAG_CONS)
 __PURS_ANY_GET(thunk, thunk, const purs_thunk_t *, PURS_ANY_TAG_THUNK)
@@ -381,7 +385,6 @@ __PURS_ANY_GET(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 __PURS_ANY_FORCE_COPY(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
 __PURS_ANY_FORCE_COPY(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
 __PURS_ANY_FORCE_COPY(char, chr, purs_any_char_t, PURS_ANY_TAG_CHAR)
-__PURS_ANY_FORCE_COPY(foreign, foreign, purs_foreign_t, PURS_ANY_TAG_FOREIGN)
 
 __PURS_ANY_FORCE_RETAIN(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
 __PURS_ANY_FORCE_RETAIN(cons, cons, const purs_cons_t *, PURS_ANY_TAG_CONS)
@@ -389,6 +392,7 @@ __PURS_ANY_FORCE_RETAIN(thunk, thunk, const purs_thunk_t *, PURS_ANY_TAG_THUNK)
 __PURS_ANY_FORCE_RETAIN(record, record, const purs_record_t *, PURS_ANY_TAG_RECORD)
 __PURS_ANY_FORCE_RETAIN(string, str, const purs_str_t *, PURS_ANY_TAG_STRING)
 __PURS_ANY_FORCE_RETAIN(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
+__PURS_ANY_FORCE_RETAIN(foreign, foreign, const purs_foreign_t *, PURS_ANY_TAG_FOREIGN)
 
 /* todo: generate faster, unsafe variants */
 #define purs_any_force_int(A)     _purs_any_force_int((A), __FILE__, __LINE__)
@@ -446,7 +450,15 @@ ANY purs_any_concat(ANY, ANY);
 const purs_cont_t * purs_cont_new(const struct purs_scope *, purs_cont_fun_t *);
 
 // -----------------------------------------------------------------------------
-// Data constructors
+// foreign
+// -----------------------------------------------------------------------------
+
+const purs_foreign_t * purs_foreign_new(void* tag,
+					void* data,
+					purs_foreign_finalizer finalize_cb);
+
+// -----------------------------------------------------------------------------
+// data constructors
 // -----------------------------------------------------------------------------
 
 const purs_cons_t * purs_cons_new(int tag, int size, ...);
@@ -645,16 +657,8 @@ struct purs_scope * purs_scope_new1(int size);
 #define PURS_ANY_CHAR(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_CHAR, .value = { .chr = (X) } })
 
-#define PURS_ANY_FOREIGN(TAG, DATA)\
-	((purs_any_t){\
-		.tag = PURS_ANY_TAG_FOREIGN,\
-		.value = {\
-			.foreign = {\
-				.tag = (TAG),\
-				.data = (DATA)\
-			}\
-		}\
-	})
+#define PURS_ANY_FOREIGN(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_FOREIGN, .value = { .foreign = (X) } })
 
 #define PURS_ANY_STRING(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_STRING, .value = { .str = (X) } })

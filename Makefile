@@ -26,10 +26,10 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-# TESTS = $(shell cd tests && find . -maxdepth 1 ! -path . -type d -exec basename {} \; | sort)
 TESTS = \
     00-basic \
     01-partialfuns \
+    02-foreign \
     04-memory \
     05-datacons \
     06-typeclasses \

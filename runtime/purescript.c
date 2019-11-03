@@ -21,7 +21,28 @@ const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
 }
 
 // -----------------------------------------------------------------------------
-// Constructors
+// foreign
+// -----------------------------------------------------------------------------
+
+static void purs_foreign_free(const struct purs_rc *ref) {
+	purs_foreign_t * x = container_of(ref, purs_foreign_t, rc);
+	x->finalize_cb(x->tag, x->data);
+	purs_free(x);
+}
+
+const purs_foreign_t * purs_foreign_new(void * tag,
+					void * data,
+					purs_foreign_finalizer finalize_cb) {
+	purs_foreign_t * foreign = purs_new(purs_foreign_t);
+	foreign->tag = tag;
+	foreign->data = data;
+	foreign->finalize_cb = finalize_cb;
+	foreign->rc = ((struct purs_rc) { purs_foreign_free, 1 });
+	return (const purs_foreign_t*) foreign;
+}
+
+// -----------------------------------------------------------------------------
+// data constructors
 // -----------------------------------------------------------------------------
 
 static void purs_cons_free(const struct purs_rc *ref) {
