@@ -8,8 +8,6 @@
 #ifndef VEC_H
 #define VEC_H
 
-#include "deps/bwdgc/include/gc.h" /* XXX: required for GC_realloc and friends to work properly (FS) */
-
 #include <stdlib.h>
 #include <string.h>
 

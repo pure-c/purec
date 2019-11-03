@@ -1,6 +1,5 @@
 CLANG ?= clang
 CFLAGS ?=
-WITH_GC ?=
 
 SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
@@ -14,9 +13,6 @@ PUREC := node $(PUREC_JS)
 PUREC_WORKDIR := .purec-work
 PUREC_LIB := libpurec.a
 PUREC_INTERMEDIATE_LIB := libpurec.intermediate.a
-
-BWDGC_V := v8.0.0
-BWDGC_LIB := deps/bwdgc/.libs/libgc.a
 
 RUNTIME_SOURCES = \
 	runtime/purescript.c \
@@ -35,36 +31,16 @@ TESTS = \
     06-typeclasses \
     10-prelude
 
-ifdef WITH_GC
-CFLAGS += \
-	-D 'uthash_malloc=GC_malloc' \
-	-D 'uthash_free(ptr, sz)=NULL' \
-	-D 'vec_realloc=GC_realloc' \
-	-D 'vec_free(x)=NULL' \
-	-D 'vec_malloc=GC_malloc'
-endif
-
 ifdef UNIT_TESTING
 CFLAGS += \
 	-g \
 	-D UNIT_TESTING
 endif
 
-$(BWDGC_LIB):
-	@$(MAKE) -s deps/bwdgc
-	@cd deps/bwdgc && \
-	    ./autogen.sh && \
-	    ./configure --enable-static && \
-	    $(MAKE)
-
 $(PUREC_INTERMEDIATE_LIB): $(RUNTIME_OBJECTS)
 	@ar csr $@ $^
 
-ifdef WITH_GC
-$(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB) $(BWDGC_LIB)
-else
 $(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB)
-endif
 	@rm -rf .build
 	@mkdir -p .build
 	@cd .build &&\
@@ -91,7 +67,7 @@ clean:
 	@rm -f $$(find . -maxdepth 1 -type f -name '*.a')
 .PHONY: clean
 
-%.o: %.c | $(BWDGC_LIB)
+%.o: %.c
 	@echo "Compile" $^
 	@$(CLANG) $^ -c -o $@ \
 		-Wall \
@@ -106,26 +82,13 @@ clean:
 #-------------------------------------------------------------------------------
 
 deps:\
-	deps/npm\
-	deps/bwdgc
+	deps/npm
 .PHONY: deps
 
 deps/npm:
 	@npm install
 	@node_modules/.bin/bower install
 .PHONY: deps/npm
-
-deps/bwdgc:
-	@if [ ! -d deps/bwdgc ]; then \
-		if [ ! -f gc.tar.gz ]; then \
-			echo "downloading bwdgc tarball...";\
-			curl -sfLo gc.tar.gz \
-				'https://api.github.com/repos/ivmai/bdwgc/tarball/$(BWDGC_V)'; \
-		fi && \
-		mkdir -p deps/bwdgc && \
-		tar -C deps/bwdgc -xzf gc.tar.gz --strip-components 1; \
-	fi
-.PHONY: deps/bwdgc
 
 #-------------------------------------------------------------------------------
 # Tests

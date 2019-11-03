@@ -10,13 +10,6 @@
 #include <assert.h>
 #include <math.h>
 
-#ifdef WITH_GC
-#include "deps/bwdgc/include/gc.h"
-#define purs_malloc(SZ) GC_MALLOC(SZ)
-#define purs_realloc(PTR, SZ) GC_REALLOC(PTR, SZ)
-#define purs_new(EXP) GC_NEW(sizeof (EXP))
-#define purs_free(X)
-#else
 #ifdef UNIT_TESTING
 extern void mock_assert(const int result, const char *const expression, const char *const file, const int line);
 #undef assert
@@ -48,7 +41,6 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 			assert(A);\
 		}\
 	} while (0)
-#endif
 #endif
 
 #include "ccan/asprintf/asprintf.h"
