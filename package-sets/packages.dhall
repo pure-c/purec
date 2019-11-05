@@ -8,11 +8,9 @@ let filter =
 
 let packages =
       { effect =
-              upstream.effect
-          //  { repo = "/home/felix/projects/pure-c/purescript-effect" }
+          /home/felix/projects/pure-c/purescript-effect/spago.dhall as Location
       , prelude =
-              upstream.prelude
-          //  { repo = "/home/felix/projects/pure-c/purescript-prelude" }
+          /home/felix/projects/pure-c/purescript-prelude/spago.dhall as Location
       , arrays =
               upstream.arrays
           //  { repo = "https://github.com/pure-c/purescript-arrays.git" }
@@ -21,8 +19,7 @@ let packages =
           //  { repo = "https://github.com/pure-c/purescript-assert.git" }
       , bifunctors =
               upstream.bifunctors
-          //  { repo =
-                  "https://github.com/purescript/purescript-bifunctors.git"
+          //  { repo = "https://github.com/purescript/purescript-bifunctors.git"
               }
       , console =
               upstream.console
@@ -61,17 +58,13 @@ let packages =
               upstream.identity
           //  { repo = "https://github.com/purescript/purescript-identity.git" }
       , integers =
-          { repo =
-              "https://github.com/pure-c/purescript-integers"
-          , version =
-              "c"
-          , dependencies =
-              [ "math", "maybe", "prelude" ]
+          { repo = "https://github.com/pure-c/purescript-integers"
+          , version = "c"
+          , dependencies = [ "math", "maybe", "prelude" ]
           }
       , invariant =
               upstream.invariant
-          //  { repo =
-                  "https://github.com/purescript/purescript-invariant.git"
+          //  { repo = "https://github.com/purescript/purescript-invariant.git"
               }
       , lazy =
               upstream.lazy
@@ -81,10 +74,8 @@ let packages =
           //  { repo = "https://github.com/purescript/purescript-lists.git" }
       , math =
               upstream.math
-          //  { repo =
-                  "https://github.com/pure-c/purescript-math.git"
-              , version =
-                  "purescript-integers"
+          //  { repo = "https://github.com/pure-c/purescript-math.git"
+              , version = "purescript-integers"
               }
       , maybe =
               upstream.maybe
@@ -139,8 +130,7 @@ let packages =
           //  { repo = "https://github.com/pure-c/purescript-unfoldable.git" }
       , unsafe-coerce =
               upstream.unsafe-coerce
-          //  { repo =
-                  "https://github.com/pure-c/purescript-unsafe-coerce.git"
+          //  { repo = "https://github.com/pure-c/purescript-unsafe-coerce.git"
               }
       , variant =
               upstream.variant
