@@ -19,24 +19,15 @@ let packages =
           //  { repo = "https://github.com/pure-c/purescript-assert.git"
               , version = "master"
               }
-      , bifunctors =
-              upstream.bifunctors
-          //  { repo = "https://github.com/purescript/purescript-bifunctors.git"
-              }
+      , bifunctors = upstream.bifunctors
       , console =
               upstream.console
           //  { repo = "https://github.com/pure-c/purescript-console.git" }
       , control =
               upstream.control
           //  { repo = "https://github.com/pure-c/purescript-control.git" }
-      , distributive =
-              upstream.distributive
-          //  { repo =
-                  "https://github.com/purescript/purescript-distributive.git"
-              }
-      , either =
-              upstream.either
-          //  { repo = "https://github.com/purescript/purescript-either.git" }
+      , distributive = upstream.distributive
+      , either = upstream.either
       , enums =
               upstream.enums
           //  { repo = "https://github.com/pure-c/purescript-enums.git" }
@@ -48,55 +39,32 @@ let packages =
       , functions =
               upstream.functions
           //  { repo = "https://github.com/pure-c/purescript-functions.git" }
-      , gen =
-              upstream.gen
-          //  { repo = "https://github.com/purescript/purescript-gen.git" }
-      , generics-rep =
-              upstream.generics-rep
-          //  { repo =
-                  "https://github.com/purescript/purescript-generics-rep.git"
-              }
-      , identity =
-              upstream.identity
-          //  { repo = "https://github.com/purescript/purescript-identity.git" }
+      , gen = upstream.gen
+      , generics-rep = upstream.generics-rep
+      , identity = upstream.identity
       , integers =
           { repo = "https://github.com/pure-c/purescript-integers"
           , version = "c"
           , dependencies = [ "math", "maybe", "prelude" ]
           }
-      , invariant =
-              upstream.invariant
-          //  { repo = "https://github.com/purescript/purescript-invariant.git"
-              }
+      , invariant = upstream.invariant
       , lazy =
               upstream.lazy
           //  { repo = "https://github.com/pure-c/purescript-lazy.git" }
-      , lists =
-              upstream.lists
-          //  { repo = "https://github.com/purescript/purescript-lists.git" }
+      , lists = upstream.lists
       , math =
               upstream.math
           //  { repo = "https://github.com/pure-c/purescript-math.git"
               , version = "purescript-integers"
               }
-      , maybe =
-              upstream.maybe
-          //  { repo = "https://github.com/purescript/purescript-maybe.git" }
-      , newtype =
-              upstream.newtype
-          //  { repo = "https://github.com/purescript/purescript-newtype.git" }
-      , nonempty =
-              upstream.nonempty
-          //  { repo = "https://github.com/purescript/purescript-nonempty.git" }
-      , orders =
-              upstream.orders
-          //  { repo = "https://github.com/purescript/purescript-orders.git" }
+      , maybe = upstream.maybe
+      , newtype = upstream.newtype
+      , nonempty = upstream.nonempty
+      , orders = upstream.orders
       , partial =
               upstream.partial
           //  { repo = "https://github.com/pure-c/purescript-partial.git" }
-      , proxy =
-              upstream.proxy
-          //  { repo = "https://github.com/purescript/purescript-proxy.git" }
+      , proxy = upstream.proxy
       , record =
               upstream.record
           //  { repo = "https://github.com/pure-c/purescript-record.git" }
@@ -106,27 +74,11 @@ let packages =
       , st =
               upstream.st
           //  { repo = "https://github.com/pure-c/purescript-st.git" }
-      , tailrec =
-              upstream.tailrec
-          //  { repo = "https://github.com/purescript/purescript-tailrec.git" }
-      , transformers =
-              upstream.transformers
-          //  { repo =
-                  "https://github.com/purescript/purescript-transformers.git"
-              }
-      , tuples =
-              upstream.tuples
-          //  { repo = "https://github.com/purescript/purescript-tuples.git" }
-      , type-equality =
-              upstream.type-equality
-          //  { repo =
-                  "https://github.com/purescript/purescript-type-equality.git"
-              }
-      , typelevel-prelude =
-              upstream.typelevel-prelude
-          //  { repo =
-                  "https://github.com/purescript/purescript-typelevel-prelude.git"
-              }
+      , tailrec = upstream.tailrec
+      , transformers = upstream.transformers
+      , tuples = upstream.tuples
+      , type-equality = upstream.type-equality
+      , typelevel-prelude = upstream.typelevel-prelude
       , unfoldable =
               upstream.unfoldable
           //  { repo = "https://github.com/pure-c/purescript-unfoldable.git" }
@@ -134,9 +86,7 @@ let packages =
               upstream.unsafe-coerce
           //  { repo = "https://github.com/pure-c/purescript-unsafe-coerce.git"
               }
-      , variant =
-              upstream.variant
-          //  { repo = "https://github.com/natefaubion/purescript-variant.git" }
+      , variant = upstream.variant
       }
 
 in  packages
