@@ -88,7 +88,7 @@ premain: $(srcs)
 	@touch $^ || { :; }
 	@cp "$(PUREC_DIR)"/package-sets/* .
 	@cp "$(PUREC_DIR)"/upstream/tests/support/spago.dhall .
-	@$(SPAGO) install
+	@$(SPAGO) install -c skip
 	@$(MAKE) -s main
 
 $(eval $(call purs_mk_target,main,Main,$(srcs)))

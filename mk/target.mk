@@ -20,7 +20,7 @@ PUREC_PM ?= spago
 ifeq ($(PUREC_PM),spago)
 DEPS_DIR = .spago
 SPAGO ?= spago
-DEPS_INSTALL = $(SPAGO) install
+DEPS_INSTALL = $(SPAGO) install -c skip
 PACKAGE_SOURCES = $(shell [ -d .spago ] && $(SPAGO) sources)
 else ifeq ($(PUREC_PM),bower)
 BOWER ?= bower

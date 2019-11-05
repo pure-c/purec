@@ -16,7 +16,9 @@ let packages =
           //  { repo = "https://github.com/pure-c/purescript-arrays.git" }
       , assert =
               upstream.assert
-          //  { repo = "https://github.com/pure-c/purescript-assert.git" }
+          //  { repo = "https://github.com/pure-c/purescript-assert.git"
+              , version = "master"
+              }
       , bifunctors =
               upstream.bifunctors
           //  { repo = "https://github.com/purescript/purescript-bifunctors.git"
