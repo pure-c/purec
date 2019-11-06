@@ -28,7 +28,8 @@ TESTS = \
     04-memory \
     05-datacons \
     06-typeclasses \
-    10-prelude
+    10-prelude \
+    11-effects
 
 ifdef UNIT_TESTING
 CFLAGS += \
