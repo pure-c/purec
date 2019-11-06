@@ -5,7 +5,6 @@ SHELL := /bin/bash
 SHELLFLAGS := -eo pipefail
 
 PURS := PATH=$$PATH:node_modules/.bin purs
-PULP := PATH=$$PATH:node_modules/.bin pulp
 SPAGO := PATH=$$PATH:node_modules/.bin spago
 
 PUREC_JS := purec.js
@@ -87,7 +86,7 @@ deps:\
 
 deps/npm:
 	@npm install
-	@node_modules/.bin/bower install
+	$(SPAGO) install
 .PHONY: deps/npm
 
 #-------------------------------------------------------------------------------
@@ -178,9 +177,9 @@ test/tests/main.0:
 .PHONY: test/tests/main.0
 
 test/upstream:
-	@$(MAKE) -s clean
-	@$(PULP) test > /dev/null
-.PHONY: test/pulp
+	$(MAKE) clean
+	$(SPAGO) test
+.PHONY: test/upstream
 
 test:
 	@echo '=== test: c-tests ==================================================='
@@ -191,12 +190,3 @@ test:
 	@#$(MAKE) -s test/upstream
 	@#echo 'success!'
 .PHONY: test
-
-#-------------------------------------------------------------------------------
-# utilities
-#-------------------------------------------------------------------------------
-
-%/bower_components:
-	@ROOT=$(PWD) &&\
-		cd "$(dir $@)" &&\
-		"$$ROOT/node_modules/.bin/bower" install
