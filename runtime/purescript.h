@@ -616,35 +616,14 @@ struct purs_scope * purs_scope_new1(int size);
 /* allocate a buffer to fit 'N' 'ANY's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (ANY) * N)
 
-/**
- * XXX: Static thunks technically leak memory when they are first forced. For
- *      values known at compile time, we could - in theory - allocate the
- *      structure as data in the binary. However, for mere reason of simplicity
- *      in implementation, we thunk them into heap-allocated memory.
- *      To avoid 'libcmocka' reporting these "leaks", we simply do not hold on
- *      to the results.
+/* declare a thunked top-level value.
+   todo: consider caching top-level thunks once forced.
  */
-#ifndef CACHE_TOPLEVEL_THUNKS
-#define _PURS_ANY_THUNK_INIT(INIT)\
-	return INIT;
-#else
-#define _PURS_ANY_THUNK_INIT(INIT)\
-	static ANY v;\
-	static int x = 0;\
-	if (x == 0) {\
-		x = 1;\
-		v = INIT;\
-		PURS_ANY_RETAIN(v); /* never free */\
-	} else {\
-		PURS_ANY_RETAIN(v);\
-	}\
-	return v;
-#endif // UNIT_TESTING
-
-/* declare a thunked top-level value. */
-#define PURS_ANY_THUNK_DEF(NAME, INIT)\
+#define PURS_ANY_THUNK_DEF(NAME)\
+	static ANY NAME ## __thunk_fn__init();\
 	static ANY NAME ## __thunk_fn__ (void * __unused__1) { \
-		_PURS_ANY_THUNK_INIT(INIT);\
+
+	    return NAME ## __thunk_fn__init();\
 	};\
 	purs_thunk_t NAME ## __thunk__ = {\
 		.fn = NAME ## __thunk_fn__,\
@@ -654,7 +633,8 @@ struct purs_scope * purs_scope_new1(int size);
 	ANY NAME = {\
 		.tag = PURS_ANY_TAG_THUNK,\
 		.value = { .thunk = & NAME ## __thunk__ }\
-	};
+	};\
+	ANY NAME ## __thunk_fn__init()
 
 #define purs_any_int_neg(X) purs_any_int_new(-purs_any_get_int(X))
 
@@ -663,7 +643,7 @@ struct purs_scope * purs_scope_new1(int size);
 // -----------------------------------------------------------------------------
 
 #define PURS_ANY_NULL\
-	((purs_any_t){ .tag = PURS_ANY_TAG_NULL })
+	(purs_any_t){ .tag = PURS_ANY_TAG_NULL })
 
 #define PURS_ANY_INT(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_INT, .value = { .i = (X) } })

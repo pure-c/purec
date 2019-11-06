@@ -79,11 +79,11 @@ toHeader = A.catMaybes <<< map go
     Nothing
 
 toBody :: Array AST -> Array AST
-toBody = A.catMaybes <<< map go
+toBody = A.concat <<< A.catMaybes <<< map go
   where
-  go :: AST -> Maybe AST
+  go :: AST -> Maybe (Array AST)
   go x@(AST.Function _) =
-    Just x
+    Just [x]
   go (AST.VariableIntroduction { name, type: typ, initialization: Just initialization }) =
     go' initialization
     where
@@ -94,12 +94,12 @@ toBody = A.catMaybes <<< map go
       --       variables is that freeing these resources becomes tricky, as they
       --       would need to be able to be re-initialized after the RC drops to
       --       back to zero.
-      Just $
-        AST.App
-          R._PURS_ANY_THUNK_DEF
-          [ AST.Raw name
-          , ast
-          ]
+      Just
+        [ AST.App R._PURS_ANY_THUNK_DEF [ AST.Raw name ]
+        , AST.Block
+            [ AST.Return ast
+            ]
+        ]
   go _ = Nothing
 
 -- XXX: should be configurable
