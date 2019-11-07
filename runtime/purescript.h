@@ -622,7 +622,6 @@ struct purs_scope * purs_scope_new1(int size);
 #define PURS_ANY_THUNK_DEF(NAME)\
 	static ANY NAME ## __thunk_fn__init();\
 	static ANY NAME ## __thunk_fn__ (void * __unused__1) { \
-
 	    return NAME ## __thunk_fn__init();\
 	};\
 	purs_thunk_t NAME ## __thunk__ = {\
@@ -643,7 +642,7 @@ struct purs_scope * purs_scope_new1(int size);
 // -----------------------------------------------------------------------------
 
 #define PURS_ANY_NULL\
-	(purs_any_t){ .tag = PURS_ANY_TAG_NULL })
+	((purs_any_t){ .tag = PURS_ANY_TAG_NULL })
 
 #define PURS_ANY_INT(X)\
 	((purs_any_t){ .tag = PURS_ANY_TAG_INT, .value = { .i = (X) } })
@@ -1024,154 +1023,188 @@ static inline ANY purs_indirect_thunk_new(ANY * x) {
 	_PURS_FFI_FUNC_ENTRY(NAME);\
 	ANY NAME##__12_impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6, ANY A7, ANY A8, ANY A9, ANY A10, ANY A11, ANY A12)
 
-/* // ----------------------------------------------------------------------------- */
-/* // FFI: fixed-arity uncurried functions */
-/* // ----------------------------------------------------------------------------- */
+// -----------------------------------------------------------------------------
+// FFI: fixed-arity uncurried functions
+// -----------------------------------------------------------------------------
 
-/* #define _PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME)\ */
-/* 	ANY NAME##__1_ = {\ */
-/* 		.tag = PURS_ANY_TAG_CONT,\ */
-/* 		.value = { .cont = { .fn = NAME, .ctx = purs_any_null } }\ */
-/* 	};\ */
-/* 	ANY NAME ## _$ = & NAME##__1_ */
+#define _PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME)\
+	purs_cont_t NAME ## __cont__ = {\
+		.fn = NAME ## _fn,\
+		.scope = NULL,\
+		.rc = { .count = -1 }\
+	};\
+	ANY NAME = {\
+		.tag = PURS_ANY_TAG_CONT,\
+		.value = { .cont = & NAME ## __cont__ }\
+	};\
+	/* for code-gen use. todo: remove? */\
+	ANY NAME ## _$ = {\
+		.tag = PURS_ANY_TAG_CONT,\
+		.value = { .cont = & NAME ## __cont__ }\
+	}
 
-/* #define PURS_FFI_FUNC_UNCURRIED_1(NAME, A1, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list $__unused__) {\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_1(NAME, A1)\
+	ANY NAME##__impl (ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list $__unused__) {\
+		return NAME##__impl (A1);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_2(NAME, A1, A2, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_2(NAME, A1, A2)\
+	ANY NAME##__impl (ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_3(NAME, A1, A2, A3, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_3(NAME, A1, A2, A3)\
+	ANY NAME##__impl (ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_4(NAME, A1, A2, A3, A4, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_4(NAME, A1, A2, A3, A4)\
+	ANY NAME##__impl (ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_5(NAME, A1, A2, A3, A4, A5, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_5(NAME, A1, A2, A3, A4, A5)\
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_6(NAME, A1, A2, A3, A4, A5, A6, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		ANY A6 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_6(NAME, A1, A2, A3, A4, A5, A6)\
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		ANY A6 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5, A6);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_7(NAME, A1, A2, A3, A4, A5, A6, A7, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		ANY A6 = va_arg(vl, ANY);\ */
-/* 		ANY A7 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_7(NAME, A1, A2, A3, A4, A5, A6, A7)\
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		ANY A6 = va_arg(vl, ANY);\
+		ANY A7 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6, ANY A7)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		ANY A6 = va_arg(vl, ANY);\ */
-/* 		ANY A7 = va_arg(vl, ANY);\ */
-/* 		ANY A8 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8)\
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		ANY A6 = va_arg(vl, ANY);\
+		ANY A7 = va_arg(vl, ANY);\
+		ANY A8 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6, ANY A7, ANY A8)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		ANY A6 = va_arg(vl, ANY);\ */
-/* 		ANY A7 = va_arg(vl, ANY);\ */
-/* 		ANY A8 = va_arg(vl, ANY);\ */
-/* 		ANY A9 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9) \
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		ANY A6 = va_arg(vl, ANY);\
+		ANY A7 = va_arg(vl, ANY);\
+		ANY A8 = va_arg(vl, ANY);\
+		ANY A9 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6, ANY A7, ANY A8, ANY A9)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		ANY A6 = va_arg(vl, ANY);\ */
-/* 		ANY A7 = va_arg(vl, ANY);\ */
-/* 		ANY A8 = va_arg(vl, ANY);\ */
-/* 		ANY A9 = va_arg(vl, ANY);\ */
-/* 		ANY A10 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) \
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		ANY A6 = va_arg(vl, ANY);\
+		ANY A7 = va_arg(vl, ANY);\
+		ANY A8 = va_arg(vl, ANY);\
+		ANY A9 = va_arg(vl, ANY);\
+		ANY A10 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6, ANY A7, ANY A8, ANY A9, ANY A10)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		ANY A6 = va_arg(vl, ANY);\ */
-/* 		ANY A7 = va_arg(vl, ANY);\ */
-/* 		ANY A8 = va_arg(vl, ANY);\ */
-/* 		ANY A9 = va_arg(vl, ANY);\ */
-/* 		ANY A10 = va_arg(vl, ANY);\ */
-/* 		ANY A11 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11)\
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY);\
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		ANY A6 = va_arg(vl, ANY);\
+		ANY A7 = va_arg(vl, ANY);\
+		ANY A8 = va_arg(vl, ANY);\
+		ANY A9 = va_arg(vl, ANY);\
+		ANY A10 = va_arg(vl, ANY);\
+		ANY A11 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6, ANY A7, ANY A8, ANY A9, ANY A10, ANY A11)
 
-/* #define PURS_FFI_FUNC_UNCURRIED_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, BODY)\ */
-/* 	ANY NAME (const void * $__super__, ANY A1, va_list vl) {\ */
-/* 		ANY A2 = va_arg(vl, ANY);\ */
-/* 		ANY A3 = va_arg(vl, ANY);\ */
-/* 		ANY A4 = va_arg(vl, ANY);\ */
-/* 		ANY A5 = va_arg(vl, ANY);\ */
-/* 		ANY A6 = va_arg(vl, ANY);\ */
-/* 		ANY A7 = va_arg(vl, ANY);\ */
-/* 		ANY A8 = va_arg(vl, ANY);\ */
-/* 		ANY A9 = va_arg(vl, ANY);\ */
-/* 		ANY A10 = va_arg(vl, ANY);\ */
-/* 		ANY A11 = va_arg(vl, ANY);\ */
-/* 		ANY A12 = va_arg(vl, ANY);\ */
-/* 		BODY;\ */
-/* 	}\ */
-/* 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME) */
+#define PURS_FFI_FUNC_UNCURRIED_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12)\
+	ANY NAME##__impl (ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY, ANY); \
+	ANY NAME##_fn (const purs_scope_t * $__super__, ANY A1, va_list vl) {\
+		ANY A2 = va_arg(vl, ANY);\
+		ANY A3 = va_arg(vl, ANY);\
+		ANY A4 = va_arg(vl, ANY);\
+		ANY A5 = va_arg(vl, ANY);\
+		ANY A6 = va_arg(vl, ANY);\
+		ANY A7 = va_arg(vl, ANY);\
+		ANY A8 = va_arg(vl, ANY);\
+		ANY A9 = va_arg(vl, ANY);\
+		ANY A10 = va_arg(vl, ANY);\
+		ANY A11 = va_arg(vl, ANY);\
+		ANY A12 = va_arg(vl, ANY);\
+		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12);\
+	}\
+	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
+	ANY NAME##__impl (ANY A1, ANY A2, ANY A3, ANY A4, ANY A5, ANY A6, ANY A7, ANY A8, ANY A9, ANY A10, ANY A11, ANY A12)
+
 
 // -----------------------------------------------------------------------------
 // Prim shims
