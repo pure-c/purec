@@ -17,10 +17,10 @@
     "bower": "^1.8.4",
     "pulp": "^12.3.0",
     "purescript": "^0.13.2",
-    "spago": "^0.8.5"
+    "spago": "^0.17.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "make test",
     "build": "spago bundle-app -t purec.js",
     "watch": "spago bundle-app -w -t purec.js"
   },

@@ -8,9 +8,9 @@ let filter =
 
 let packages =
       { effect =
-          /home/felix/projects/pure-c/purescript-effect/spago.dhall as Location
+          ../../purescript-effect/spago.dhall as Location
       , prelude =
-          /home/felix/projects/pure-c/purescript-prelude/spago.dhall as Location
+          ../../purescript-prelude/spago.dhall as Location
       , arrays =
               upstream.arrays
           //  { repo = "https://github.com/pure-c/purescript-arrays.git" }

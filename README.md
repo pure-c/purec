@@ -29,7 +29,7 @@ purescript-aff and bindings to libuv on top of PureC.
 * Scrap your node.js
 * Write small, easy to distribute command line utilities
 
-## Getting Started
+## Development
 
 These instructions will get you a copy of the project up and running on your
 local machine for development and testing purposes.
@@ -40,17 +40,19 @@ compilers.
 
 ### Prerequisites
 
-* Install node.js, including `npm`
+PureC is written in PureScript and currently not self-hoisting; A full node.js
+runtime is required. With node.js installed (any recent version will work)
+install the node.js dependencies to build purec.js: `npm install`.
 
-```
-make deps
-```
+Additionally, we require
+
+* make
+* libcmocka-dev
+* valgrind
 
 ## Build the purec utility
 
-```
-make purec
-```
+Run `npm run build` to build the purec.js utility.
 
 ## Running the examples
 

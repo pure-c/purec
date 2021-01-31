@@ -29,7 +29,8 @@ TESTS = \
     05-datacons \
     06-typeclasses \
     10-prelude \
-    11-effects
+    11-effects \
+    12-rec-fns
 
 ifdef UNIT_TESTING
 CFLAGS += \
@@ -52,14 +53,6 @@ $(PUREC_LIB): $(PUREC_INTERMEDIATE_LIB)
 
 .PHONY: $(PUREC_LIB)
 
-$(PUREC_JS):
-	@npm run build
-.PHONY: $(PUREC_JS)
-
-# deprecated
-purec: $(PUREC_JS)
-.PHONY: purec
-
 clean:
 	@rm -rf $(PUREC_WORKDIR)
 	@rm -f $(RUNTIME_OBJECTS)
@@ -76,19 +69,6 @@ clean:
 		-I runtime \
 		-I . \
 		$(CFLAGS)
-
-#-------------------------------------------------------------------------------
-# Dependencies
-#-------------------------------------------------------------------------------
-
-deps:\
-	deps/npm
-.PHONY: deps
-
-deps/npm:
-	@npm install
-	$(SPAGO) install
-.PHONY: deps/npm
 
 #-------------------------------------------------------------------------------
 # Tests
