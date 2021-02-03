@@ -15,7 +15,7 @@ let packages =
       , prelude =
               upstream.prelude
           //  { repo = "https://github.com/pure-c/purescript-prelude.git"
-              , version = "f9fa363b63240dae99109a95c8007c76a4f32d4c"
+              , version = "379849976f501cae2c0a59303ef3927f67cc99bc"
               }
       , arrays =
               upstream.arrays
@@ -28,10 +28,13 @@ let packages =
       , bifunctors = upstream.bifunctors
       , console =
               upstream.console
-          //  { repo = "https://github.com/pure-c/purescript-console.git" }
+          //  { repo = "https://github.com/pure-c/purescript-console.git"
+          }
       , control =
               upstream.control
-          //  { repo = "https://github.com/pure-c/purescript-control.git" }
+          //  { repo = "https://github.com/pure-c/purescript-control.git"
+              , version = "ed59eb9a7ac30e3bb58a671b7e657665b6e8bfb9"
+              }
       , distributive = upstream.distributive
       , either = upstream.either
       , enums =

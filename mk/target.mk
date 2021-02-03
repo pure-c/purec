@@ -15,22 +15,9 @@ PUREC_LIB = $(PUREC_DIR)/libpurec.a
 PUREC_LIB_DIR = $(dir $(PUREC_LIB))
 PUREC_LIB_NAME = $(notdir %/%,%,$(PUREC_LIB))
 
-PUREC_PM ?= spago
-
-ifeq ($(PUREC_PM),spago)
 DEPS_DIR = .spago
 SPAGO ?= spago
-DEPS_INSTALL = $(SPAGO) install -c skip
 PACKAGE_SOURCES = $(shell [ -d .spago ] && $(SPAGO) sources)
-else ifeq ($(PUREC_PM),bower)
-BOWER ?= bower
-DEPS_DIR = bower_components
-DEPS_INSTALL = $(BOWER) install
-PACKAGE_SOURCES = $$(shell \
-	2>/dev/null find bower_components -type d -name 'purescript-*/src')
-else
-$(error PUREC_PM not recognized)
-endif
 
 OS := $(shell uname)
 ifeq ($(OS),Darwin)
@@ -39,8 +26,12 @@ else
 LD_LINKER_FLAGS += -gc-sections
 endif
 
-$(DEPS_DIR):
-	$(DEPS_INSTALL)
+.spago.sources.sum:
+	$(SPAGO) sources | md5sum > .spago.sources.sum
+.PHONY: .spago.sources.sum
+
+.spago: .spago.sources.sum
+	$(SPAGO) install -c skip
 
 ## Not all environments support globstar (** dir pattern)
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))

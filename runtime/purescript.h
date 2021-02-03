@@ -71,10 +71,10 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 #define ANY purs_any_t
 #define APP purs_any_app
 
-#define purs_any_int_t int32_t
-#define purs_any_num_t double
+#define purs_int_t int32_t
+#define purs_num_t double
 
-typedef utf8_int32_t purs_any_char_t;
+typedef utf8_int32_t purs_char_t;
 typedef struct purs_vec purs_vec_t;
 typedef struct purs_any purs_any_t;
 typedef struct purs_record purs_record_t;
@@ -140,9 +140,9 @@ struct _purs_rc_base { struct purs_rc rc; };
 
 union purs_any_value {
 	/* inline values */
-	purs_any_int_t i;
-	purs_any_num_t n;
-	purs_any_char_t chr;
+	purs_int_t i;
+	purs_num_t n;
+	purs_char_t chr;
 
 	/* self-referential, and other values */
 	const purs_foreign_t * foreign;
@@ -334,9 +334,9 @@ static inline const purs_any_tag_t purs_any_get_tag (ANY v) {
 		return v.value.A;\
 	}
 
-__PURS_ANY_GET(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
-__PURS_ANY_GET(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
-__PURS_ANY_GET(char, chr, purs_any_char_t, PURS_ANY_TAG_CHAR)
+__PURS_ANY_GET(int, i, purs_int_t, PURS_ANY_TAG_INT)
+__PURS_ANY_GET(num, n, purs_num_t, PURS_ANY_TAG_NUM)
+__PURS_ANY_GET(char, chr, purs_char_t, PURS_ANY_TAG_CHAR)
 __PURS_ANY_GET(foreign, foreign, const purs_foreign_t *, PURS_ANY_TAG_FOREIGN)
 __PURS_ANY_GET(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
 __PURS_ANY_GET(cons, cons, const purs_cons_t *, PURS_ANY_TAG_CONS)
@@ -378,10 +378,9 @@ __PURS_ANY_GET(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 		return r;\
 	}
 
-__PURS_ANY_FORCE_COPY(int, i, purs_any_int_t, PURS_ANY_TAG_INT)
-__PURS_ANY_FORCE_COPY(num, n, purs_any_num_t, PURS_ANY_TAG_NUM)
-__PURS_ANY_FORCE_COPY(char, chr, purs_any_char_t, PURS_ANY_TAG_CHAR)
-
+__PURS_ANY_FORCE_COPY(int, i, purs_int_t, PURS_ANY_TAG_INT)
+__PURS_ANY_FORCE_COPY(num, n, purs_num_t, PURS_ANY_TAG_NUM)
+__PURS_ANY_FORCE_COPY(char, chr, purs_char_t, PURS_ANY_TAG_CHAR)
 __PURS_ANY_FORCE_RETAIN(cont, cont, const purs_cont_t *, PURS_ANY_TAG_CONT)
 __PURS_ANY_FORCE_RETAIN(cons, cons, const purs_cons_t *, PURS_ANY_TAG_CONS)
 __PURS_ANY_FORCE_RETAIN(thunk, thunk, const purs_thunk_t *, PURS_ANY_TAG_THUNK)
@@ -390,7 +389,6 @@ __PURS_ANY_FORCE_RETAIN(string, str, const purs_str_t *, PURS_ANY_TAG_STRING)
 __PURS_ANY_FORCE_RETAIN(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 __PURS_ANY_FORCE_RETAIN(foreign, foreign, const purs_foreign_t *, PURS_ANY_TAG_FOREIGN)
 
-/* todo: generate faster, unsafe variants */
 #define purs_any_force_int(A)     _purs_any_force_int((A), __FILE__, __LINE__)
 #define purs_any_force_num(A)     _purs_any_force_num((A), __FILE__, __LINE__)
 #define purs_any_force_char(A)    _purs_any_force_char((A), __FILE__, __LINE__)
@@ -420,7 +418,7 @@ __PURS_ANY_FORCE_COPY(array_length,\
 // Any: built-in functions
 // -----------------------------------------------------------------------------
 
-static inline int purs_any_eq_char (ANY x, purs_any_char_t y) {
+static inline int purs_any_eq_char (ANY x, purs_char_t y) {
 	return purs_any_get_char(x) == y;
 }
 
@@ -428,7 +426,7 @@ static inline int purs_any_eq_string (ANY x, const void * str) {
 	return utf8cmp(purs_any_get_string(x)->data, str) == 0;
 }
 
-static inline int purs_any_eq_int (ANY x, purs_any_int_t y) {
+static inline int purs_any_eq_int (ANY x, purs_int_t y) {
 	return purs_any_get_int(x) == y;
 }
 
