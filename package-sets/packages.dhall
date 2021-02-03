@@ -8,9 +8,15 @@ let filter =
 
 let packages =
       { effect =
-          ../../purescript-effect/spago.dhall as Location
+              upstream.effect
+          //  { repo = "https://github.com/pure-c/purescript-effect.git"
+              , version = "a68f6898b32e00acf4433b442289d5db2794d526"
+              }
       , prelude =
-          ../../purescript-prelude/spago.dhall as Location
+              upstream.prelude
+          //  { repo = "https://github.com/pure-c/purescript-prelude.git"
+              , version = "f9fa363b63240dae99109a95c8007c76a4f32d4c"
+              }
       , arrays =
               upstream.arrays
           //  { repo = "https://github.com/pure-c/purescript-arrays.git" }
