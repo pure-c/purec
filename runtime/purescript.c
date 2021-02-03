@@ -401,7 +401,7 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 
 static inline void _purs_record_add_multi_mut(purs_record_t * x, int count, va_list ap);
 
-ANY purs_record_empty = PURS_ANY_RECORD(NULL);
+ANY purs_any_record_empty = PURS_ANY_RECORD(NULL);
 
 static void purs_record_free(const struct purs_rc *ref) {
 	purs_record_t * x = container_of(ref, purs_record_t, rc);

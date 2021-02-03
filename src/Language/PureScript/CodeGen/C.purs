@@ -282,7 +282,7 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
   in
     if A.null kvps
       then
-        R.purs_record_empty
+        R.purs_any_record_empty
       else
         AST.App
           R.purs_any_record $

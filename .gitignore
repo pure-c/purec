@@ -1,4 +1,7 @@
 .spago
+.spago.sources.sum
+/html/
+/latex/
 .psc-package/
 *.out
 *.tar.bz2

@@ -22,7 +22,8 @@
   "scripts": {
     "test": "make test",
     "build": "spago bundle-app -t purec.js",
-    "watch": "spago bundle-app -w -t purec.js"
+    "watch": "spago bundle-app -w -t purec.js",
+    "docs": "doxygen Doxyfile"
   },
   "repository": {
     "type": "git",

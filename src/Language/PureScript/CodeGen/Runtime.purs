@@ -76,7 +76,7 @@ module Language.PureScript.CodeGen.Runtime
 
     -- records
   , purs_record_t
-  , purs_record_empty
+  , purs_any_record_empty
   , purs_record_find_by_key
   , purs_record_add_multi
   , purs_record_new_va
@@ -256,8 +256,8 @@ purs_address_of = AST.Var "purs_address_of"
 purs_derefence :: AST
 purs_derefence = AST.Var "purs_derefence"
 
-purs_record_empty :: AST
-purs_record_empty = AST.Var "purs_record_empty"
+purs_any_record_empty :: AST
+purs_any_record_empty = AST.Var "purs_any_record_empty"
 
 purs_assert :: AST -> String -> AST
 purs_assert condAst message =
