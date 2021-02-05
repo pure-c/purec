@@ -14,7 +14,7 @@ simple FFI to C, performance critical sections can easily be implemented outside
 of PureScript when the need arises.
 
 For an example of how PureC could be used, take a look at
-[pure-c](https://github.com/pure-c/purec-uv), a project implementing both
+[purec-uv](https://github.com/pure-c/purec-uv), a project implementing both
 purescript-aff and bindings to libuv on top of PureC.
 
 ## Features
