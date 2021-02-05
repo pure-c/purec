@@ -15,6 +15,9 @@ PUREC_LIB = $(PUREC_DIR)/libpurec.a
 PUREC_LIB_DIR = $(dir $(PUREC_LIB))
 PUREC_LIB_NAME = $(notdir %/%,%,$(PUREC_LIB))
 
+BWDGC_LIB_DIR := $(PUREC_DIR)/deps/bwdgc/.libs
+BWDGC_INCLUDE_DIR := $(PUREC_DIR)/deps/bwdgc/include
+
 DEPS_DIR = .spago
 SPAGO ?= spago
 PACKAGE_SOURCES = $(shell [ -d .spago ] && $(SPAGO) sources)
@@ -26,18 +29,20 @@ else
 LD_LINKER_FLAGS += -gc-sections
 endif
 
-.spago.sources.sum:
-	$(SPAGO) sources | md5sum > .spago.sources.sum
-.PHONY: .spago.sources.sum
+ifeq ($(USE_GC),1)
+CFLAGS+=-DUSE_GC -I$(BWDGC_INCLUDE_DIR)
+LDFLAGS+=-L $(BWDGC_LIB_DIR) -l gc
+endif
 
-.spago: .spago.sources.sum
+.spago:
 	$(SPAGO) install -c skip
+.PHONY: .spago
 
 ## Not all environments support globstar (** dir pattern)
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
 $(PUREC_LIB):
-	$(MAKE) -s -C $(PUREC_DIR) libpurec.a
+	USE_GC=$(USE_GC) $(MAKE) -s -C $(PUREC_DIR) libpurec.a
 .PHONY: $(PUREC_LIB)
 
 %/corefn.json.1: %/corefn.json
@@ -53,8 +58,7 @@ clean:
 
 %.o: %.c
 	@echo "Compile" $^
-	@$(CLANG) $^ -c -o $@ \
-		-fblocks \
+	$(CLANG) $^ -c -o $@ \
 		-Wall \
 		-Wno-unused-variable \
 		-Wno-unused-value \
@@ -84,6 +88,9 @@ clean:
 # usage example:
 #    $(eval $(call purs_mk_target,main,Test.Main,src test,))
 define purs_mk_target
+
+$(1)_CFLAGS ?= $(CFLAGS)
+$(1)_LDFLAGS ?= $(LDFLAGS)
 
 $(1)_main_module := $(2)
 
@@ -124,12 +131,13 @@ $$(PUREC_WORKDIR)/$(1)/.build: \
 	$(CLANG) $$^ \
 		-L $(PUREC_LIB_DIR) \
 		-L $(PUREC_LIB_DIR)/runtime \
+		$(CFLAGS) \
 		$($(1)_CFLAGS) \
 		-lpurec \
 		-lm \
 		-ffunction-sections \
-		$(LD_FLAGS) \
-		$($(1)_LD_FLAGS) \
+		$(LDFLAGS) \
+		$($(1)_LDFLAGS) \
 		-Wl,$(LD_LINKER_FLAGS) \
 		-o "$(1).out"
 	@touch $$@

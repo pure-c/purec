@@ -117,7 +117,8 @@ nativeMain mainVar =
     , variadic: false
     , body: Just $
         AST.Block
-          [ AST.Return $
+          [ AST.App (AST.Var "GC_INIT") []
+          , AST.Return $
               AST.App (AST.Var "purs_any_get_main_rc_compat")
                 [ AST.App R.purs_any_app
                     [ mainVar

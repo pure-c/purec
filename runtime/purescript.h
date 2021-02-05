@@ -26,15 +26,27 @@ extern void mock_assert(const int result, const char *const expression, const ch
 extern void* _test_malloc(const size_t size, const char* file, const int line);
 extern void* _test_calloc(const size_t number_of_elements, const size_t size, const char* file, const int line);
 extern void _test_free(void* const ptr, const char* file, const int line);
+#ifdef USE_GC
+#include "gc.h"
+#define purs_malloc GC_malloc
+#define purs_realloc GC_realloc
+#define purs_free GC_free
+#else // ! USE_GC
 #define purs_malloc(SZ) _test_malloc(SZ, __FILE__, __LINE__)
 #define purs_realloc(PTR, SZ) _test_malloc(PTR, SZ, __FILE__, __LINE__)
 #define purs_free(PTR) _test_free(PTR, __FILE__, __LINE__)
-#define purs_new(EXP) purs_malloc(sizeof (EXP))
-#else // UNIT_TESTING
-#define purs_malloc(SZ) malloc(SZ)
-#define purs_realloc(PTR, SZ) realloc(PTR, SZ)
-#define purs_new(EXP) purs_malloc(sizeof (EXP))
-#define purs_free(X) free(X)
+#endif // USE_GC
+#else // ! UNIT_TESTING
+#ifdef USE_GC
+#include "gc.h"
+#define purs_malloc GC_malloc
+#define purs_realloc GC_realloc
+#define purs_free GC_free
+#else // ! USE_GC
+#define purs_malloc malloc
+#define purs_realloc realloc
+#define purs_free free
+#endif // USE_GC
 #define purs_assert(A, FMT, ...)\
 	do {\
 		if (!(A)) {\
@@ -42,6 +54,11 @@ extern void _test_free(void* const ptr, const char* file, const int line);
 			assert(A);\
 		}\
 	} while (0)
+#endif // UNIT_TESTING
+#define purs_new(EXP) (EXP*) purs_malloc(sizeof (EXP))
+
+#ifndef USE_GC
+#define GC_INIT()
 #endif
 
 #include "ccan/asprintf/asprintf.h"
@@ -835,14 +852,14 @@ static inline purs_any_t purs_indirect_thunk_deref(void * ctx) {
 }
 
 static void purs_indirect_thunk_free(const struct purs_rc *ref) {
-	purs_thunk_t * thunk = container_of(ref, purs_thunk_t, rc);
+	purs_thunk_t  *thunk = container_of(ref, purs_thunk_t, rc);
 	purs_indirect_value_free((purs_any_t *) thunk->ctx);
 	purs_free(thunk);
 }
 
 /* takes ownership of 'x' */
 static inline purs_any_t purs_indirect_thunk_new(purs_any_t * x) {
-	purs_thunk_t * thunk = purs_malloc(sizeof (purs_thunk_t));
+	purs_thunk_t *thunk = (purs_thunk_t*)purs_malloc(sizeof (purs_thunk_t));
 	thunk->ctx = x;
 	thunk->fn = purs_indirect_thunk_deref;
 	thunk->rc = ((struct purs_rc) { purs_indirect_thunk_free, 1 });
