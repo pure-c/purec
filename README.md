@@ -19,15 +19,17 @@ purescript-aff and bindings to libuv on top of PureC.
 
 ## Features
 
-* Write programs in PureScript
+* Write native programs in PureScript
 * Simple FFI to C
 * Generates readable, human- and machine-debuggable C
-* Garbage collected (Boehm)
+* Simple and efficient reference counted GC
+* Opt-in tracing GC (Boehm–Demers–Weiser garbage collector)
 
 ## Usecases
 
 * Scrap your node.js
 * Write small, easy to distribute command line utilities
+* No JS parsing, instant start up times, native performance
 
 ## Development
 

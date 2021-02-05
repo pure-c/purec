@@ -10,4 +10,3 @@ main_CFLAGS = -g
 main_LD_FLAGS = -lm
 
 $(eval $(call purs_mk_target,main,Main,src))
-$(eval $(call purs_mk_target,lib,,src))
