@@ -10,11 +10,11 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_eq_num
   , purs_any_eq_char
   , purs_any_eq_string
-  , purs_any_get_cons
-  , purs_any_get_int
-  , purs_any_get_foreign
-  , purs_any_get_record
-  , purs_any_get_array
+  , purs_any_unsafe_get_cons
+  , purs_any_unsafe_get_int
+  , purs_any_unsafe_get_foreign
+  , purs_any_unsafe_get_record
+  , purs_any_unsafe_get_array
   , purs_any_force_record
   , purs_any_true
   , purs_any_false
@@ -154,23 +154,23 @@ purs_any_eq_char = AST.Var "purs_any_eq_char"
 purs_any_eq_string :: AST
 purs_any_eq_string = AST.Var "purs_any_eq_string"
 
-purs_any_get_foreign :: AST
-purs_any_get_foreign = AST.Var "purs_any_get_foreign"
+purs_any_unsafe_get_foreign :: AST
+purs_any_unsafe_get_foreign = AST.Var "purs_any_unsafe_get_foreign"
 
-purs_any_get_int :: AST
-purs_any_get_int = AST.Var "purs_any_get_int"
+purs_any_unsafe_get_int :: AST
+purs_any_unsafe_get_int = AST.Var "purs_any_unsafe_get_int"
 
-purs_any_get_cons :: AST
-purs_any_get_cons = AST.Var "purs_any_get_cons"
+purs_any_unsafe_get_cons :: AST
+purs_any_unsafe_get_cons = AST.Var "purs_any_unsafe_get_cons"
 
-purs_any_get_record :: AST
-purs_any_get_record = AST.Var "purs_any_get_record"
+purs_any_unsafe_get_record :: AST
+purs_any_unsafe_get_record = AST.Var "purs_any_unsafe_get_record"
 
 purs_any_force_record :: AST
 purs_any_force_record = AST.Var "purs_any_force_record"
 
-purs_any_get_array :: AST
-purs_any_get_array = AST.Var "purs_any_get_array"
+purs_any_unsafe_get_array :: AST
+purs_any_unsafe_get_array = AST.Var "purs_any_unsafe_get_array"
 
 purs_cons_get_tag :: AST
 purs_cons_get_tag = AST.Var "purs_cons_get_tag"

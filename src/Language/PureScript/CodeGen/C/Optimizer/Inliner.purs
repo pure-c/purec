@@ -234,11 +234,11 @@ inlineCommonValues = AST.everywhere go
         AST.App R.purs_any_int
           [ AST.Binary (toASTBinOp op)
               (maybe
-                (AST.App R.purs_any_get_int [ x ])
+                (AST.App R.purs_any_unsafe_get_int [ x ])
                 (AST.NumericLiteral <<< Left)
                 mLitX)
               (maybe
-                (AST.App R.purs_any_get_int [ y ])
+                (AST.App R.purs_any_unsafe_get_int [ y ])
                 (AST.NumericLiteral <<< Left)
                 mLitY)
           ]

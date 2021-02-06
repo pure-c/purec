@@ -456,7 +456,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                             (AST.NumericLiteral (Left ix))
                             (AST.Accessor
                               (AST.Raw "data")
-                              (AST.App R.purs_any_get_array [ AST.Var varName ]))
+                              (AST.App R.purs_any_unsafe_get_array [ AST.Var varName ]))
                     } A.: ast
         in ado
           ast <- go next 0 binders
@@ -542,7 +542,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
                         (AST.NumericLiteral (Left index))
                         (AST.Accessor
                           (AST.Raw "values")
-                          (AST.App R.purs_any_get_cons [ AST.Var varName ]))
+                          (AST.App R.purs_any_unsafe_get_cons [ AST.Var varName ]))
                 } A.: ast
 
     in

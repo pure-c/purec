@@ -176,7 +176,7 @@ tco = AST.everywhere convert
                                     Just $
                                       AST.App (AST.Var "purs_tco_get_arg")
                                         [ AST.App (AST.Var "purs_foreign_get_data")
-                                            [ AST.App R.purs_any_get_foreign
+                                            [ AST.App R.purs_any_unsafe_get_foreign
                                                 [ AST.Var tcoState
                                                 ]
                                             ]
@@ -224,7 +224,7 @@ tco = AST.everywhere convert
                 AST.App
                   (AST.Var "purs_tco_mut_arg")
                   [ AST.App (AST.Var "purs_foreign_get_data")
-                      [ AST.App R.purs_any_get_foreign
+                      [ AST.App R.purs_any_unsafe_get_foreign
                           [ AST.Var tcoState
                           ]
                       ]
@@ -239,7 +239,7 @@ tco = AST.everywhere convert
           AST.Block
             [ AST.App (AST.Var "purs_tco_set_done")
                 [ AST.App (AST.Var "purs_foreign_get_data")
-                    [ AST.App R.purs_any_get_foreign
+                    [ AST.App R.purs_any_unsafe_get_foreign
                         [ AST.Var tcoState
                         ]
                     ]

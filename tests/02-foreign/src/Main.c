@@ -23,9 +23,9 @@ PURS_FFI_FUNC_2(Main_bufferSize, x, _) {
 
 PURS_FFI_FUNC_3(Main_bufferGrow, n_, x, _) {
 	assert(x.tag == PURS_ANY_TAG_FOREIGN);
-	int n = purs_any_get_int(n_);
-	struct buf * buf = (struct buf *) x.value.foreign->data;
-	char * data = purs_malloc(sizeof (char) * (buf->size + n));
+	int n = purs_any_unsafe_get_int(n_);
+	struct buf *buf = (struct buf *) x.value.foreign->data;
+	char *data = purs_malloc(sizeof (char) * (buf->size + n));
 	memcpy(data, buf->data, buf->size);
 	purs_free(buf->data);
 	buf->size += n;

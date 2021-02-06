@@ -497,9 +497,9 @@ void _purs_record_add_multi_mut(purs_record_t * x,
 	}
 }
 
-ANY * purs_record_find_by_key(const purs_record_t * record,
-			      const void * key) {
-	purs_record_node_t * result;
+purs_any_t* purs_record_find_by_key(const purs_record_t * record,
+				    const void * key) {
+	purs_record_node_t *result;
 	size_t len = utf8size(key);
 	HASH_FIND(hh, record->root, key, len, result);
 	if (result == NULL) return NULL;

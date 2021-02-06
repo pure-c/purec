@@ -8,8 +8,8 @@
 #include "runtime/purescript.h"
 
 static ANY mk_prefix_cont_0(const struct purs_scope * scope, ANY arg, va_list _) {
-	const char * prefix = purs_any_get_string(scope->bindings[0])->data;
-	const char * suffix = purs_any_get_string(arg)->data;
+	const char * prefix = purs_any_unsafe_get_string(scope->bindings[0])->data;
+	const char * suffix = purs_any_unsafe_get_string(arg)->data;
 	return purs_any_string(purs_str_new("%s%s", prefix, suffix));
 }
 
@@ -101,12 +101,12 @@ static void purs_vec_concat_test(void **state) {
 	assert_int_equal(v2->length, 2);
 	assert_int_equal(v3->length, 3);
 
-	assert_string_equal(purs_any_get_string(v1->data[0])->data, "a");
-	assert_string_equal(purs_any_get_string(v2->data[0])->data, "b");
-	assert_string_equal(purs_any_get_string(v2->data[1])->data, "c");
-	assert_string_equal(purs_any_get_string(v3->data[0])->data, "a");
-	assert_string_equal(purs_any_get_string(v3->data[1])->data, "b");
-	assert_string_equal(purs_any_get_string(v3->data[2])->data, "c");
+	assert_string_equal(purs_any_unsafe_get_string(v1->data[0])->data, "a");
+	assert_string_equal(purs_any_unsafe_get_string(v2->data[0])->data, "b");
+	assert_string_equal(purs_any_unsafe_get_string(v2->data[1])->data, "c");
+	assert_string_equal(purs_any_unsafe_get_string(v3->data[0])->data, "a");
+	assert_string_equal(purs_any_unsafe_get_string(v3->data[1])->data, "b");
+	assert_string_equal(purs_any_unsafe_get_string(v3->data[2])->data, "c");
 
 	PURS_RC_RELEASE(v1);
 	PURS_RC_RELEASE(v2);
@@ -142,7 +142,7 @@ static void leak_record_test(void **state) {
 
 	/* test key lookup. note looking up on a released record seg-faults! */
 	ANY r = *purs_record_find_by_key(x3, "s3");
-	assert(strcmp("foo", purs_any_get_string(r)->data) == 0); /* should not seg-fault */
+	assert(strcmp("foo", purs_any_unsafe_get_string(r)->data) == 0); /* should not seg-fault */
 
 	PURS_RC_RELEASE(x3);
 }
@@ -179,7 +179,7 @@ static void purs_any_concat_test(void **state) {
 		ANY ab = purs_any_concat(a, b);
 		PURS_ANY_RELEASE(b);
 		PURS_ANY_RELEASE(a);
-		assert_string_equal(purs_any_get_string(ab)->data, "ab");
+		assert_string_equal(purs_any_unsafe_get_string(ab)->data, "ab");
 		PURS_ANY_RELEASE(ab);
 	}
 
@@ -197,9 +197,9 @@ static void purs_any_concat_test(void **state) {
 		PURS_ANY_RELEASE(c);
 		PURS_RC_RELEASE(v1);
 		PURS_RC_RELEASE(v2);
-		assert_string_equal(purs_any_get_string(a)->data, "a"); /* should not seg-fault */
-		assert_string_equal(purs_any_get_string(b)->data, "b"); /* should not seg-fault */
-		assert_string_equal(purs_any_get_string(c)->data, "c"); /* should not seg-fault */
+		assert_string_equal(purs_any_unsafe_get_string(a)->data, "a"); /* should not seg-fault */
+		assert_string_equal(purs_any_unsafe_get_string(b)->data, "b"); /* should not seg-fault */
+		assert_string_equal(purs_any_unsafe_get_string(c)->data, "c"); /* should not seg-fault */
 		PURS_ANY_RELEASE(v1v2);
 	}
 }
@@ -272,8 +272,8 @@ static void purs_cons_test(void **state) {
 
 static void purs_indirect_value_test(void **state) {
 	(void) state; /* unused */
-	ANY * ivalue = purs_indirect_value_new();
-	const purs_cont_t * cont = purs_cont_new(NULL, NULL);
+	ANY *ivalue = purs_indirect_value_new();
+	const purs_cont_t *cont = purs_cont_new(NULL, NULL);
 	purs_indirect_value_assign(ivalue, purs_any_cont(cont));
 	PURS_RC_RELEASE(cont);
 	purs_indirect_value_free(ivalue);
@@ -281,9 +281,9 @@ static void purs_indirect_value_test(void **state) {
 
 static void purs_string_test(void **state) {
 	(void) state; /* unused */
-	const purs_str_t * x = purs_str_new("test");
+	const purs_str_t *x = purs_str_new("test");
 	ANY y = purs_any_string(x);
-	const purs_str_t * z = purs_any_force_string(y);
+	const purs_str_t *z = purs_any_force_string(y);
 	assert_string_equal("test", z->data);
 	PURS_RC_RELEASE(z);
 	assert_string_equal("test", x->data);

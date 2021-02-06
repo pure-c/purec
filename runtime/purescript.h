@@ -141,7 +141,7 @@ static inline void purs_rc_release(const struct purs_rc *ref) {
 
 /* by convetion, the rc is embedded as 'rc', making these macros possible */
 #define PURS_RC_RELEASE(X) do { if ((X) != NULL) purs_rc_release(&((X)->rc)); } while (0)
-#define PURS_RC_RETAIN(X) do  { if ((X) != NULL)  purs_rc_retain(&((X)->rc)); } while (0)
+#define PURS_RC_RETAIN(X) do  { if ((X) != NULL) purs_rc_retain(&((X)->rc));  } while (0)
 
 /* all "base"-compatible structures must have their "rc" field in the same
    position as "_purs_rc_base." */
@@ -672,7 +672,7 @@ purs_any_t * purs_record_find_by_key(const purs_record_t *,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-static inline int purs_any_unsafe_get_main_rc_compat(purs_any_t v) {
+static inline int purs_any_get_main_rc_compat(purs_any_t v) {
 	switch(v.tag) {
 	case PURS_ANY_TAG_NULL:
 		return 0;
