@@ -55,12 +55,15 @@ $(PUREC_LIB):
 	@rsync $< $@
 
 clean:
+	@echo 2>&1 'clean: removing libpurec.a'
+	@rm -f "$(PUREC_LIB)"
+	@rm -f $$(find "$(PUREC_DIR)" -type f -name '*.o')
 	@echo 2>&1 'clean: removing *.o'
 	@rm -f $$(find . -type f -name '*.o')
 	@echo 2>&1 'clean: removing *.out'
 	@rm -f $$(find . -type f -name '*.out')
 	@echo 2>&1 'clean: removing dir $(PUREC_WORKDIR)'
-	@rm -rf $(PUREC_WORKDIR)
+	@rm -rf "$(PUREC_WORKDIR)"
 
 %.o: %.c
 	@echo "Compile" $^
@@ -157,7 +160,7 @@ $(1): $(DEPS_DIR)
 .PHONY: $(1)
 
 $(1)_leakcheck:
-	@valgrind -q > /dev/null \
+	@valgrind -q \
 		"--suppressions=$(PUREC_LIB_DIR)/purec.suppr" \
 		--error-exitcode=1 \
 		--leak-check=full \

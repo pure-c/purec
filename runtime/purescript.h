@@ -381,7 +381,7 @@ static inline const purs_any_tag_t purs_any_get_tag (purs_any_t v) {
 
 /// @private
 #define __PURS_ANY_GET(N, A, R, TAG)\
-	static inline R _purs_any_get_ ## N (purs_any_t v, char * file, int line) {\
+	static inline R _purs_any_unsafe_get_ ## N (purs_any_t v, char * file, int line) {\
 		purs_any_assert_tag_eq(TAG, v.tag);\
 		return v.value.A;\
 	}
@@ -400,41 +400,41 @@ __PURS_ANY_GET(array, array, const purs_vec_t *, PURS_ANY_TAG_ARRAY)
 /* todo: generate faster, unsafe variants */
 
 /** @brief Retrieve underlying integer or crash. */
-#define purs_any_get_int(A) _purs_any_get_int((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_int(A) _purs_any_unsafe_get_int((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying number or crash. */
-#define purs_any_get_num(A) _purs_any_get_num((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_num(A) _purs_any_unsafe_get_num((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying char or crash. */
-#define purs_any_get_char(A) _purs_any_get_char((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_char(A) _purs_any_unsafe_get_char((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying foreign value or crash.
     The returned value is **not retained.** */
-#define purs_any_get_foreign(A) _purs_any_get_foreign((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_foreign(A) _purs_any_unsafe_get_foreign((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying continuation or crash.
     The returned value is **not retained.** */
-#define purs_any_get_cont(A) _purs_any_get_cont((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_cont(A) _purs_any_unsafe_get_cont((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying data constructor or crash.
     The returned value is **not retained.** */
-#define purs_any_get_cons(A) _purs_any_get_cons((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_cons(A) _purs_any_unsafe_get_cons((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying thunk or crash.
     The returned value is **not retained.** */
-#define purs_any_get_thunk(A) _purs_any_get_thunk((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_thunk(A) _purs_any_unsafe_get_thunk((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying record or crash.
     The returned value is **not retained.** */
-#define purs_any_get_record(A) _purs_any_get_record((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_record(A) _purs_any_unsafe_get_record((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying string or crash.
     The returned value is **not retained.** */
-#define purs_any_get_string(A) _purs_any_get_string((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_string(A) _purs_any_unsafe_get_string((A), __FILE__, __LINE__)
 
 /** @brief Retrieve underlying array or crash.
     The returned value is **not retained.** */
-#define purs_any_get_array(A) _purs_any_get_array((A), __FILE__, __LINE__)
+#define purs_any_unsafe_get_array(A) _purs_any_unsafe_get_array((A), __FILE__, __LINE__)
 
 /// @private
 #define __PURS_ANY_FORCE_COPY(N, A, R, TAG)\
@@ -539,35 +539,34 @@ __PURS_ANY_FORCE_COPY(array_length,\
 // -----------------------------------------------------------------------------
 
 /** @brief check that the given char value equals the given char.
-    @param[in] x The char value. Must be an evaluated char value, or else will
-    abort program.
+    @param[in] x The char value.
     @param[in] y The char to compare against */
 static inline int purs_any_eq_char (purs_any_t x, purs_char_t y) {
-	return purs_any_get_char(x) == y;
+	return purs_any_force_char(x) == y;
 }
 
 /** @brief check that the given string value equals the given UTF-8 string.
-    @param[in] x The string value. Must be an evaluated string value, or else
-    will abort program.
+    @param[in] x The string value.
     @param[in] y The UTF-8 string to compare against. */
 static inline int purs_any_eq_string (purs_any_t x, const void * str) {
-	return utf8cmp(purs_any_get_string(x)->data, str) == 0;
+	const purs_str_t *xstr = purs_any_force_string(x);
+	int result = utf8cmp(xstr->data, str) == 0;
+	PURS_RC_RELEASE(xstr);
+	return result;
 }
 
 /** @brief check that the given integer value equals the given integer.
-    @param[in] x The integer value. Must be an evaluated integer value, or else
-    will abort program.
+    @param[in] x The integer value.
     @param[in] y The integer to compare against */
 static inline int purs_any_eq_int (purs_any_t x, purs_int_t y) {
-	return purs_any_get_int(x) == y;
+	return purs_any_force_int(x) == y;
 }
 
 /** @brief check that the given number value equals the given number.
-    @param[in] x The number value. Must be an evaluated number value, or else
-    will abort program.
+    @param[in] x The number value.
     @param[in] y The number to compare against */
 static inline int purs_any_eq_num (purs_any_t x, purs_num_t y) {
-	return purs_any_get_num(x) == y;
+	return purs_any_force_num(x) == y;
 }
 
 int purs_any_eq(purs_any_t, purs_any_t);
@@ -673,7 +672,7 @@ purs_any_t * purs_record_find_by_key(const purs_record_t *,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-static inline int purs_any_get_main_rc_compat(purs_any_t v) {
+static inline int purs_any_unsafe_get_main_rc_compat(purs_any_t v) {
 	switch(v.tag) {
 	case PURS_ANY_TAG_NULL:
 		return 0;
@@ -769,7 +768,7 @@ struct purs_scope * purs_scope_new1(int size);
 	};\
 	purs_any_t NAME ## __thunk_fn__init()
 
-#define purs_any_int_neg(X) purs_any_int_new(-purs_any_get_int(X))
+#define purs_any_int_neg(X) purs_any_int_new(-purs_any_unsafe_get_int(X))
 
 // -----------------------------------------------------------------------------
 // Any: initializers
@@ -1378,7 +1377,7 @@ purs_any_t purs_any_num_zero;
 
 /* check for NaN: https://stackoverflow.com/a/570694 */
 #define purs_any_is_NaN(V) (purs_any_get_tag(V) == PURS_ANY_TAG_NUM && \
-			    purs_any_get_num(V) != purs_any_get_num(V))
+			    purs_any_force_num(V) != purs_any_force_num(V))
 
 #define PURS_NAN NAN
 #define PURS_INFINITY INFINITY

@@ -189,16 +189,16 @@ int purs_any_eq(ANY x, ANY y) {
 
 		switch (x.tag) {
 		case PURS_ANY_TAG_INT:
-			ret = purs_any_get_int(x) == purs_any_get_int(y);
+			ret = purs_any_unsafe_get_int(x) == purs_any_unsafe_get_int(y);
 			goto end;
 		case PURS_ANY_TAG_NUM:
-			ret = purs_any_get_num(x) == purs_any_get_num(y);
+			ret = purs_any_unsafe_get_num(x) == purs_any_unsafe_get_num(y);
 			goto end;
 		case PURS_ANY_TAG_STRING:
-			ret = (utf8cmp(purs_any_get_string(x), purs_any_get_string(y)) == 0);
+			ret = (utf8cmp(purs_any_unsafe_get_string(x), purs_any_unsafe_get_string(y)) == 0);
 			goto end;
 		case PURS_ANY_TAG_CHAR:
-			ret = purs_any_get_char(x) == purs_any_get_char(y);
+			ret = purs_any_unsafe_get_char(x) == purs_any_unsafe_get_char(y);
 			goto end;
 		default:
 			ret = 0;
@@ -228,13 +228,13 @@ ANY purs_any_concat(ANY x, ANY y) {
 	switch(x.tag) {
 	case PURS_ANY_TAG_STRING: {
 		ret = purs_any_string(purs_str_new("%s%s",
-						   purs_any_get_string(x)->data,
-						   purs_any_get_string(y)->data));
+						   purs_any_unsafe_get_string(x)->data,
+						   purs_any_unsafe_get_string(y)->data));
 		goto end;
 	}
 	case PURS_ANY_TAG_ARRAY: {
-		const purs_vec_t * x_vec = purs_any_get_array(x);
-		const purs_vec_t * y_vec = purs_any_get_array(y);
+		const purs_vec_t * x_vec = purs_any_unsafe_get_array(x);
+		const purs_vec_t * y_vec = purs_any_unsafe_get_array(y);
 		ret = purs_any_array(purs_vec_concat(x_vec, y_vec));
 		goto end;
 	}
