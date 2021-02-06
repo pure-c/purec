@@ -4,23 +4,27 @@ let mkPackage =
 let upstream =
       https://raw.githubusercontent.com/purescript/package-sets/psc-0.13.2/src/packages.dhall sha256:906af79ba3aec7f429b107fd8d12e8a29426db8229d228c6f992b58151e2308e
 
-let overrides = {=}
+let overrides =
+      { foreign =
+              upstream.foreign
+          //  { version = "ad52524676eb2243974010ceebe2cde7a8b8bea7" }
+      }
 
 let additions =
       { corefn =
           mkPackage
-          [ "console"
-          , "foreign-generic"
-          , "errors"
-          , "strings"
-          , "newtype"
-          , "tuples"
-          , "foldable-traversable"
-          , "profunctor"
-          , "aff"
-          ]
-          "https://github.com/felixschl/purescript-corefn.git"
-          "compiler/0.12.x"
+            [ "console"
+            , "foreign-generic"
+            , "errors"
+            , "strings"
+            , "newtype"
+            , "tuples"
+            , "foldable-traversable"
+            , "profunctor"
+            , "aff"
+            ]
+            "https://github.com/felixschl/purescript-corefn.git"
+            "eee6e976e97765966eceb34d085a80438f32cdb2"
       }
 
 in  upstream // overrides // additions

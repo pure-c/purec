@@ -37,6 +37,8 @@ let packages =
               , version = "ed59eb9a7ac30e3bb58a671b7e657665b6e8bfb9"
               }
       , distributive = upstream.distributive
+      , contravariant = upstream.contravariant
+      , const = upstream.const
       , either = upstream.either
       , enums =
               upstream.enums
@@ -45,6 +47,7 @@ let packages =
               upstream.foldable-traversable
           //  { repo =
                   "https://github.com/pure-c/purescript-foldable-traversable.git"
+              , version = "8649ae8ed0f1abbf1b2ba9c951444aa8344b5906"
               }
       , functions =
               upstream.functions
@@ -54,7 +57,7 @@ let packages =
       , identity = upstream.identity
       , integers =
           { repo = "https://github.com/pure-c/purescript-integers"
-          , version = "c"
+          , version = "d30aa8bca51ec8d22722a793739f5e559f017dd5"
           , dependencies = [ "math", "maybe", "prelude" ]
           }
       , invariant = upstream.invariant
@@ -65,7 +68,7 @@ let packages =
       , math =
               upstream.math
           //  { repo = "https://github.com/pure-c/purescript-math.git"
-              , version = "3849291d94c2d88a84e90404acc21e7c71125904"
+              , version = "877058fac18aa38a53f500fadf22345d924adf64"
               }
       , maybe = upstream.maybe
       , newtype = upstream.newtype
@@ -93,7 +96,9 @@ let packages =
       , typelevel-prelude = upstream.typelevel-prelude
       , unfoldable =
               upstream.unfoldable
-          //  { repo = "https://github.com/pure-c/purescript-unfoldable.git" }
+          //  { repo = "https://github.com/pure-c/purescript-unfoldable.git"
+              , version = "312636383dbd914c8666480a190f47212ccb7e64"
+              }
       , unsafe-coerce =
               upstream.unsafe-coerce
           //  { repo = "https://github.com/pure-c/purescript-unsafe-coerce.git"
