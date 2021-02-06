@@ -85,7 +85,9 @@ let packages =
           //  { repo = "https://github.com/pure-c/purescript-record.git" }
       , refs =
               upstream.refs
-          //  { repo = "https://github.com/pure-c/purescript-refs.git" }
+          //  { repo = "https://github.com/pure-c/purescript-refs.git"
+              , version = "b81d7cab5345b7a5f7f279ad68c4eb7c19c07b0d"
+              }
       , st =
               upstream.st
           //  { repo = "https://github.com/pure-c/purescript-st.git" }
