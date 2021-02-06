@@ -1,0 +1,27 @@
+{
+        <Garbage Collector>
+        Memcheck:Cond
+        ...
+        fun:GC_*
+}
+
+{
+        <Garbage Collector>
+        Memcheck:Value8
+        ...
+        fun:GC_*
+}
+
+{
+        <Garbage Collector>
+        Memcheck:Leak
+        ...
+        fun:GC_*
+}
+
+{
+        <Garbage Collector>
+        Memcheck:Addr8
+        ...
+        fun:GC_*
+}

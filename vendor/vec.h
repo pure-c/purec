@@ -13,6 +13,12 @@
 
 #define VEC_VERSION "0.2.1"
 
+/* begin pure-c alteration */
+#ifdef USE_GC
+#include "gc.h"
+#endif
+/* end pure-c alteration */
+
 #ifndef vec_malloc
 #define vec_malloc malloc
 #endif

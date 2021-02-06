@@ -32,6 +32,12 @@ endif
 ifeq ($(USE_GC),1)
 CFLAGS+=-DUSE_GC -I$(BWDGC_INCLUDE_DIR)
 LDFLAGS+=-L $(BWDGC_LIB_DIR) -l gc
+CFLAGS+=\
+	-D 'uthash_malloc=GC_malloc' \
+	-D 'uthash_free(ptr, sz)=NULL' \
+	-D 'vec_realloc=GC_realloc' \
+	-D 'vec_free(x)=NULL' \
+	-D 'vec_malloc=GC_malloc'
 endif
 
 .spago:
@@ -149,6 +155,14 @@ _$(1): $$(PUREC_WORKDIR)/$(1)/.genc
 $(1): $(DEPS_DIR)
 	@$$(MAKE) -s _$(1)
 .PHONY: $(1)
+
+$(1)_leakcheck:
+	@valgrind -q > /dev/null \
+		"--suppressions=$(PUREC_LIB_DIR)/purec.suppr" \
+		--error-exitcode=1 \
+		--leak-check=full \
+		"./$(1).out"
+.PHONY: $(1)_leakcheck
 
 $(1)/c: $(DEPS_DIR)
 	@$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.genc

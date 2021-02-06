@@ -25,13 +25,11 @@ RUNTIME_SOURCES = \
 RUNTIME_OBJECTS = \
 	$(patsubst %.c,%.o,$(RUNTIME_SOURCES))
 
-GC_TESTS = \
-    03-mutrec
-
-NON_GC_TESTS = \
+TESTS = \
     00-basic \
     01-partialfuns \
     02-foreign \
+    03-mutrec \
     04-memory \
     05-datacons \
     06-typeclasses \
@@ -43,6 +41,10 @@ ifdef UNIT_TESTING
 CFLAGS += \
 	-g \
 	-D UNIT_TESTING
+endif
+
+ifeq ($(USE_GC),1)
+CFLAGS+=-DUSE_GC -I$(BWDGC_INCLUDE_DIR)
 endif
 
 $(BWDGC_LIB):
@@ -76,11 +78,6 @@ clean:
 	@rm -f $$(find . -type f -name '*.out')
 	@rm -f $$(find . -maxdepth 1 -type f -name '*.a')
 .PHONY: clean
-
-ifeq ($(USE_GC),1)
-    CFLAGS+=-DUSE_GC -I$(BWDGC_INCLUDE_DIR)
-    LDFLAGS+=-gc
-endif
 
 %.o: %.c
 	@echo "Compile" $^
@@ -131,55 +128,38 @@ test/c.0:
 	@./ctests/a.out
 .PHONY: test/c.0
 
-test/tests.0: | $(foreach t,$(NON_GC_TESTS),test/tests/$(t))
+test/tests.0: | $(foreach t,$(TESTS),test/tests/$(t))
 .PHONY: test/tests.0
-
-test/tests.0.gc: | $(foreach t,$(GC_TESTS),test/tests/$(t)/gc)
-.PHONY: test/tests.0.gc
 
 test/tests:
 	@$(MAKE) -s clean
 	@echo "Running tests w/o tracing GC"
 	@UNIT_TESTING=1 $(MAKE) -s test/tests.0
-	@echo "Running tests that require tracing GC"
-	@UNIT_TESTING=1 $(MAKE) -s test/tests.0.gc
 PHONY: test/tests
 
 # compile each project under 'tests', run it, and check for leaks using valgrind
 define mk_test_case
+
 test/tests/$(1):
 	@$(MAKE) -s clean
 	UNIT_TESTING=0 $(MAKE) -s test/tests/$(1).0
 
-test/tests/$(1)/gc:
-	@$(MAKE) -s clean
-	@USE_GC=1 UNIT_TESTING=0 $(MAKE) -s test/tests/$(1).0
-
 test/tests/$(1).0: $(BWDGC_LIB)
-	@echo "tests/$(1): start"
-	@make -s $(PUREC_LIB) > /dev/null
 	@echo "tests/$(1): clean"
-	@$(MAKE) -s -C "tests/$(1)" clean > /dev/null
+	@$(MAKE) -C "tests/$(1)" clean > /dev/null
 	@echo "tests/$(1): compile C"
 	@\
 		CFLAGS=-g \
 		LDFLAGS=-lcmocka \
-		$(MAKE) -s -C "tests/$(1)" main
+		$(MAKE) -C "tests/$(1)" main
 	@echo "tests/$(1): run ouput"
-	@./"tests/$(1)/main.out"
-	@if [[ "$(GC)" -eq 1 ]]; then \
-		echo "tests/$(1): check for leaks"; \
-		valgrind -q > /dev/null \
-			--error-exitcode=1 \
-			--leak-check=full \
-			./"tests/$(1)/main.out"; \
-	fi
+	$(MAKE) -s -C "tests/$(1)" main_leakcheck
 .PHONY: test/tests/$(1)
+
 endef
 
 # generate test targets
-$(foreach t,$(GC_TESTS),$(eval $(call mk_test_case,$(t))))
-$(foreach t,$(NON_GC_TESTS),$(eval $(call mk_test_case,$(t))))
+$(foreach t,$(TESTS),$(eval $(call mk_test_case,$t)))
 
 test/tests/main:
 	@$(MAKE) -s clean
