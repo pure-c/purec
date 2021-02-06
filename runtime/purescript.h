@@ -619,8 +619,8 @@ const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs, const purs_vec_t * rh
 #define purs_vec_pusharr_mut(v, arr, count) vec_pusharr(v, arr, count)
 
 /**
- * Insert the value val at index idx shifting the elements after the index to
- * make room for the new value.
+ * @brief Insert the value val at index idx shifting the elements after the index to
+ *   make room for the new value. Returns a copy of the original array.
  */
 const purs_vec_t * purs_vec_insert(const purs_vec_t *, int idx, purs_any_t val);
 

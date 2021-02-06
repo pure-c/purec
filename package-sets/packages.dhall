@@ -10,12 +10,12 @@ let packages =
       { effect =
               upstream.effect
           //  { repo = "https://github.com/pure-c/purescript-effect.git"
-              , version = "a68f6898b32e00acf4433b442289d5db2794d526"
+              , version = "c24af908182d08e357185704f489ada6a741b797"
               }
       , prelude =
               upstream.prelude
           //  { repo = "https://github.com/pure-c/purescript-prelude.git"
-              , version = "202c330c0b313b283573329020e1d75499369b90"
+              , version = "fd751163683c42759258cfaa66fc07a6ac1f26ea"
               }
       , arrays =
               upstream.arrays
@@ -23,13 +23,13 @@ let packages =
       , assert =
               upstream.assert
           //  { repo = "https://github.com/pure-c/purescript-assert.git"
-              , version = "1cfc9e24cd6922a46b267da0e056dccb41d855b1"
+              , version = "d722b0b1d24640d2bc5df63c6ea5b16357b6667e"
               }
       , bifunctors = upstream.bifunctors
       , console =
               upstream.console
           //  { repo = "https://github.com/pure-c/purescript-console.git"
-              , version = "1928988230d500031a82d0764e4836307af549ed"
+              , version = "05335e97af6fc9df87d0349d843f7aaf0a9b59f2"
               }
       , control =
               upstream.control
@@ -74,7 +74,7 @@ let packages =
       , partial =
               upstream.partial
           //  { repo = "https://github.com/pure-c/purescript-partial.git"
-              , version = "ab22fec1a329806ab4d379bcca96a65681de52ab"
+              , version = "58a3db23db423ba08b8f41a0544b239ecbaa7fd4"
               }
       , proxy = upstream.proxy
       , record =
