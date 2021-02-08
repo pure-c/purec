@@ -204,12 +204,12 @@ static void purs_any_concat_test(void **state) {
 	}
 }
 
-static void purs_indirect_thunk_test(void **state) {
+static void purs_any_lazy_test(void **state) {
 	(void) state; /* unused */
 
 	{ /* unassigned/null */
-		ANY * ivalue = purs_indirect_value_new();
-		ANY ithunk = purs_indirect_thunk_new(ivalue);
+		ANY * ivalue = purs_any_ref_new();
+		ANY ithunk = purs_any_lazy_new(ivalue);
 		int has_changed;
 		ANY val = purs_any_unthunk(ithunk, &has_changed);
 		assert_int_equal(has_changed, 1);
@@ -228,9 +228,9 @@ static void purs_indirect_thunk_test(void **state) {
 
 		ANY ithunk;
 		{ /* create and fill thunk */
-			ANY * ivalue = purs_indirect_value_new();
-			ithunk = purs_indirect_thunk_new(ivalue /* move */);
-			purs_indirect_value_assign(ivalue, arr);
+			ANY * ivalue = purs_any_ref_new();
+			ithunk = purs_any_lazy_new(ivalue /* move */);
+			purs_any_ref_write(ivalue, arr);
 		}
 
 		{ /* force the thunk */
@@ -270,13 +270,13 @@ static void purs_cons_test(void **state) {
 	}
 }
 
-static void purs_indirect_value_test(void **state) {
+static void purs_any_ref_test(void **state) {
 	(void) state; /* unused */
-	ANY *ivalue = purs_indirect_value_new();
+	ANY *ivalue = purs_any_ref_new();
 	const purs_cont_t *cont = purs_cont_new(NULL, NULL);
-	purs_indirect_value_assign(ivalue, purs_any_cont(cont));
+	purs_any_ref_write(ivalue, purs_any_cont(cont));
 	PURS_RC_RELEASE(cont);
-	purs_indirect_value_free(ivalue);
+	purs_any_ref_free(ivalue);
 }
 
 static void purs_string_test(void **state) {
@@ -299,8 +299,8 @@ int main (void) {
 		cmocka_unit_test(purs_scope_new1_test),
 		cmocka_unit_test(purs_any_concat_test),
 		cmocka_unit_test(purs_vec_concat_test),
-		cmocka_unit_test(purs_indirect_value_test),
-		cmocka_unit_test(purs_indirect_thunk_test),
+		cmocka_unit_test(purs_any_ref_test),
+		cmocka_unit_test(purs_any_lazy_test),
 		cmocka_unit_test(purs_cons_test),
 		cmocka_unit_test(purs_string_test),
 	};

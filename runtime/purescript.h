@@ -737,8 +737,12 @@ struct purs_scope {
 	purs_any_t *bindings;
 };
 
-#define purs_scope_binding_at(S, N) ((S)->bindings[(N)])
-#define purs_scope_capture_at(S, N, B) { (S)->bindings[(N)] = (B); }
+static inline purs_any_t purs_scope_binding_at(const purs_scope_t *scope,
+					       int offset) {
+	purs_any_t v = scope->bindings[offset];
+	PURS_ANY_RETAIN(v);
+	return v;
+}
 
 struct purs_scope * purs_scope_new(int size, ...);
 struct purs_scope * purs_scope_new1(int size);
@@ -823,45 +827,46 @@ struct purs_scope * purs_scope_new1(int size);
 // Code-gen helpers (pt. 2)
 // -----------------------------------------------------------------------------
 
-/* Thunked pointer dereference: Recursive bindings support */
-static inline void purs_indirect_value_assign(purs_any_t * x, purs_any_t v) {
-	*x = v;
-	PURS_ANY_RETAIN(v);
-}
-
-static inline void purs_indirect_value_free(purs_any_t * x) {
-	if (x != NULL) {
-		purs_any_t y = *x;
-		PURS_ANY_RELEASE(y);
-	}
-	purs_free(x);
-}
-
-static inline purs_any_t * purs_indirect_value_new() {
+/* heap-allocated purs_any_t */
+static inline purs_any_t* purs_any_ref_new() {
 	purs_any_t *x = purs_new(purs_any_t);
 	x->tag = PURS_ANY_TAG_NULL;
 	x->value = (purs_any_value_t){};
 	return x;
 }
 
-static inline purs_any_t purs_indirect_thunk_deref(void * ctx) {
-	purs_any_t any = *((purs_any_t*)(ctx));
+/* copy value into ref. ref retains value. */
+static inline void purs_any_ref_write(purs_any_t* x, purs_any_t v) {
+	*x = v; // copy 'v' onto heap.
+	PURS_ANY_RETAIN(v); // bind 'v' to lifetime of ref.
+}
+
+/* release ref cell and reference to contents */
+static inline void purs_any_ref_free(purs_any_t* x) {
+	if (x != NULL) {
+		PURS_ANY_RELEASE(*x);
+	}
+	purs_free(x);
+}
+
+static inline purs_any_t purs_any_lazy_force(void *ref) {
+	purs_any_t any = *((purs_any_t*)(ref));
 	PURS_ANY_RETAIN(any); /* user will release! */
 	return any;
 }
 
-static void purs_indirect_thunk_free(const struct purs_rc *ref) {
+static void purs_any_lazy_free(const struct purs_rc *ref) {
 	purs_thunk_t  *thunk = container_of(ref, purs_thunk_t, rc);
-	purs_indirect_value_free((purs_any_t *) thunk->ctx);
+	purs_any_ref_free((purs_any_t *) thunk->ctx);
 	purs_free(thunk);
 }
 
-/* takes ownership of 'x' */
-static inline purs_any_t purs_indirect_thunk_new(purs_any_t * x) {
-	purs_thunk_t *thunk = (purs_thunk_t*)purs_malloc(sizeof (purs_thunk_t));
-	thunk->ctx = x;
-	thunk->fn = purs_indirect_thunk_deref;
-	thunk->rc = ((struct purs_rc) { purs_indirect_thunk_free, 1 });
+/// Create a thunk evaluating to the value behind 'ref'.
+static inline purs_any_t purs_any_lazy_new(purs_any_t *ref) {
+	purs_thunk_t *thunk = purs_new(purs_thunk_t);
+	thunk->ctx = ref;
+	thunk->fn = purs_any_lazy_force;
+	thunk->rc = ((struct purs_rc) { purs_any_lazy_free, 1 });
 	return PURS_ANY_THUNK(thunk);
 }
 

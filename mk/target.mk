@@ -131,6 +131,7 @@ $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
 	@touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WORKDIR)/$(1),corefn.json))
+	@echo Compiling from Corefn to C
 	@$$(PUREC) -m "$$($(1)_main_module)" $$?
 	@touch $$@
 

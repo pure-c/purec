@@ -182,7 +182,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         AST.Var "purs_any_num"            -> noop
         AST.Var "purs_any_string"         -> noop
         AST.Var "purs_any_int"            -> noop
-        AST.Var "purs_indirect_thunk_new" -> noop
+        AST.Var "purs_any_lazy_new"       -> noop
         AST.Var "purs_any_eq_int"         -> noop
         AST.Var "purs_any_get_int"        -> noop
         AST.Var "purs_any_get_num"        -> noop
@@ -197,7 +197,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
       withNextIndent do
         for_ init \ast -> do
           indent' *> prettyPrintAst ast
-          emit ","
+          emit ", "
           lf'
         indent' *> prettyPrintAst last
       lf'
@@ -353,7 +353,7 @@ renderName name = name
 renderType :: Type -> String
 renderType = case _ of
   Type.Pointer t ->
-    renderType t <> " *"
+    renderType t <> "*"
   Type.Any qs ->
     renderTypeQualifiers qs <>
       "purs_any_t"

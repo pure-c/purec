@@ -12,7 +12,6 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (wrap)
 import Data.String as Str
 import Data.Tuple.Nested ((/\))
-import Debug.Trace (trace)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
@@ -26,10 +25,10 @@ tco = AST.everywhere convert
   where
   convert
     x@(AST.App
-       (AST.Var "purs_indirect_value_assign")
+       (AST.Var "purs_any_ref_write")
        [ v@(AST.Var internalIdent), (fn@(AST.Function _))
        ])
-    | Just name <- Str.stripPrefix (wrap "$_indirect_") internalIdent =
+    | Just name <- Str.stripPrefix (wrap "$_ref_") internalIdent =
     let
       args /\ body /\ replace =
         let
@@ -41,7 +40,7 @@ tco = AST.everywhere convert
      if isTailRecursive name body
       then
         AST.App
-          (AST.Var "purs_indirect_value_assign")
+          (AST.Var "purs_any_ref_write")
           [ v
           , replace $ toLoop name args body
           ]

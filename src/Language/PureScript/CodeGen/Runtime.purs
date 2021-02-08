@@ -39,9 +39,9 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_char
 
     -- code-gen helpers
-  , purs_indirect_thunk_new
-  , purs_indirect_value_new
-  , purs_indirect_value_assign
+  , purs_any_lazy_new
+  , purs_any_ref_new
+  , purs_any_ref_write
   , purs_malloc_any_buf
   , purs_address_of
   , purs_derefence
@@ -238,14 +238,14 @@ purs_any_cont = AST.Var "purs_any_cont"
 purs_any_string :: AST
 purs_any_string = AST.Var "purs_any_string"
 
-purs_indirect_thunk_new :: AST
-purs_indirect_thunk_new = AST.Var "purs_indirect_thunk_new"
+purs_any_lazy_new :: AST
+purs_any_lazy_new = AST.Var "purs_any_lazy_new"
 
-purs_indirect_value_new :: AST
-purs_indirect_value_new = AST.Var "purs_indirect_value_new"
+purs_any_ref_new :: AST
+purs_any_ref_new = AST.Var "purs_any_ref_new"
 
-purs_indirect_value_assign :: AST
-purs_indirect_value_assign = AST.Var "purs_indirect_value_assign"
+purs_any_ref_write :: AST
+purs_any_ref_write = AST.Var "purs_any_ref_write"
 
 purs_malloc_any_buf :: AST
 purs_malloc_any_buf = AST.Var "purs_malloc_any_buf"

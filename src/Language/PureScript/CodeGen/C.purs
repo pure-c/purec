@@ -23,12 +23,9 @@ import Data.Identity (Identity)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (wrap, unwrap)
+import Data.Newtype (unwrap)
 import Data.Traversable (for, for_, traverse)
-import Data.TraversableWithIndex (traverseWithIndex)
-import Data.Tuple (snd)
 import Data.Tuple.Nested ((/\), type (/\))
-import Debug.Trace (traceM)
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
@@ -40,7 +37,7 @@ import Language.PureScript.CodeGen.C.Transforms as T
 import Language.PureScript.CodeGen.Common (runModuleName)
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
-import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
+import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 
 type IsMain =
   Boolean
@@ -159,17 +156,17 @@ bindToAst isTopLevel (C.Rec vals) = ado
       let
         asts' =
           asts <#> case _ of
-            ast@(AST.VariableIntroduction { name, type: typ, initialization: Just init })
+            ast@(AST.VariableIntroduction { name, initialization: Just init })
              | not (isInternalVariable name) ->
               { indirInit:
                   Just $
                     AST.VariableIntroduction
-                      { name: "$_indirect_" <> name
+                      { name: "$_ref_" <> name
                       , type: Type.Pointer R.any
                       , qualifiers: []
                       , initialization:
                           Just $
-                            AST.App R.purs_indirect_value_new []
+                            AST.App R.purs_any_ref_new []
                       }
               , ast:
                   AST.VariableIntroduction
@@ -178,13 +175,13 @@ bindToAst isTopLevel (C.Rec vals) = ado
                     , qualifiers: []
                     , initialization:
                         Just $
-                          AST.App R.purs_indirect_thunk_new
-                            [ AST.Var $ "$_indirect_" <> name ]
+                          AST.App R.purs_any_lazy_new
+                            [ AST.Var $ "$_ref_" <> name ]
                     }
               , indirAssign:
                   Just $
-                    AST.App R.purs_indirect_value_assign
-                      [ AST.Var $ "$_indirect_" <> name
+                    AST.App R.purs_any_ref_write
+                      [ AST.Var $ "$_ref_" <> name
                       , init
                       ]
               }
@@ -311,7 +308,7 @@ exprToAst (C.Let _ binders val) = ado
       , R.purs_any_null
       ]
 
-exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
+exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
   assignments <- for exprs $
     exprToAst >=> \valueAst -> ado
       name <- freshName
@@ -385,7 +382,7 @@ exprToAst (C.Case (C.Ann { sourceSpan, type: typ }) exprs binders) = do
       ]
 
   where
-  binderToAst :: _ -> _ -> C.Binder C.Ann -> m (Array AST)
+  binderToAst :: String -> Array AST -> C.Binder C.Ann -> m (Array AST)
   binderToAst _ next (C.NullBinder _) = pure next
   binderToAst varName next (C.LiteralBinder _ lit) =
     case lit of
@@ -649,11 +646,11 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) _) = do
           [ AST.Var constructorName'
           , AST.NumericLiteral $ Left 0
           ] ]
-exprToAst (C.App (C.Ann { type: typ }) ident expr) = do
+exprToAst (C.App (C.Ann _) ident expr) = do
   f   <- exprToAst ident
   arg <- exprToAst expr
   pure $ AST.App R.purs_any_app [f, arg]
-exprToAst (C.Abs (C.Ann { type: typ }) ident expr) = do
+exprToAst (C.Abs (C.Ann _) ident expr) = do
   bodyAst <- exprToAst expr
   argName <- identToVarName ident
   pure $
