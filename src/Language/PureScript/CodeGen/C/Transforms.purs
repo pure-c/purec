@@ -12,6 +12,7 @@ import Control.Monad.State (runStateT)
 import Control.Monad.State as State
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Writer (runWriterT, tell)
+import Control.MonadPlus (guard)
 import Data.Array as A
 import Data.Either (Either(..))
 import Data.Function (on)
@@ -417,9 +418,10 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                       , AST.Var "$_value"
                       ]
                 else b'
-      AST.Function x@{ name, arguments, body: Just body } ->
+      AST.Function x@{ name, arguments, body: Just body } -> do
+        currentScope <- ask
         withReaderT (\s -> s { isTopLevel = false, depth = s.depth + 1 }) $
-          eraseLambda { arguments, body }
+          eraseLambda currentScope.isTopLevel { arguments, body }
       ast@(AST.VariableIntroduction x@{ name, initialization, type: typ }) -> do
        currentScope <- ask
        withReaderT (_ { function = Just name }) do
@@ -524,7 +526,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
       x ->
         pure x
 
-  eraseLambda { arguments, body } = do
+  eraseLambda isTopLevel { arguments, body } = do
     currentScope <- ask
 
     let
@@ -608,9 +610,12 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                 in
                  A.concat
                   [ A.catMaybes
-                      [ ado
+                      [ do
                         fnName <- currentScope.function
-                        in AST.VariableIntroduction
+                        guard (not isTopLevel)
+                        guard (AST.isReferenced fnName body')
+                        pure $
+                          AST.VariableIntroduction
                             { name: fnName
                             , type: R.any
                             , qualifiers: []

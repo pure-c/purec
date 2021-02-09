@@ -37,7 +37,7 @@ TESTS = \
     11-effects \
     12-rec-fns
 
-ifdef UNIT_TESTING
+ifeq ($(UNIT_TESTING),1)
 CFLAGS += \
 	-g \
 	-D UNIT_TESTING
@@ -133,8 +133,7 @@ test/tests.0: | $(foreach t,$(TESTS),test/tests/$(t))
 
 test/tests:
 	@$(MAKE) -s clean
-	@echo "Running tests w/o tracing GC"
-	@UNIT_TESTING=1 $(MAKE) -s test/tests.0
+	@UNIT_TESTING=0 $(MAKE) -s test/tests.0
 PHONY: test/tests
 
 # compile each project under 'tests', run it, and check for leaks using valgrind
