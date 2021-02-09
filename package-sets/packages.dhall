@@ -34,7 +34,7 @@ let packages =
       , control =
               upstream.control
           //  { repo = "https://github.com/pure-c/purescript-control.git"
-              , version = "ed59eb9a7ac30e3bb58a671b7e657665b6e8bfb9"
+              , version = "d8c2acbc7126e868862e838c697b575b7cb0fb04"
               }
       , distributive = upstream.distributive
       , contravariant = upstream.contravariant

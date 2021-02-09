@@ -15,33 +15,60 @@ chain a b = \_ ->
 
 infixl 5 chain as >>
 
-testAnonLetBoundRecFn :: Int -> Int
-testAnonLetBoundRecFn n =
+testAnonLetBoundRecFn :: Int -> Effect Int
+testAnonLetBoundRecFn n = \_ ->
   let
     go 0 = 0
     go n' = go (n' - 1)
   in go n
 
-testAnonRecFn :: Int -> Int
-testAnonRecFn n = go n
+testAnonRecFn :: Int -> Effect Int
+testAnonRecFn n = \_ -> go n
   where
   go 0 = 0
   go n' = go (n' - 1)
 
-testRecFn :: Int -> Int
-testRecFn 0 = 0
-testRecFn n = testRecFn (n - 1)
+testRecFn :: Int -> Effect Int
+testRecFn 0 = \_ -> 0
+testRecFn n = \_ -> testRecFn (n - 1) Unit
 
-testNonTCORecFn :: Int -> Int
-testNonTCORecFn 0 = 0
-testNonTCORecFn n =
-  if n + testNonTCORecFn (n - 1) == 1
+testNonTCORecFn :: Int -> Effect Int
+testNonTCORecFn 0 = \_ -> 0
+testNonTCORecFn n = \_ ->
+  if n + (testNonTCORecFn (n - 1) Unit) == 1
      then 0
      else 1
 
+testLetBoundRecFn2 :: Effect Int
+testLetBoundRecFn2 = \_ -> loop 0
+  where
+  loop 0 = 0
+  loop n =
+    let x = loop 0
+     in x
+
+testLetBoundRecFn3 :: Effect Int
+testLetBoundRecFn3 = \_ -> loop 0
+  where
+  loop 0 = 0
+  loop n =
+    let loop _ = 0 -- shadow 'loop' here on purpose
+        x = loop 0
+     in x
+
+testApplyN :: (Int -> Int) -> Int -> Int -> Int
+testApplyN f = go
+  where
+  go n acc
+    | n <= 0 = acc
+    | otherwise = go (n - 1) (f acc)
+
 main :: Effect Int
 main =
-  (\_ -> testRecFn 10) >>
-  (\_ -> testAnonRecFn 10) >>
-  (\_ -> testAnonLetBoundRecFn 10) >>
-  (\_ -> testNonTCORecFn 1)
+  (testRecFn 1) >>
+  (testAnonRecFn 10) >>
+  (testAnonLetBoundRecFn 10) >>
+  (testNonTCORecFn 1) >>
+  testLetBoundRecFn2 >>
+  testLetBoundRecFn3 >>
+  (\_ -> testApplyN (\_ -> 0) 1 0)

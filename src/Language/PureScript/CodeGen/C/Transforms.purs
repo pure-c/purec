@@ -18,15 +18,15 @@ import Data.Function (on)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.Set as Set
+import Data.String as Str
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST(..), everywhereTopDown) as AST
+import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown) as AST
 import Language.PureScript.CodeGen.C.AST (AST, everywhere)
-import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
-import Language.PureScript.CodeGen.C.Common (freshInternalName, freshInternalName', isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshInternalName', isInternalVariable)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.CompileError (CompileError)
@@ -59,7 +59,7 @@ import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 -- |   temporary variable. However, since 'ANY' values are fat, this might
 -- |   cause pressure on available stack memory for sufficiently large programs
 -- |   (speculating here.) We could look into a way to improve upon this,
--- |   perhaps by building a more intelligent dependency graph and reduing the.
+-- |   perhaps by building a more intelligent dependency graph and reducing the
 -- |   number of introduced variables on the stack.
 releaseResources
   :: ∀ m
@@ -97,9 +97,10 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_record_new_va"      -> Just recordType
     AST.Var "purs_cont_new"           -> Just contType
     AST.Var "purs_cons_new"           -> Just consType
-    AST.Var "purs_indirect_thunk_new" -> Just R.any
+    AST.Var "purs_any_lazy_new"       -> Just R.any
     AST.Var "purs_record_add_multi"   -> Just recordType
     AST.Var "purs_any_force_record"   -> Just recordType
+    AST.Var "purs_scope_binding_at"   -> Just R.any
     _                                 -> Nothing
 
   go parentVars = case _ of
@@ -401,7 +402,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                           , qualifiers: []
                           , initialization:
                               Just $
-                                AST.App R.purs_indirect_value_new []
+                                AST.App R.purs_any_ref_new []
                           }
                       , AST.VariableIntroduction
                           { name: "$_value"
@@ -409,7 +410,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                           , qualifiers: []
                           , initialization: Just $ b'
                           }
-                      , AST.App R.purs_indirect_value_assign
+                      , AST.App R.purs_any_ref_write
                           [ AST.Var "$_ivalue"
                           , AST.Var "$_value"
                           ]
@@ -438,16 +439,49 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
         xs' <- A.reverse <<< snd <$>
           A.foldM (\(scope /\ asts') ->
             case _ of
-              ast@(AST.VariableIntroduction { name, type: typ })
+              -- for mutually recursive bindings we cannot rely on variable
+              -- introductions and have to look for the output of a previous
+              -- transform which assigns variables through a mutable ref.
+              -- Unfortunately that means un-mangling the name...
+              -- See the 'C.Rec' handling in C.purs.
+              ast@(AST.App (AST.Var "purs_any_ref_write") [AST.Var mangledName, AST.Function _])
+                | Just name <- Str.stripPrefix (Str.Pattern "$_ref_") mangledName -- See C.purs
+                , not currentScope.isTopLevel ->
+                  let
+                    scope' =
+                      scope
+                        { function = Just name
+                        , bindings = Set.insert name scope.bindings
+                        }
+                  in ado
+                    ast' <-
+                      withReaderT (const scope') $
+                        go ast
+                    in (scope /\ ast' A.: asts')
+              ast@(AST.VariableIntroduction { name, type: typ, initialization })
                 | not currentScope.isTopLevel && not (isInternalVariable name) ->
-                let
-                  scope' =
-                    scope { bindings = Set.insert name scope.bindings }
-                in do
-                  ast' <-
-                    withReaderT (const scope') $
-                      go ast
-                  pure (scope' /\ ast' A.: asts')
+                case initialization of
+                  Just (AST.Function fn) ->
+                    let
+                      scope' =
+                        scope
+                          { function = fn.name
+                          , bindings = Set.insert name scope.bindings
+                          }
+                    in ado
+                      ast' <-
+                        withReaderT (const scope') $
+                          go ast
+                      in (scope' /\ ast' A.: asts')
+                  _ ->
+                    let
+                      scope' =
+                        scope { bindings = Set.insert name scope.bindings }
+                    in ado
+                      ast' <-
+                        withReaderT (const scope') $
+                          go ast
+                      in (scope' /\ ast' A.: asts')
               ast -> ado
                 ast' <-
                   withReaderT (const scope) do
@@ -493,19 +527,17 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
   eraseLambda { arguments, body } = do
     currentScope <- ask
 
-    -- TODO: reduce this to what is know to actually being used.
-    --       objects are considered used if there's an (unshadowed)
-    --       reference from anywhere in the lambda's body AST.
     let
       capturedBindings = A.fromFoldable capturedScope.bindings
       capturedScope =
         currentScope
           { bindings =
               Set.fromFoldable $
-                A.filter (AST.isReferenced <@> body) $
-                  A.filter (not <<< isInternalVariable) $
-                    A.fromFoldable $
-                      currentScope.bindings
+                A.filter (\name -> currentScope.function /= Just name) $
+                  A.filter (AST.isReferenced <@> body) $
+                    A.filter (not <<< isInternalVariable) $
+                      A.fromFoldable $
+                        currentScope.bindings
           }
 
     -- assemble a new top-level function that re-assembles the captured
@@ -522,8 +554,11 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
       withReaderT
         (\scope ->
           scope {
+            function = Nothing,
             bindings =
-              scope.bindings <> Set.fromFoldable (_.name <$> arguments)
+              maybe scope.bindings (Set.insert <@> scope.bindings)
+                currentScope.function <>
+                  Set.fromFoldable (_.name <$> arguments)
           }) $ withReaderT (_ { lhs = Nothing }) $ go body
 
     tell $ A.singleton $
@@ -572,7 +607,23 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                             ]
                 in
                  A.concat
-                  [ map snd $ A.sortBy (compare `on` fst) $
+                  [ A.catMaybes
+                      [ ado
+                        fnName <- currentScope.function
+                        in AST.VariableIntroduction
+                            { name: fnName
+                            , type: R.any
+                            , qualifiers: []
+                            , initialization:
+                                Just $
+                                  AST.App (AST.Var "purs_any_cont")
+                                    [ AST.App (AST.Var "purs_cont_new")
+                                        [ AST.Var "$_ctx"
+                                        , AST.Var contFuncName
+                                        ] ]
+                            }
+                      ]
+                  , map snd $ A.sortBy (compare `on` fst) $
                      Map.toUnfoldable bindings <#> \(name /\ i /\ mOffset) ->
                       i /\ case mOffset of
                         Nothing ->
@@ -642,7 +693,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                             --       handeled by 'releaseResources' transform?
                             if Just v == capturedScope.lhs
                               then
-                                AST.App R.purs_indirect_thunk_new
+                                AST.App R.purs_any_lazy_new
                                   [ AST.Var "$_ivalue" ]
                               else
                                 AST.Var v
