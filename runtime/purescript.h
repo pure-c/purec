@@ -782,9 +782,6 @@ struct purs_scope {
 struct purs_scope * purs_scope_new(int size, ...);
 struct purs_scope * purs_scope_new1(int size);
 
-/* todo: remove this! */
-#define purs_cons_get_tag(V) V->tag
-
 /* allocate a buffer to fit 'N' 'purs_any_t's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (purs_any_t) * N)
 

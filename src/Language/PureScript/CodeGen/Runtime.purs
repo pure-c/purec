@@ -63,7 +63,6 @@ module Language.PureScript.CodeGen.Runtime
     -- data constructors
   , purs_cons_t
   , purs_cons_new
-  , purs_cons_get_tag
 
     -- arrays
   , purs_vec_new_va
@@ -171,9 +170,6 @@ purs_any_force_record = AST.Var "purs_any_force_record"
 
 purs_any_unsafe_get_array :: AST
 purs_any_unsafe_get_array = AST.Var "purs_any_unsafe_get_array"
-
-purs_cons_get_tag :: AST
-purs_cons_get_tag = AST.Var "purs_cons_get_tag"
 
 purs_any_app :: AST
 purs_any_app = AST.Var "purs_any_app"
