@@ -10,12 +10,12 @@ let packages =
       { effect =
               upstream.effect
           //  { repo = "https://github.com/pure-c/purescript-effect.git"
-              , version = "c24af908182d08e357185704f489ada6a741b797"
+              , version = "a4ecc7ec7aa8c5403dcfcc0670e3cf8116c19a99"
               }
       , prelude =
               upstream.prelude
           //  { repo = "https://github.com/pure-c/purescript-prelude.git"
-              , version = "fd751163683c42759258cfaa66fc07a6ac1f26ea"
+              , version = "b981266cf4e6b763e6d6a514142a44f49b016feb"
               }
       , arrays =
               upstream.arrays
@@ -104,8 +104,9 @@ let packages =
       , unsafe-coerce =
               upstream.unsafe-coerce
           //  { repo = "https://github.com/pure-c/purescript-unsafe-coerce.git"
-              , version = "2d8091d065726007ad75c03f0050f73395c91fad"
+              , version = "fe6e6d263ee6df86522eed468a0c7cab99289a4b"
               }
+
       , variant = upstream.variant
       }
 

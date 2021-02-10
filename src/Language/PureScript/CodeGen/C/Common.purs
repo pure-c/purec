@@ -9,6 +9,7 @@ module Language.PureScript.CodeGen.C.Common
   , freshInternalName
   , freshInternalName'
   , isInternalVariable
+  , prefixInternalVar
   , allM
   , allM'
   , anyM
@@ -28,9 +29,16 @@ import Data.String.Regex.Flags (global) as Regex
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 import Partial.Unsafe (unsafePartial)
 
+internalVarPrefix :: String
+-- internalVarPrefix = "$_"
+internalVarPrefix = "__purec__"  -- convient in gdb
+
+prefixInternalVar :: String -> String
+prefixInternalVar n = internalVarPrefix <> n
+
 -- | Check if a given variable is internal.
 isInternalVariable :: String -> Boolean
-isInternalVariable = isJust <<< Str.stripPrefix (wrap "$_")
+isInternalVariable = isJust <<< Str.stripPrefix (wrap internalVarPrefix)
 
 -- | Derive a safe name.
 -- TODO: Only append '_' if necessary
@@ -46,7 +54,7 @@ safeName name =
       name <> "_$"
 
 safeConstructorName :: String -> String
-safeConstructorName n = "$cons_" <> safeName n
+safeConstructorName n = internalVarPrefix <> "cons_" <> safeName n
 
 dotsTo :: Char -> String -> String
 dotsTo chr' str =
@@ -73,7 +81,7 @@ freshInternalName'
   -> m String
 freshInternalName' label = ado
   id <- freshId
-  in "$_" <> label <> show id
+  in internalVarPrefix <> label <> show id
 
 freshInternalName
   :: ∀ m
@@ -82,7 +90,7 @@ freshInternalName
   => m String
 freshInternalName = ado
   id <- freshId
-  in "$_value" <> show id
+  in internalVarPrefix <> "value" <> show id
 
 allM :: ∀ f m a. Foldable f => Monad m => (a -> m Boolean) -> f a -> m Boolean
 allM f =

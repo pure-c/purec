@@ -29,7 +29,7 @@ import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
-import Language.PureScript.CodeGen.C.Common (freshInternalName, freshName, isInternalVariable, safeConstructorName, safeName)
+import Language.PureScript.CodeGen.C.Common (freshInternalName, freshName, prefixInternalVar, isInternalVariable, safeConstructorName, safeName)
 import Language.PureScript.CodeGen.C.File as F
 import Language.PureScript.CodeGen.C.Optimizer (optimize)
 import Language.PureScript.CodeGen.C.Pretty as P
@@ -161,7 +161,7 @@ bindToAst isTopLevel (C.Rec vals) = ado
               { indirInit:
                   Just $
                     AST.VariableIntroduction
-                      { name: "$_ref_" <> name
+                      { name: prefixInternalVar ("ref_" <> name)
                       , type: Type.Pointer R.any
                       , qualifiers: []
                       , initialization:
@@ -176,12 +176,12 @@ bindToAst isTopLevel (C.Rec vals) = ado
                     , initialization:
                         Just $
                           AST.App R.purs_any_lazy_new
-                            [ AST.Var $ "$_ref_" <> name ]
+                            [ AST.Var $ prefixInternalVar ("ref_" <> name) ]
                     }
               , indirAssign:
                   Just $
                     AST.App R.purs_any_ref_write
-                      [ AST.Var $ "$_ref_" <> name
+                      [ AST.Var $ prefixInternalVar ("ref_" <> name)
                       , init
                       ]
               }
@@ -700,7 +700,7 @@ qualifiedVarName (C.ModuleName pieces) varName =
 
 identToVarName :: ∀ m. MonadError CompileError m => C.Ident -> m String
 identToVarName (C.Ident name) = pure $ safeName name
-identToVarName C.UnusedIdent = pure "$__unused"
+identToVarName C.UnusedIdent = pure (prefixInternalVar "unused")
 identToVarName (C.GenIdent _ _) =
   throwError $
     InternalError "GenIdent in identToVarName"

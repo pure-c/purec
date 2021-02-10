@@ -15,6 +15,7 @@ import Data.Tuple.Nested ((/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
+import Language.PureScript.CodeGen.C.Common (prefixInternalVar)
 import Language.PureScript.CodeGen.Runtime as R
 
 -- | Eliminate tail calls
@@ -28,7 +29,7 @@ tco = AST.everywhere convert
        (AST.Var "purs_any_ref_write")
        [ v@(AST.Var internalIdent), (fn@(AST.Function _))
        ])
-    | Just name <- Str.stripPrefix (wrap "$_ref_") internalIdent =
+    | Just name <- Str.stripPrefix (wrap (prefixInternalVar ("ref_"))) internalIdent =
     let
       args /\ body /\ replace =
         let
@@ -47,9 +48,9 @@ tco = AST.everywhere convert
       else x
   convert x = x
 
-  tcoState = "$_tco_state"
-  tcoLoop = "$_tco_loop"
-  tcoResult = "$_tco_result"
+  tcoState = prefixInternalVar "tco_state"
+  tcoLoop = prefixInternalVar "tco_loop"
+  tcoResult = prefixInternalVar "tco_result"
 
   collectFnArgs = go [] identity
     where

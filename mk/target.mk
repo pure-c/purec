@@ -160,10 +160,11 @@ $(1): $(DEPS_DIR)
 	@$$(MAKE) -s _$(1)
 .PHONY: $(1)
 
-$(1)_leakcheck:
+$(1)_leakcheck: $(1)
 	@valgrind -q \
 		"--suppressions=$(PUREC_LIB_DIR)/purec.suppr" \
 		--error-exitcode=1 \
+		--num-callers=32 \
 		--leak-check=full \
 		"./$(1).out"
 .PHONY: $(1)_leakcheck

@@ -25,3 +25,35 @@
         ...
         fun:GC_*
 }
+
+{
+        <PureC Thunk>
+        Memcheck:Cond
+        ...
+        fun:*$__thunk_fn__init
+        ...
+}
+
+{
+        <PureC Thunk>
+        Memcheck:Value8
+        ...
+        fun:*$__thunk_fn__init
+        ...
+}
+
+{
+        <PureC Thunk>
+        Memcheck:Leak
+        ...
+        fun:*$__thunk_fn__init
+        ...
+}
+
+{
+        <PureC Thunk>
+        Memcheck:Addr8
+        ...
+        fun:*$__thunk_fn__init
+        ...
+}

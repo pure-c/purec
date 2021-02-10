@@ -27,7 +27,7 @@ import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown) as A
 import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
-import Language.PureScript.CodeGen.C.Common (freshInternalName', isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshInternalName', prefixInternalVar, isInternalVariable)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.CompileError (CompileError)
@@ -238,7 +238,11 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                   { name: var.name
                   , type: var.type
                   , qualifiers: []
-                  , initialization: Nothing
+                  , initialization:
+                      Just
+                        if var.type == R.any
+                          then AST.Var "purs_any_null"
+                          else AST.Var "NULL"
                   }
             , out # A.filter case _ of
                 AST.Var _ -> false
@@ -398,7 +402,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                   AST.StatementExpression $
                     AST.Block
                       [ AST.VariableIntroduction
-                          { name: "$_ivalue"
+                          { name: prefixInternalVar "ivalue"
                           , type: Type.Pointer R.any
                           , qualifiers: []
                           , initialization:
@@ -406,16 +410,16 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                                 AST.App R.purs_any_ref_new []
                           }
                       , AST.VariableIntroduction
-                          { name: "$_value"
+                          { name: prefixInternalVar "value"
                           , type: R.any
                           , qualifiers: []
                           , initialization: Just $ b'
                           }
                       , AST.App R.purs_any_ref_write
-                          [ AST.Var "$_ivalue"
-                          , AST.Var "$_value"
+                          [ AST.Var (prefixInternalVar "ivalue")
+                          , AST.Var (prefixInternalVar "value")
                           ]
-                      , AST.Var "$_value"
+                      , AST.Var (prefixInternalVar "value")
                       ]
                 else b'
       AST.Function x@{ name, arguments, body: Just body } -> do
@@ -447,7 +451,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
               -- Unfortunately that means un-mangling the name...
               -- See the 'C.Rec' handling in C.purs.
               ast@(AST.App (AST.Var "purs_any_ref_write") [AST.Var mangledName, AST.Function _])
-                | Just name <- Str.stripPrefix (Str.Pattern "$_ref_") mangledName -- See C.purs
+                | Just name <- Str.stripPrefix (Str.Pattern (prefixInternalVar "ref_")) mangledName -- See C.purs
                 , not currentScope.isTopLevel ->
                   let
                     scope' =
@@ -567,13 +571,13 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
       AST.Function
         { name: Just contFuncName
         , arguments:
-            [ { name: "$_ctx"
+            [ { name: prefixInternalVar "ctx"
               , type: Type.Pointer (Type.RawType R.purs_scope_t [ Type.Const ])
               }
-            , { name: fromMaybe "$_unused" $ _.name <$> A.head arguments
+            , { name: fromMaybe (prefixInternalVar "unused") $ _.name <$> A.head arguments
               , type: R.any
               }
-            , { name: "$_va_args"
+            , { name: prefixInternalVar "va_args"
               , type: Type.RawType "va_list" []
               }
             ]
@@ -623,7 +627,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                                 Just $
                                   AST.App (AST.Var "purs_any_cont")
                                     [ AST.App (AST.Var "purs_cont_new")
-                                        [ AST.Var "$_ctx"
+                                        [ AST.Var (prefixInternalVar "ctx")
                                         , AST.Var contFuncName
                                         ] ]
                             }
@@ -639,7 +643,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                             , initialization:
                                 Just $
                                   AST.App (AST.Var "va_arg")
-                                    [ AST.Var "$_va_args"
+                                    [ AST.Var (prefixInternalVar "va_args")
                                     , AST.Raw $ PP.renderType R.any
                                     ]
                             }
@@ -651,7 +655,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                             , initialization:
                                 Just $
                                   AST.App (AST.Var "purs_scope_binding_at")
-                                    [ AST.Var "$_ctx"
+                                    [ AST.Var (prefixInternalVar "ctx")
                                     , AST.NumericLiteral $ Left i
                                     ]
                             }
@@ -699,7 +703,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
                             if Just v == capturedScope.lhs
                               then
                                 AST.App R.purs_any_lazy_new
-                                  [ AST.Var "$_ivalue" ]
+                                  [ AST.Var (prefixInternalVar "ivalue") ]
                               else
                                 AST.Var v
                           )

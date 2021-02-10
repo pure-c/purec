@@ -124,6 +124,11 @@ struct purs_rc {
     ((type *)((char *)(ptr) - offsetof(type, member)))
 
 /// @private
+static inline void purs_rc_retain_forever(const struct purs_rc *ref) {
+	((struct purs_rc *)ref)->count = -1;
+}
+
+/// @private
 static inline void purs_rc_retain(const struct purs_rc *ref) {
 	if (((struct purs_rc *)ref)->count != -1 /* stack */) {
 		((struct purs_rc *)ref)->count++;
@@ -141,7 +146,8 @@ static inline void purs_rc_release(const struct purs_rc *ref) {
 
 /* by convetion, the rc is embedded as 'rc', making these macros possible */
 #define PURS_RC_RELEASE(X) do { if ((X) != NULL) purs_rc_release(&((X)->rc)); } while (0)
-#define PURS_RC_RETAIN(X) do  { if ((X) != NULL) purs_rc_retain(&((X)->rc));  } while (0)
+#define PURS_RC_RETAIN(X) do { if ((X) != NULL) purs_rc_retain(&((X)->rc)); } while (0)
+#define PURS_RC_RETAIN_FOREVER(X) do { if ((X) != NULL) purs_rc_retain_forever(&((X)->rc)); } while (0)
 
 /* all "base"-compatible structures must have their "rc" field in the same
    position as "_purs_rc_base." */
@@ -259,6 +265,36 @@ const char * purs_any_tag_str (const purs_any_tag_t);
 static inline void purs_debug(purs_any_t v, char** out) {
 	asprintf(out, "tag=%s", purs_any_tag_str(v.tag));
 }
+
+/** @brief Retain the given dynamic value forever, making it impossible to be
+    collected. Necessary for lazily evaluated top-level thunks. */
+#define PURS_ANY_RETAIN_FOREVER(V) {\
+		switch ((V).tag) {\
+		case PURS_ANY_TAG_STRING:\
+			PURS_RC_RETAIN_FOREVER(((V).value.str));\
+			break;\
+		case PURS_ANY_TAG_ARRAY:\
+			PURS_RC_RETAIN_FOREVER((V).value.array);\
+			break;\
+		case PURS_ANY_TAG_RECORD:\
+			PURS_RC_RETAIN_FOREVER((V).value.record);\
+			break;\
+		case PURS_ANY_TAG_CONT:\
+			PURS_RC_RETAIN_FOREVER((V).value.cont);\
+			break;\
+		case PURS_ANY_TAG_THUNK:\
+			PURS_RC_RETAIN_FOREVER((V).value.thunk);\
+			break;\
+		case PURS_ANY_TAG_CONS:\
+			PURS_RC_RETAIN_FOREVER((V).value.cons);\
+			break;\
+		case PURS_ANY_TAG_FOREIGN:\
+			PURS_RC_RETAIN_FOREVER((V).value.foreign);\
+			break;\
+		default:\
+			break;\
+		}\
+	}
 
 /** @brief Retain the given dynamic value, if it makes sense. Primitive values such
     as integers, numbers, and chars are passed by value and need not be
@@ -759,7 +795,9 @@ struct purs_scope * purs_scope_new1(int size);
 #define PURS_ANY_THUNK_DEF(NAME)\
 	static purs_any_t NAME ## __thunk_fn__init();\
 	static purs_any_t NAME ## __thunk_fn__ (void * __unused__1) { \
-	    return NAME ## __thunk_fn__init();\
+	    purs_any_t v = NAME ## __thunk_fn__init();\
+	    PURS_ANY_RETAIN(v);\
+	    return v;\
 	};\
 	purs_thunk_t NAME ## __thunk__ = {\
 		.fn = NAME ## __thunk_fn__,\

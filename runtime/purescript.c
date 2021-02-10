@@ -212,12 +212,12 @@ int purs_any_eq(ANY x, ANY y) {
 }
 
 /**
- Concatenate two dyanmic values into a new dynamic value
+ Concatenate two dynamic values into a new dynamic value
 */
 ANY purs_any_concat(ANY x, ANY y) {
 	ANY ret;
-	int x_has_changed;
-	int y_has_changed;
+	int x_has_changed = 0;
+	int y_has_changed = 0;
 	x = purs_any_unthunk(x, &x_has_changed);
 	y = purs_any_unthunk(y, &y_has_changed);
 
@@ -233,8 +233,8 @@ ANY purs_any_concat(ANY x, ANY y) {
 		goto end;
 	}
 	case PURS_ANY_TAG_ARRAY: {
-		const purs_vec_t * x_vec = purs_any_unsafe_get_array(x);
-		const purs_vec_t * y_vec = purs_any_unsafe_get_array(y);
+		const purs_vec_t *x_vec = purs_any_unsafe_get_array(x);
+		const purs_vec_t *y_vec = purs_any_unsafe_get_array(y);
 		ret = purs_any_array(purs_vec_concat(x_vec, y_vec));
 		goto end;
 	}
@@ -297,8 +297,8 @@ const purs_vec_t * purs_vec_new() {
 #define purs_vec_empty NULL
 #define purs_vec_is_empty(V) (V == NULL || V->length == 0)
 
-const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs,
-				   const purs_vec_t * rhs) {
+const purs_vec_t * purs_vec_concat(const purs_vec_t *lhs,
+				   const purs_vec_t *rhs) {
 	if (purs_vec_is_empty(lhs)) {
 		if (rhs != NULL) {
 			PURS_RC_RETAIN(rhs);
@@ -313,7 +313,7 @@ const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs,
 		return NULL;
 	} else {
 		int length = lhs->length + rhs->length;
-		purs_vec_t * o = (purs_vec_t *) purs_vec_new();
+		purs_vec_t *o = (purs_vec_t *) purs_vec_new();
 		o->data = vec_malloc(sizeof (ANY) * length);
 		o->length = length;
 		o->capacity = length;
