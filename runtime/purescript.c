@@ -142,6 +142,10 @@ struct purs_scope * purs_scope_new(int size, ...) {
 // -----------------------------------------------------------------------------
 
 ANY purs_any_null = { .tag = PURS_ANY_TAG_NULL };
+ANY purs_any_empty_array = {
+	.tag = PURS_ANY_TAG_ARRAY,
+	.value = { .array = NULL }
+};
 
 ANY purs_any_true = PURS_ANY_INT(1);
 ANY purs_any_false = PURS_ANY_INT(0);
@@ -262,7 +266,7 @@ static void purs_str_free(const struct purs_rc *ref) {
 
 const purs_str_t * purs_str_new(const char * fmt, ...) {
 	va_list ap;
-	purs_str_t * x = purs_new(purs_str_t);
+	purs_str_t *x = purs_new(purs_str_t);
 	x->rc = (struct purs_rc) { purs_str_free, 1 };
 	va_start(ap, fmt);
 	assert (vasprintf(&x->data, fmt, ap) >= 0);

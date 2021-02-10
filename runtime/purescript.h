@@ -255,6 +255,9 @@ purs_any_t purs_any_record_empty;
 /// Sentinel value acting as 'NULL'
 purs_any_t purs_any_null;
 
+/// The empty array
+purs_any_t purs_any_array_empty;
+
 /// Test if dynamic value is 'NULL'
 #define purs_any_is_null(x) (x.tag == PURS_ANY_TAG_NULL)
 
@@ -633,6 +636,7 @@ const purs_cons_t * purs_cons_new(int tag, int size, ...);
 // -----------------------------------------------------------------------------
 
 const purs_str_t * purs_str_new(const char * fmt, ...);
+
 const void * purs_string_copy (const void *);
 
 #define purs_string_size(STR) utf8size(STR)
