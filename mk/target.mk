@@ -48,7 +48,7 @@ endif
 rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
 
 $(PUREC_LIB):
-	USE_GC=$(USE_GC) $(MAKE) -s -C $(PUREC_DIR) libpurec.a
+	USE_GC=$(USE_GC) $(MAKE) -C $(PUREC_DIR) libpurec.a
 .PHONY: $(PUREC_LIB)
 
 %/corefn.json.1: %/corefn.json
@@ -121,19 +121,19 @@ $(1)_srcs := $$($(1)_local) $$($(1)_deps)
 
 $$(PUREC_WORKDIR)/$(1)/.corefns: \
 	$$(patsubst %.h,%.purs,$$($(1)_srcs))
-	@mkdir -p $$(@D)
-	@$$(PURS) compile -g corefn -o $$(@D) $$(filter %.purs,$$^)
-	@touch $$@
+	mkdir -p $$(@D)
+	$$(PURS) compile -g corefn -o $$(@D) $$(filter %.purs,$$^)
+	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
-	@mkdir -p $$(@D)
-	@$$(MAKE) -s $$@.1
-	@touch $$@
+	mkdir -p $$(@D)
+	$$(MAKE) $$@.1
+	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WORKDIR)/$(1),corefn.json))
 	@echo Compiling from Corefn to C
-	@$$(PUREC) -m "$$($(1)_main_module)" $$?
-	@touch $$@
+	$$(PUREC) -m "$$($(1)_main_module)" $$?
+	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.build: \
 	$(PUREC_LIB) \
@@ -150,18 +150,18 @@ $$(PUREC_WORKDIR)/$(1)/.build: \
 		$($(1)_LDFLAGS) \
 		-Wl,$(LD_LINKER_FLAGS) \
 		-o "$(1).out"
-	@touch $$@
+	touch $$@
 	@echo Purec build succeeded!
 
 _$(1): $$(PUREC_WORKDIR)/$(1)/.genc
-	@$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.build
+	@$$(MAKE) $$(PUREC_WORKDIR)/$(1)/.build
 
 $(1): $(DEPS_DIR)
-	@$$(MAKE) -s _$(1)
+	@$$(MAKE) _$(1)
 .PHONY: $(1)
 
 $(1)_leakcheck: $(1)
-	@valgrind -q \
+	valgrind -q \
 		"--suppressions=$(PUREC_LIB_DIR)/purec.suppr" \
 		--error-exitcode=1 \
 		--num-callers=32 \
@@ -170,6 +170,6 @@ $(1)_leakcheck: $(1)
 .PHONY: $(1)_leakcheck
 
 $(1)/c: $(DEPS_DIR)
-	@$$(MAKE) -s $$(PUREC_WORKDIR)/$(1)/.genc
+	$$(MAKE) $$(PUREC_WORKDIR)/$(1)/.genc
 .PHONY: $(1)/c
 endef

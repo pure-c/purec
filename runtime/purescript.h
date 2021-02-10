@@ -225,13 +225,13 @@ struct purs_foreign {
 /// A PureScript array
 struct purs_vec {
 	PURS_RC_BASE_FIELDS
-	purs_any_t * data;
+	purs_any_t *data;
 	int length;
 	int capacity;
 };
 
 typedef struct purs_node_record {
-	const void * key;
+	const void *key;
 	purs_any_t value;
 	UT_hash_handle hh;
 } purs_record_node_t;
@@ -239,7 +239,7 @@ typedef struct purs_node_record {
 /// A PureScript record
 typedef struct purs_record {
 	struct purs_rc rc;
-	const purs_record_node_t * root;
+	const purs_record_node_t *root;
 } purs_record_t;
 
 /// The empty PureScript record
@@ -706,7 +706,7 @@ const purs_record_t * purs_record_merge(const purs_record_t *,
  * Find an entry by it's key.
  */
 purs_any_t * purs_record_find_by_key(const purs_record_t *,
-				     const void * key);
+				     const void *key);
 
 // -----------------------------------------------------------------------------
 // Code-gen helpers
@@ -777,12 +777,7 @@ struct purs_scope {
 	purs_any_t *bindings;
 };
 
-static inline purs_any_t purs_scope_binding_at(const purs_scope_t *scope,
-					       int offset) {
-	purs_any_t v = scope->bindings[offset];
-	PURS_ANY_RETAIN(v);
-	return v;
-}
+#define purs_scope_binding_at(SCOPE, OFFSET) (SCOPE)->bindings[OFFSET]
 
 struct purs_scope * purs_scope_new(int size, ...);
 struct purs_scope * purs_scope_new1(int size);
@@ -793,15 +788,19 @@ struct purs_scope * purs_scope_new1(int size);
 /* allocate a buffer to fit 'N' 'purs_any_t's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (purs_any_t) * N)
 
-/* declare a thunked top-level value.
-   todo: consider caching top-level thunks once forced.
- */
+/* declare a thunked top-level value. */
 #define PURS_ANY_THUNK_DEF(NAME)\
+	purs_any_t *NAME ## __value = NULL;\
 	static purs_any_t NAME ## __thunk_fn__init();\
-	static purs_any_t NAME ## __thunk_fn__ (void * __unused__1) { \
-	    purs_any_t v = NAME ## __thunk_fn__init();\
-	    PURS_ANY_RETAIN(v);\
-	    return v;\
+	static inline purs_any_t NAME ## __thunk_fn__ (void * __unused__1) { \
+		if (NAME ## __value != NULL) {\
+		    return *(NAME ## __value);\
+		}\
+		purs_any_t v = NAME ## __thunk_fn__init();\
+		PURS_ANY_RETAIN_FOREVER(v);\
+		NAME ## __value = purs_new(purs_any_t);\
+		*NAME ## __value = v;\
+		return v;\
 	};\
 	purs_thunk_t NAME ## __thunk__ = {\
 		.fn = NAME ## __thunk_fn__,\

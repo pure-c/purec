@@ -101,7 +101,6 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_any_lazy_new"       -> Just R.any
     AST.Var "purs_record_add_multi"   -> Just recordType
     AST.Var "purs_any_force_record"   -> Just recordType
-    AST.Var "purs_scope_binding_at"   -> Just R.any
     _                                 -> Nothing
 
   go parentVars = case _ of

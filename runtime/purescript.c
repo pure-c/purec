@@ -100,7 +100,7 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 // -----------------------------------------------------------------------------
 
 static void purs_scope_free(const struct purs_rc *ref) {
-	struct purs_scope * x = container_of(ref, struct purs_scope, rc);
+	struct purs_scope *x = container_of(ref, struct purs_scope, rc);
 	for (int i = 0; i < x->size; i++) {
 		PURS_ANY_RELEASE(x->bindings[i]);
 	}
@@ -438,10 +438,10 @@ const purs_record_t * purs_record_new_va(int count, ...) {
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	if (source == NULL) return NULL;
 	const purs_record_node_t * src, * tmp;
-	purs_record_t * x = purs_new(purs_record_t);
+	purs_record_t *x = purs_new(purs_record_t);
 	x->root = NULL;
 	HASH_ITER(hh, source->root, src, tmp) {
-		purs_record_node_t * dst = purs_new(purs_record_node_t);
+		purs_record_node_t *dst = purs_new(purs_record_node_t);
 		dst->key = afmt("%s", src->key); /* todo: perf */
 		dst->value = src->value;
 		PURS_ANY_RETAIN(dst->value);

@@ -413,25 +413,17 @@ exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
               (AST.Block next)
               Nothing
           ]
-      C.BooleanLiteral true ->
+      C.BooleanLiteral b ->
         pure
           [ AST.IfElse
               (AST.App
                 R.purs_any_eq_int
-                [ AST.Var varName, AST.NumericLiteral (Left 1) ])
+                [ AST.Var varName
+                , AST.NumericLiteral (Left if b == true then 1 else 0)
+                ])
               (AST.Block next)
               Nothing
           ]
-      C.BooleanLiteral false ->
-        pure
-          [ AST.IfElse
-              (AST.App
-                R.purs_any_eq_int
-                [ AST.Var varName, AST.NumericLiteral (Left 0) ])
-              (AST.Block next)
-              Nothing
-          ]
-
       C.ArrayLiteral binders ->
         let
           go next' ix xs =
