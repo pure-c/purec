@@ -15,7 +15,7 @@ let packages =
       , prelude =
               upstream.prelude
           //  { repo = "https://github.com/pure-c/purescript-prelude.git"
-              , version = "fd126e06e0a40c9796cf9b9c727670f97140b998"
+              , version = "d99b0a566045fa3663f6306f2d1250d43ba9a448"
               }
       , arrays =
               upstream.arrays
@@ -42,12 +42,14 @@ let packages =
       , either = upstream.either
       , enums =
               upstream.enums
-          //  { repo = "https://github.com/pure-c/purescript-enums.git" }
+          //  { repo = "https://github.com/pure-c/purescript-enums.git"
+              , version = "e38ad3ab84f5448e5a3b34c64474c014fc40570a"
+              }
       , foldable-traversable =
               upstream.foldable-traversable
           //  { repo =
                   "https://github.com/pure-c/purescript-foldable-traversable.git"
-              , version = "8649ae8ed0f1abbf1b2ba9c951444aa8344b5906"
+              , version = "b3579fe0caf20c515a338dd435f0531d856fac21"
               }
       , functions =
               upstream.functions
@@ -63,7 +65,9 @@ let packages =
       , invariant = upstream.invariant
       , lazy =
               upstream.lazy
-          //  { repo = "https://github.com/pure-c/purescript-lazy.git" }
+          //  { repo = "https://github.com/pure-c/purescript-lazy.git"
+              , version = "6b488affba15e1cacacd147c1997827569919d19"
+              }
       , lists = upstream.lists
       , math =
               upstream.math
@@ -99,7 +103,7 @@ let packages =
       , unfoldable =
               upstream.unfoldable
           //  { repo = "https://github.com/pure-c/purescript-unfoldable.git"
-              , version = "312636383dbd914c8666480a190f47212ccb7e64"
+              , version = "5a19669849cdd4c4b2ec90a86ede35d66af8a9b0"
               }
       , unsafe-coerce =
               upstream.unsafe-coerce

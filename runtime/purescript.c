@@ -264,7 +264,7 @@ static void purs_str_free(const struct purs_rc *ref) {
 	purs_free(x);
 }
 
-const purs_str_t * purs_str_new(const char * fmt, ...) {
+const purs_str_t * purs_str_new(const char *fmt, ...) {
 	va_list ap;
 	purs_str_t *x = purs_new(purs_str_t);
 	x->rc = (struct purs_rc) { purs_str_free, 1 };
@@ -297,9 +297,6 @@ const purs_vec_t * purs_vec_new() {
 	o->rc = (struct purs_rc) { purs_vec_free, 1 };
 	return o;
 }
-
-#define purs_vec_empty NULL
-#define purs_vec_is_empty(V) (V == NULL || V->length == 0)
 
 const purs_vec_t * purs_vec_concat(const purs_vec_t *lhs,
 				   const purs_vec_t *rhs) {

@@ -164,13 +164,13 @@ union purs_any_value {
 	purs_char_t chr;
 
 	/* self-referential, and other values */
-	const purs_foreign_t * foreign;
-	const purs_cont_t * cont;
-	const purs_cons_t * cons;
-	const purs_thunk_t * thunk;
-	const purs_record_t * record;
-	const purs_str_t * str;
-	const purs_vec_t * array;
+	const purs_foreign_t *foreign;
+	const purs_cont_t *cont;
+	const purs_cons_t *cons;
+	const purs_thunk_t *thunk;
+	const purs_record_t *record;
+	const purs_str_t *str;
+	const purs_vec_t *array;
 };
 
 /// A dynamic value.
@@ -183,15 +183,15 @@ struct purs_any {
 /// A thunk; A 0-ary function that evaluates to a value.
 struct purs_thunk {
 	PURS_RC_BASE_FIELDS
-	purs_thunk_fun_t * fn;
-	void * ctx;
+	purs_thunk_fun_t *fn;
+	void *ctx;
 };
 
 /// A continuation.
 struct purs_cont {
 	PURS_RC_BASE_FIELDS
-	purs_cont_fun_t * fn;
-	const struct purs_scope * scope; /* todo: inline? */
+	purs_cont_fun_t *fn;
+	const struct purs_scope *scope; /* todo: inline? */
 };
 
 /// A PureScript ADT constructor.
@@ -199,16 +199,16 @@ struct purs_cons {
 	PURS_RC_BASE_FIELDS
 	int tag;
 	int size;
-	purs_any_t * values;
+	purs_any_t *values;
 };
 
 /// A PureScript String
 struct purs_str {
 	PURS_RC_BASE_FIELDS
-	char * data;
+	char *data;
 };
 
-typedef void (*purs_foreign_finalizer)(void* tag, void* data);
+typedef void (*purs_foreign_finalizer)(void *tag, void *data);
 
 /// A PureScript foreign value
 struct purs_foreign {
@@ -646,6 +646,8 @@ const void * purs_string_copy (const void *);
 // arrays
 // -----------------------------------------------------------------------------
 
+#define purs_vec_empty NULL
+#define purs_vec_is_empty(V) (V == NULL || V->length == 0)
 const purs_vec_t * purs_vec_new ();
 const purs_vec_t * purs_vec_new_va (int count, ...);
 const purs_vec_t * purs_vec_copy (const purs_vec_t *);
@@ -894,7 +896,7 @@ static inline purs_any_t purs_any_lazy_force(void *ref) {
 }
 
 static void purs_any_lazy_free(const struct purs_rc *ref) {
-	purs_thunk_t  *thunk = container_of(ref, purs_thunk_t, rc);
+	purs_thunk_t *thunk = container_of(ref, purs_thunk_t, rc);
 	purs_any_ref_free((purs_any_t *) thunk->ctx);
 	purs_free(thunk);
 }
