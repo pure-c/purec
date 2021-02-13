@@ -182,7 +182,7 @@ test/upstream:
 	$(SPAGO) test
 .PHONY: test/upstream
 
-test:
+check:
 	@echo '=== test: c-tests ==================================================='
 	@$(MAKE) -s test/c
 	@echo '=== test: tests ====================================================='
@@ -190,4 +190,4 @@ test:
 	@echo '=== test: upstream =================================================='
 	@#$(MAKE) -s test/upstream
 	@#echo 'success!'
-.PHONY: test
+.PHONY: check
