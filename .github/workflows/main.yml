@@ -15,4 +15,5 @@ jobs:
       - uses: actions/setup-node@v2.1.4
       - run: sudo apt install -y valgrind libcmocka-dev
       - run: npm install
-      - run: make check
+      - run: npm run build
+      - run: npm test
