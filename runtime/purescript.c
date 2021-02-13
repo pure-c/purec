@@ -142,7 +142,7 @@ struct purs_scope * purs_scope_new(int size, ...) {
 // -----------------------------------------------------------------------------
 
 ANY purs_any_null = { .tag = PURS_ANY_TAG_NULL };
-ANY purs_any_empty_array = {
+ANY purs_any_array_empty = {
 	.tag = PURS_ANY_TAG_ARRAY,
 	.value = { .array = NULL }
 };
@@ -289,6 +289,15 @@ static void purs_vec_free(const struct purs_rc *ref) {
 	purs_free(x);
 }
 
+const purs_vec_t * purs_vec_new1(int capacity) {
+	purs_vec_t * o = purs_new(purs_vec_t);
+	o->data = purs_malloc_any_buf(capacity);
+	o->length = 0;
+	o->capacity = capacity;
+	o->rc = (struct purs_rc) { purs_vec_free, 1 };
+	return o;
+}
+
 const purs_vec_t * purs_vec_new() {
 	purs_vec_t * o = purs_new(purs_vec_t);
 	o->data = NULL;
@@ -352,14 +361,14 @@ const purs_vec_t * purs_vec_new_va (int count, ...) {
 static const purs_vec_t * _purs_vec_copy (const purs_vec_t * vec) {
 	if (purs_vec_is_empty(vec)) {
 		return NULL;
-	} else {
-		purs_vec_t * o = (purs_vec_t *) purs_vec_new();
-		o->length = vec->length;
-		o->capacity = vec->capacity;
-		o->data = vec_malloc(sizeof (ANY) * vec->capacity);
-		memcpy(o->data, vec->data, sizeof (ANY) * vec->capacity);
-		return (const purs_vec_t *) o;
 	}
+
+	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
+	o->length = vec->length;
+	o->capacity = vec->capacity;
+	o->data = vec_malloc(sizeof (ANY) * vec->capacity);
+	memcpy(o->data, vec->data, sizeof (ANY) * vec->capacity);
+	return (const purs_vec_t *) o;
 }
 
 const purs_vec_t * purs_vec_copy (const purs_vec_t * vec) {

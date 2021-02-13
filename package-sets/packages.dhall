@@ -43,7 +43,7 @@ let packages =
       , enums =
               upstream.enums
           //  { repo = "https://github.com/pure-c/purescript-enums.git"
-              , version = "e38ad3ab84f5448e5a3b34c64474c014fc40570a"
+              , version = "012663fbdc2e25804809ab3102cd134c55cce74c"
               }
       , foldable-traversable =
               upstream.foldable-traversable
@@ -94,7 +94,9 @@ let packages =
               }
       , st =
               upstream.st
-          //  { repo = "https://github.com/pure-c/purescript-st.git" }
+          //  { repo = "https://github.com/pure-c/purescript-st.git"
+              , version = "689d7d533e436c843f8bbd360b87824fd035de4f"
+              }
       , tailrec = upstream.tailrec
       , transformers = upstream.transformers
       , tuples = upstream.tuples

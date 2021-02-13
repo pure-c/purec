@@ -649,6 +649,7 @@ const void * purs_string_copy (const void *);
 #define purs_vec_empty NULL
 #define purs_vec_is_empty(V) (V == NULL || V->length == 0)
 const purs_vec_t * purs_vec_new ();
+const purs_vec_t * purs_vec_new1 (int capacity);
 const purs_vec_t * purs_vec_new_va (int count, ...);
 const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 const purs_vec_t * purs_vec_splice (const purs_vec_t *, int start, int count);
