@@ -291,7 +291,7 @@ static void purs_vec_free(const struct purs_rc *ref) {
 
 const purs_vec_t * purs_vec_new1(int capacity) {
 	purs_vec_t * o = purs_new(purs_vec_t);
-	o->data = purs_malloc_any_buf(capacity);
+	o->data = vec_malloc(sizeof (ANY) * capacity);
 	o->length = 0;
 	o->capacity = capacity;
 	o->rc = (struct purs_rc) { purs_vec_free, 1 };
@@ -384,7 +384,7 @@ const purs_vec_t * purs_vec_splice (const purs_vec_t * vec,
 				    int start,
 				    int count) {
 	/* todo: avoid copying input array */
-	purs_vec_t * copy = (purs_vec_t *) _purs_vec_copy(vec);
+	purs_vec_t *copy = (purs_vec_t *) _purs_vec_copy(vec);
 	vec_splice(copy, start, count);
 	for (int i = 0; i < copy->length; i++) {
 		PURS_ANY_RETAIN(copy->data[i]);
