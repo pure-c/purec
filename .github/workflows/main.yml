@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+    branches: [ next, ci ]
+  pull_request:
+    branches: [ next ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2.1.4
+      - run: npm install
+      - run: make check
