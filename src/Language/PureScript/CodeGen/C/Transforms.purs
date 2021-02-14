@@ -157,24 +157,27 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                 -- collected, *including* any variables collected in our parent
                 -- scopes, since we won't be coming back.
                 AST.Return x -> do
-                  x' <- go' x
+                  let
+                    escapeRet = case x of
+                      AST.App (AST.Var "purs_tco_state_result") [_] -> true
+                      _ -> false
+                  x' <- if escapeRet then pure  x else go' x
                   { allocVars } <- State.get
                   State.modify_ (_ { hasReturned = true })
                   tmp  <- lift $ freshInternalName' "ret"
                   pure $
                     AST.Block $
-                      [ AST.VariableIntroduction
-                          { name: tmp
-                          , type: R.any
-                          , qualifiers: []
-                          , initialization: Just x'
-                          }
-                      ]
-                      <>
-                      [ AST.App (AST.Var "PURS_ANY_RETAIN")
-                        [ AST.Var tmp
-                        ]
-                      ]
+                      (if escapeRet then [] else
+                        [ AST.VariableIntroduction
+                            { name: tmp
+                            , type: R.any
+                            , qualifiers: []
+                            , initialization: Just x'
+                            }
+                        , AST.App (AST.Var "PURS_ANY_RETAIN")
+                          [ AST.Var tmp
+                          ]
+                        ])
                       <>
                       ((parentVars <> allocVars) <#> \v ->
                         if v.type == R.any
@@ -188,7 +191,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                               ]
                       )
                       <>
-                      [ AST.Return $ AST.Var tmp
+                      [ AST.Return if escapeRet then x else AST.Var tmp
                       ]
 
                 AST.VariableIntroduction x ->

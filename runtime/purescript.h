@@ -94,6 +94,7 @@ typedef purs_any_t (purs_thunk_fun_t)(void * ctx);
 typedef purs_any_t (purs_cont_fun_t)(const struct purs_scope *, purs_any_t, va_list);
 typedef struct purs_foreign purs_foreign_t;
 typedef struct purs_str purs_str_t;
+typedef struct tco_state purs_tco_state_t;
 
 /* tag numbers are strictly sequential (for lookups, etc.)! */
 typedef enum {
@@ -171,6 +172,9 @@ union purs_any_value {
 	const purs_record_t *record;
 	const purs_str_t *str;
 	const purs_vec_t *array;
+
+	/* special, hidden, internal-only values */
+	purs_tco_state_t *tco;
 };
 
 /// A dynamic value.
@@ -736,43 +740,6 @@ static inline int purs_any_get_main_rc_compat(purs_any_t v) {
 #define purs_address_of(V) &V
 #define purs_derefence(V) *V
 
-/* Tail-call optimization generation */
-struct tco_state {
-	int done;
-	int size;
-	purs_any_t * args;
-};
-
-#define purs_tco_state_new(N)\
-	({\
-		struct tco_state x;\
-		x.done = 0;\
-		x.size = N;\
-		x.args = purs_malloc(sizeof (purs_any_t) * N);\
-		x;\
-	})
-#define purs_tco_state_free(S) do {\
-	for (int i = 0; i < S.size; i++) {\
-		PURS_ANY_RELEASE(S.args[i]);\
-	}\
-	purs_free(S.args);\
-} while (0)
-#define purs_tco_is_done(X) (X.done == 1)
-#define purs_tco_set_done(X) (((struct tco_state *) X)->done = 1)
-#define purs_tco_get_arg(X, I) (((struct tco_state *) X)->args[I])
-#define purs_tco_set_arg(X, I, V) do {\
-		purs_any_t __v__ = (V);\
-		PURS_ANY_RETAIN(__v__);\
-		X.args[I] = __v__;\
-	} while (0)
-#define purs_tco_mut_arg(X, I, V) do {\
-		purs_any_t __v__ = (V);\
-		PURS_ANY_RELEASE(((struct tco_state *) X)->args[I]);\
-		PURS_ANY_RETAIN(__v__);\
-		((struct tco_state *) X)->args[I] = __v__;\
-	} while (0)
-#define purs_foreign_get_data(X) (X->data)
-
 /* Captured scope generation */
 struct purs_scope {
 	struct purs_rc rc;
@@ -782,8 +749,44 @@ struct purs_scope {
 
 #define purs_scope_binding_at(SCOPE, OFFSET) (SCOPE)->bindings[OFFSET]
 
-struct purs_scope * purs_scope_new(int size, ...);
-struct purs_scope * purs_scope_new1(int size);
+struct purs_scope* purs_scope_new(int size, ...);
+struct purs_scope* purs_scope_new_va(int size, va_list);
+struct purs_scope* purs_scope_new1(int size);
+
+/* Tail-call optimization generation */
+struct tco_state {
+	int done;
+	purs_any_t result;
+	purs_scope_t *scope;
+};
+
+void purs_tco_state_init(purs_tco_state_t*, int size, ...);
+
+#define purs_tco_state_result(X) (X).result
+#define purs_tco_state_free(X) PURS_RC_RELEASE((X).scope)
+
+/* hide TCO state in a 'NULL'; code-gen use only. */
+#define purs_any_tco(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_NULL, .value = { .tco = &(X) } })
+
+#define purs_tco_is_done(X) (X.done == 1)
+
+#define purs_any_tco_set_done(X, V) do {\
+		purs_any_t ___purec_tco__v = V;\
+		(X).value.tco->done = 1;\
+		(X).value.tco->result = ___purec_tco__v;\
+		PURS_ANY_RETAIN(___purec_tco__v);\
+	} while(0)
+
+#define purs_any_tco_get_arg(X, I) (X).value.tco->scope->bindings[I]
+
+#define purs_any_tco_mut_arg(X, I, V) do {\
+		purs_any_t ___purec_tco__v = V;\
+		PURS_ANY_RELEASE((X).value.tco->scope->bindings[I]);\
+		PURS_ANY_RETAIN(___purec_tco__v);\
+		(X).value.tco->scope->bindings[I] = ___purec_tco__v;\
+	} while (0)
+
 
 /* allocate a buffer to fit 'N' 'purs_any_t's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (purs_any_t) * N)
@@ -944,7 +947,7 @@ static inline purs_any_t purs_any_lazy_new(purs_any_t *ref) {
 
 #define _PURS_FFI_FUNC_CONT(NAME, CUR, NEXT)\
 	purs_any_t NAME##__##CUR (const purs_scope_t * $__super__, purs_any_t a, va_list $__unused__) {\
-		purs_scope_t * scope = purs_scope_new1(CUR);\
+		purs_scope_t *scope = purs_scope_new1(CUR);\
 		if ($__super__ != NULL) {\
 			memcpy(scope->bindings,\
 			       $__super__->bindings,\
@@ -955,7 +958,7 @@ static inline purs_any_t purs_any_lazy_new(purs_any_t *ref) {
 		}\
 		scope->bindings[CUR - 1] = a;\
 		PURS_ANY_RETAIN(scope->bindings[CUR - 1]);\
-		const purs_cont_t * cont = purs_cont_new(scope, NAME##__##NEXT);\
+		const purs_cont_t *cont = purs_cont_new(scope, NAME##__##NEXT);\
 		PURS_RC_RELEASE(scope);\
 		return purs_any_cont(cont);\
 	}

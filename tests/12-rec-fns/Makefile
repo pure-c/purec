@@ -1,12 +1,11 @@
 default: main
 .PHONY: default
 
+CFLAGS = -g3 -O0
+
 PUREC_DIR := ../..
 include $(PUREC_DIR)/mk/target.mk
 
 main: .spago
-
-main_CFLAGS = -g
-main_LD_FLAGS = -lm -lcmocka
 
 $(eval $(call purs_mk_target,main,Main,src))
