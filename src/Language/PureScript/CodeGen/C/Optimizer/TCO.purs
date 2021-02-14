@@ -24,6 +24,18 @@ import Language.PureScript.CodeGen.Runtime as R
 tco :: AST -> AST
 tco = AST.everywhere convert
   where
+  convert x@(AST.VariableIntroduction (i@{ name, initialization: Just (fn@(AST.Function _)) })) =
+    let
+      args /\ body /\ replace =
+        let
+          args /\ body /\ replace =
+            collectFnArgs fn
+        in
+          A.concat (A.reverse args) /\ body /\ replace
+    in
+     if isTailRecursive name body
+      then AST.VariableIntroduction (i { initialization = Just (replace $ toLoop name args body) })
+      else x
   convert
     x@(AST.App
        (AST.Var "purs_any_ref_write")
