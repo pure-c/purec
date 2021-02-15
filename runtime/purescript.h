@@ -659,11 +659,44 @@ const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 const purs_vec_t * purs_vec_splice (const purs_vec_t *, int start, int count);
 const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs, const purs_vec_t * rhs);
 
-#define purs_vec_length(v) ((v == NULL) ? 0 : v->length)
-#define purs_vec_foreach(v, var, iter) if (v != NULL) vec_foreach(v, var, iter)
-#define purs_vec_reserve(v, n) vec_reserve(v, n)
-#define purs_vec_push_mut(v, x) vec_push(v, x)
-#define purs_vec_pusharr_mut(v, arr, count) vec_pusharr(v, arr, count)
+#define purs_vec_length(VEC) ((VEC == NULL) ? 0 : VEC->length)
+#define purs_vec_foreach(VEC, VAR, ITER) if (VEC != NULL) vec_foreach(VEC, VAR, ITER)
+#define purs_vec_reserve(VEC, N) vec_reserve(VEC, N)
+static inline void purs_vec_splice_mut(purs_vec_t* vec, int start, int count) {
+	if (vec == NULL) return;
+	if (count < 1) return;
+	/* release dropped elements */
+	int end = start + count;
+	if (end > vec->length) end = vec->length;
+	for (int i = start; i < end; i++) {
+		printf("releasing idx=%d\n", i);
+		PURS_ANY_RELEASE(vec->data[i]);
+	}
+	vec_splice(vec, start, count);
+}
+
+static inline void purs_vec_insert_mut(purs_vec_t** vec, int idx, purs_any_t val) {
+	purs_vec_t *v = *vec;
+
+	purs_assert(idx > -1, "Index out of bounds");
+	purs_assert(idx < purs_vec_length(v) + 1, "Index out of bounds");
+
+	if (v == NULL && idx == 0) {
+		v = (purs_vec_t*) purs_vec_new1(1);
+		v->length = 1;
+		v->data[0] = val;
+		PURS_ANY_RETAIN(val);
+		*vec = v;
+	}
+
+	vec_insert(v, idx, val);
+	PURS_ANY_RETAIN(val);
+}
+
+/* TODO: Update these APIs to automatically retain values! Requires update to
+   to contrib packages */
+#define purs_vec_push_mut(VEC, VAL) vec_push(VEC, VAL)
+#define purs_vec_pusharr_mut(VEC, ARR, COUNT) vec_pusharr(VEC, ARR, COUNT)
 
 /**
  * @brief Insert the value val at index idx shifting the elements after the index to
