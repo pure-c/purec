@@ -154,6 +154,24 @@ purs_scope_t* purs_scope_new(int size, ...) {
 	return scope;
 }
 
+const purs_scope_t* purs_scope_extend(const purs_scope_t* scope, int count, ...) {
+	purs_scope_t *copy = purs_scope_new1(scope->size + count);\
+	memcpy(copy->bindings,
+	       scope->bindings,
+	       scope->size * sizeof (purs_any_t));
+	for (int i = 0; i < copy->size; i++) {
+		PURS_ANY_RETAIN(copy->bindings[i]);
+	}
+	va_list ap;
+	va_start(ap, count);
+	for (int i = 0; i < count; i++) {
+		copy->bindings[scope->size + i] = va_arg(ap, purs_any_t);
+		PURS_ANY_RETAIN(copy->bindings[scope->size + i]);
+	}
+	va_end(ap);
+	return copy;
+}
+
 // -----------------------------------------------------------------------------
 // Any: built-ins
 // -----------------------------------------------------------------------------

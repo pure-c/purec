@@ -19,7 +19,9 @@ let packages =
               }
       , arrays =
               upstream.arrays
-          //  { repo = "https://github.com/pure-c/purescript-arrays.git" }
+          //  { repo = "https://github.com/pure-c/purescript-arrays.git"
+              , version = "b9c7374a796a02aaccf2eda4919c2d96896a6a37"
+              }
       , assert =
               upstream.assert
           //  { repo = "https://github.com/pure-c/purescript-assert.git"
