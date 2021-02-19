@@ -91,7 +91,7 @@ premain: $(srcs)
 	@cp "$(PUREC_DIR)"/package-sets/* .
 	@cp "$(PUREC_DIR)"/upstream/tests/support/spago.dhall .
 	@$(SPAGO) install -q -c skip
-	@$(MAKE) -s main
+	@$(MAKE) -s main_leakcheck
 
 $(eval $(call purs_mk_target,main,Main,$(srcs)))
 """
