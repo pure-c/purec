@@ -537,7 +537,7 @@ exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
                         (AST.NumericLiteral (Left index))
                         (AST.Accessor
                           (AST.Raw "values")
-                          (AST.App R.purs_any_unsafe_get_cons [ AST.Var varName ]))
+                          (AST.App R.purs_any_force_cons [ AST.Var varName ]))
                 } A.: ast
 
     in

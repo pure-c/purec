@@ -109,12 +109,12 @@ deps/bwdgc:
 # Tests
 #-------------------------------------------------------------------------------
 
-test/c:
+check/c:
 	@$(MAKE) -s clean > /dev/null
-	@UNIT_TESTING=1 $(MAKE) -s test/c.0
-PHONY: test/c
+	@UNIT_TESTING=1 $(MAKE) -s check/c.0
+PHONY: check/c
 
-test/c.0:
+check/c.0:
 	@UNIT_TESTING=1 make -s $(PUREC_LIB)
 	@$(CLANG) \
 		-g \
@@ -126,24 +126,24 @@ test/c.0:
 		-lcmocka \
 		-o ctests/a.out > /dev/null
 	@./ctests/a.out
-.PHONY: test/c.0
+.PHONY: check/c.0
 
-test/tests.0: | $(foreach t,$(TESTS),test/tests/$(t))
-.PHONY: test/tests.0
+check/tests.0: | $(foreach t,$(TESTS),check/tests/$(t))
+.PHONY: check/tests.0
 
-test/tests:
+check/tests:
 	@$(MAKE) -s clean
-	@UNIT_TESTING=0 $(MAKE) -s test/tests.0
-PHONY: test/tests
+	@UNIT_TESTING=0 $(MAKE) -s check/tests.0
+PHONY: check/tests
 
 # compile each project under 'tests', run it, and check for leaks using valgrind
 define mk_test_case
 
-test/tests/$(1):
+check/tests/$(1):
 	@$(MAKE) -s clean
-	UNIT_TESTING=0 $(MAKE) -s test/tests/$(1).0
+	UNIT_TESTING=0 $(MAKE) -s check/tests/$(1).0
 
-test/tests/$(1).0: $(BWDGC_LIB)
+check/tests/$(1).0: $(BWDGC_LIB)
 	@echo "tests/$(1): clean"
 	@$(MAKE) -C "tests/$(1)" clean > /dev/null
 	@echo "tests/$(1): compile C"
@@ -153,20 +153,20 @@ test/tests/$(1).0: $(BWDGC_LIB)
 		$(MAKE) -C "tests/$(1)" main
 	@echo "tests/$(1): run ouput"
 	$(MAKE) -s -C "tests/$(1)" main_leakcheck
-.PHONY: test/tests/$(1)
+.PHONY: check/tests/$(1)
 
 endef
 
-# generate test targets
+# generate check targets
 $(foreach t,$(TESTS),$(eval $(call mk_test_case,$t)))
 
-test/tests/main:
+check/tests/main:
 	@$(MAKE) -s clean
-	@$(MAKE) -s test/tests/main.0
-PHONY: test/tests/main
+	@$(MAKE) -s check/tests/main.0
+PHONY: check/tests/main
 
 # compile and execute each project under 'tests/'
-test/tests/main.0:
+check/tests/main.0:
 	@set -e; for t in $(TESTS); do\
 		echo "tests/main: $$t: clean" &&\
 		$(MAKE) > /dev/null -s -C "tests/$$t" clean &&\
@@ -175,19 +175,19 @@ test/tests/main.0:
 		echo "tests/main: $$t: run" &&\
 		( cd "tests/$$t" && ./main.out; )
 	done
-.PHONY: test/tests/main.0
+.PHONY: check/tests/main.0
 
-test/upstream:
+check/upstream:
 	$(MAKE) clean
 	$(SPAGO) test
-.PHONY: test/upstream
+.PHONY: check/upstream
 
 check:
 	@echo '=== test: c-tests ==================================================='
-	@$(MAKE) -s test/c
+	@$(MAKE) -s check/c
 	@echo '=== test: tests ====================================================='
-	@$(MAKE) -s test/tests
+	@$(MAKE) -s check/tests
 	@echo '=== test: upstream =================================================='
-	@$(MAKE) -s test/upstream
+	@$(MAKE) -s check/upstream
 	@echo 'success!'
 .PHONY: check

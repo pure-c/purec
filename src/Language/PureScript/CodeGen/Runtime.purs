@@ -15,6 +15,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_unsafe_get_foreign
   , purs_any_unsafe_get_record
   , purs_any_unsafe_get_array
+  , purs_any_force_cons
   , purs_any_force_record
   , purs_any_true
   , purs_any_false
@@ -164,6 +165,9 @@ purs_any_unsafe_get_cons = AST.Var "purs_any_unsafe_get_cons"
 
 purs_any_unsafe_get_record :: AST
 purs_any_unsafe_get_record = AST.Var "purs_any_unsafe_get_record"
+
+purs_any_force_cons :: AST
+purs_any_force_cons = AST.Var "purs_any_force_cons"
 
 purs_any_force_record :: AST
 purs_any_force_record = AST.Var "purs_any_force_record"

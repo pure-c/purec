@@ -5,6 +5,7 @@ CFLAGS ?=
 
 PUREC_WORKDIR ?= .purec-work
 PURS ?= purs
+PURS_FLAGS ?=
 
 ifndef PUREC_DIR
 $(error PUREC_DIR must be set)
@@ -127,7 +128,7 @@ $(1)_srcs := $$($(1)_local) $$($(1)_deps)
 $$(PUREC_WORKDIR)/$(1)/.corefns: \
 	$$(patsubst %.h,%.purs,$$($(1)_srcs))
 	mkdir -p $$(@D)
-	$$(PURS) compile -g corefn -o $$(@D) $$(filter %.purs,$$^)
+	$$(PURS) compile -g corefn -o $$(PURS_FLAGS) $$(@D) $$(filter %.purs,$$^)
 	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns

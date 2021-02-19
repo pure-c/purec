@@ -72,7 +72,9 @@ prepareCacheDir dir = do
 default: premain
 .PHONY: default
 
+CFLAGS := -O0 -g3
 PUREC_DIR := ../..
+PURS_FLAGS := 2> /dev/null
 PUREC_FLAGS := --non-strict-main
 include $(PUREC_DIR)/mk/target.mk
 SPAGO := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin spago
@@ -84,7 +86,7 @@ premain: $(srcs)
 	@touch $^ || { :; }
 	@cp "$(PUREC_DIR)"/package-sets/* .
 	@cp "$(PUREC_DIR)"/upstream/tests/support/spago.dhall .
-	@$(SPAGO) install -c skip
+	@$(SPAGO) install -q -c skip
 	@$(MAKE) -s main
 
 $(eval $(call purs_mk_target,main,Main,$(srcs)))
