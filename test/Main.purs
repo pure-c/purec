@@ -20,6 +20,6 @@ main = launchAff_ do
   only <- liftEffect (Process.lookupEnv "only")
   upstreamSpec <- buildUpstreamTestSuite only
   unwrap $ Spec.runSpecT
-    (Spec.defaultConfig { timeout = Just $ 10000.0 # Milliseconds })
+    (Spec.defaultConfig { timeout = Just $ 20000.0 # Milliseconds })
     [ Spec.specReporter ] $
       upstreamSpec
