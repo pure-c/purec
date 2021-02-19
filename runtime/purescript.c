@@ -444,13 +444,24 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records
 // -----------------------------------------------------------------------------
 
-static inline void _purs_record_add_multi_mut(purs_record_t * x, int count, va_list ap);
-
 purs_any_t purs_any_record_empty = PURS_ANY_RECORD(NULL);
 
+const purs_record_t* purs_record_merge(const purs_record_t* r1,
+				       const purs_record_t* r2) {
+	if (r1 == NULL && r2 == NULL) return NULL;
+	if (r1 == NULL) return purs_record_copy_shallow(r2);
+	if (r2 == NULL) return purs_record_copy_shallow(r1);
+	purs_record_t *copy = (purs_record_t*) purs_record_copy_shallow(r2);
+	const purs_record_node_t *e, *tmp;
+	HASH_ITER(hh, r1->root, e, tmp) {
+		purs_record_add_mut(copy, e->key, e->value);
+	}
+	return copy;
+}
+
 static void purs_record_free(const struct purs_rc *ref) {
-	purs_record_t * x = container_of(ref, purs_record_t, rc);
-	const purs_record_node_t * e, * tmp;
+	purs_record_t *x = container_of(ref, purs_record_t, rc);
+	const purs_record_node_t *e, *tmp;
 	HASH_ITER(hh, x->root, e, tmp) {
 		HASH_DEL(x->root, (purs_record_node_t *) e);
 		PURS_ANY_RELEASE(e->value);
@@ -468,17 +479,16 @@ const purs_record_t * purs_record_new_va(int count, ...) {
 	x->root = NULL;
 	va_list ap;
 	va_start(ap, count);
-	_purs_record_add_multi_mut(x, count, ap);
+	purs_record_add_multi_mut_va(x, count, ap);
 	va_end(ap);
 	x->rc = ((struct purs_rc) { purs_record_free, 1 });
 	return (const purs_record_t *) x;
 }
 
-/* create a shallow copy of the record
- */
+/* create a shallow copy of the record */
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	if (source == NULL) return NULL;
-	const purs_record_node_t * src, * tmp;
+	const purs_record_node_t *src, *tmp;
 	purs_record_t *x = purs_new(purs_record_t);
 	x->root = NULL;
 	HASH_ITER(hh, source->root, src, tmp) {
@@ -516,22 +526,52 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source,
 	}
 	va_list args;
 	va_start(args, count);
-	_purs_record_add_multi_mut(copy, count, args);
+	purs_record_add_multi_mut_va(copy, count, args);
 	va_end(args);
 	return (const purs_record_t *) copy;
 }
 
-static inline
-void _purs_record_add_multi_mut(purs_record_t * x,
-				int count,
-				va_list ap) {
+const purs_record_t* purs_record_remove(const purs_record_t *record, const void *key) {
+	if (record == NULL) return NULL;
+	purs_record_t *copy = (purs_record_t *) purs_record_copy_shallow(record);
+	purs_record_remove_mut(copy, key);
+	return copy;
+}
+
+void purs_record_remove_mut(purs_record_t *record, const void *key) {
+	if (record == NULL) return;
+	purs_record_node_t *result;
+	size_t len = utf8size(key);
+	HASH_FIND(hh, record->root, key, len, result);
+	if (result != NULL) {
+		PURS_ANY_RELEASE(result->value);
+		HASH_DEL(record->root, result);
+		free((void*) result->key);
+		purs_free((purs_record_node_t *) result);
+	}
+	return;
+}
+
+void purs_record_add_multi_mut(purs_record_t *x,
+			       size_t count,
+			       ...) {
+	va_list ap;
+	va_start(ap, count);
+	purs_record_add_multi_mut_va(x, count, ap);
+	va_end(ap);
+}
+
+void purs_record_add_multi_mut_va(purs_record_t *x,
+				  size_t count,
+				  va_list ap) {
 	for (int i = 0; i < count; i++) {
-		const char * key = va_arg(ap, const char *);
+		const char *key = va_arg(ap, const char *);
 		purs_any_t value = va_arg(ap, purs_any_t);
 		purs_record_node_t * entry = purs_new(purs_record_node_t);
 		entry->key = afmt("%s", key); /* todo: perf */
 		entry->value = value;
 		PURS_ANY_RETAIN(value);
+		purs_record_remove_mut(x, entry->key);
 		HASH_ADD_KEYPTR(
 			hh,
 			x->root,
@@ -544,6 +584,7 @@ void _purs_record_add_multi_mut(purs_record_t * x,
 
 purs_any_t* purs_record_find_by_key(const purs_record_t * record,
 				    const void * key) {
+	if (record == NULL) return NULL;
 	purs_record_node_t *result;
 	size_t len = utf8size(key);
 	HASH_FIND(hh, record->root, key, len, result);

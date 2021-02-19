@@ -23,7 +23,7 @@ import Data.String as Str
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown) as AST
+import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown, FunctionQualifier(..)) as AST
 import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
@@ -584,7 +584,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
               }
             ]
         , returnType: R.any
-        , qualifiers: []
+        , qualifiers: [ AST.ModuleInternal ]
         , variadic: false
         , body:
             Just $

@@ -140,6 +140,8 @@ prettyPrintAst x@(AST.Function
         throwError $
           InvalidStateError "Anonymous functions should have been erased by now"
 
+  emit $ A.intercalate " " $ map renderFunctionQualifier qualifiers
+  emit " "
   emit $ renderType returnType
   emit " "
   emit name
@@ -160,6 +162,7 @@ prettyPrintAst x@(AST.Function
       emit ";"
   lf
   where
+  renderFunctionQualifier AST.ModuleInternal = "static"
   renderArg { name, type: typ } =
     renderType typ <> " " <> name
 prettyPrintAst (AST.Cast typ ast) = do

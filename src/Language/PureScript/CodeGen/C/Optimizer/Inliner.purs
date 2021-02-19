@@ -283,7 +283,7 @@ inlineFnComposition = AST.everywhereTopDownM go
             { name: Nothing
             , arguments: [ { name: arg, type: R.any } ]
             , returnType: R.any
-            , qualifiers: []
+            , qualifiers: [ AST.ModuleInternal ]
             , variadic: false
             , body: Just $
                 AST.Block
@@ -304,7 +304,7 @@ inlineFnComposition = AST.everywhereTopDownM go
             { name: Nothing
             , arguments: [ { name: arg, type: R.any } ]
             , returnType: R.any
-            , qualifiers: []
+            , qualifiers: [ AST.ModuleInternal ]
             , variadic: false
             , body: Just $
                 AST.Block

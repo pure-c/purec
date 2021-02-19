@@ -723,12 +723,17 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
 					    size_t count,
 					    ...);
 
+const purs_record_t* purs_record_remove(const purs_record_t*, const void *key);
+void purs_record_remove_mut(purs_record_t*, const void *key);
+
+
 /**
  * Add a given set of key/value pairs to the given record (by mutation)
  */
-purs_record_t * purs_record_add_multi_mut(purs_record_t *,
-					  size_t count,
-					  ...);
+void purs_record_add_multi_mut(purs_record_t *, size_t count, ...);
+void purs_record_add_multi_mut_va(purs_record_t *, size_t count, va_list ap);
+#define purs_record_add_mut(X, K, V) purs_record_add_multi_mut(X, 1, K, V);
+const purs_record_t* purs_record_merge(const purs_record_t* r1, const purs_record_t* r2);
 
 /**
  * Merge two records. The right record overwrites any labels in the left record.
@@ -967,7 +972,7 @@ static inline purs_any_t purs_any_lazy_new(purs_any_t *ref) {
 #define purs_ffi_get_cont(NAME) NAME ## __cont__
 
 #define _PURS_FFI_FUNC_ENTRY(NAME)\
-	purs_cont_t NAME ## __cont__ = {\
+	static purs_cont_t NAME ## __cont__ = {\
 		.fn = NAME ## __1,\
 		.scope = NULL,\
 		.rc = { .count = -1 }\

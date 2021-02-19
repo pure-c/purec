@@ -297,7 +297,7 @@ exprToAst (C.Let _ binders val) = ado
         AST.Function
           { name: Nothing
           , variadic: false
-          , qualifiers: []
+          , qualifiers: [ AST.ModuleInternal ]
           , arguments: []
           , returnType: R.any
           , body:
@@ -366,7 +366,7 @@ exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
       [
         AST.Function
           { name: Nothing
-          , qualifiers: []
+          , qualifiers: [ AST.ModuleInternal ]
           , variadic: false
           , arguments: []
           , returnType: R.any
@@ -592,7 +592,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
     pure $
      AST.Function
       { name: Nothing
-      , qualifiers: []
+      , qualifiers: [ AST.ModuleInternal ]
       , variadic: false
       , arguments: [ { name: argName, type: R.any } ]
       , returnType: R.any
@@ -616,7 +616,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
         in
           AST.Function
             { name: Nothing
-            , qualifiers: []
+            , qualifiers: [ AST.ModuleInternal ]
             , variadic: false
             , arguments: [ { name: argName', type: R.any } ]
             , returnType: R.any
@@ -648,7 +648,7 @@ exprToAst (C.Abs (C.Ann _) ident expr) = do
   pure $
     AST.Function
       { name: Nothing
-      , qualifiers: []
+      , qualifiers: [ AST.ModuleInternal ]
       , variadic: false
       , arguments:
           [ { name: argName, type: R.any }

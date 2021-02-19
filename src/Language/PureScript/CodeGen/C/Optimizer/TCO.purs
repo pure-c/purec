@@ -175,7 +175,7 @@ tco = AST.everywhere convert
                         , type: R.any
                         }
                       ]
-                  , qualifiers: []
+                  , qualifiers: [ AST.ModuleInternal ]
                   , returnType: R.any
                   , variadic:  false
                   , body:
