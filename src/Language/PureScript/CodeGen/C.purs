@@ -1,5 +1,6 @@
 module Language.PureScript.CodeGen.C
-  where
+  ( moduleToAST
+  ) where
 
 import Prelude
 
@@ -39,8 +40,8 @@ import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 
-type IsMain =
-  Boolean
+type IsMain = Boolean
+type IsStrictMain = Boolean
 
 type Env =
   { module :: C.Module C.Ann
@@ -50,10 +51,15 @@ moduleToAST
   :: ∀ m
    . MonadError CompileError m
   => MonadSupply m
-  => IsMain
+  => IsStrictMain
+  -> IsMain
   -> C.Module C.Ann
   -> m (Array AST)
-moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecls, moduleForeign }) =
+moduleToAST strictMain isMain mod@(C.Module { moduleName,
+                                              moduleImports,
+                                              moduleExports,
+                                              moduleDecls,
+                                              moduleForeign }) =
   let
     cModuleName =
       runModuleName moduleName
@@ -115,7 +121,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
           , [ P.empty ]
           , if isMain
               then
-                [ F.nativeMain $
+                [ F.nativeMain strictMain $
                     AST.Var $
                       safeName $
                         qualifiedVarName moduleName "main"

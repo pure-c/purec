@@ -6,14 +6,13 @@ module Main
 
 import Prelude
 
-import Control.Alt ((<|>))
 import Control.Monad.Error.Class (catchError, throwError)
 import Control.Monad.Except (except, runExcept, runExceptT, withExceptT)
 import CoreFn.FromJSON (moduleFromJSON) as C
 import CoreFn.Module (FilePath(..), Module(..)) as C
 import Data.Array as A
 import Data.Either (Either(..), either)
-import Data.Maybe (Maybe(..), fromMaybe, maybe)
+import Data.Maybe (Maybe(..), maybe)
 import Data.Newtype (wrap)
 import Data.String as Str
 import Data.Traversable (for_, sequence_)
@@ -38,8 +37,8 @@ import Node.FS.Aff as FS
 import Node.Path (FilePath)
 import Node.Path as FilePath
 import Node.Process as Process
-import POSIX.GetOpt.Monad (GetOptT, getopt, runGetOptT)
-import POSIX.GetOpt.Monad as GetOpt
+import Options.Applicative ((<**>))
+import Options.Applicative as OA
 
 type RawOptions =
   { input :: Maybe (Array String)
@@ -52,55 +51,42 @@ emptyOpts =
   , main: Nothing
   }
 
-help :: String
-help = """Usage: purec [-h] [--main <name>] <input>...
-
-Options:
-  -h, --help
-    Show this help and exit.
-  -m, --main <name>
-    Specify the name of main module.
-    The main module contains the entry point to the final binary.
-"""
-
 main :: Effect Unit
 main = launchAff_ do
-  -- parse command line
-  rawOpts <-
-    let
-      go :: RawOptions -> GetOptT Effect RawOptions
-      go opts =
-        getopt >>= case _ of
-          Just { option: 'h' } ->
-            liftEffect do
-              Console.log help
-              Process.exit 0
-          Just { option: 'm', optarg: Just arg } ->
-            go $ opts { main = Just arg }
-          Just _ ->
-            go opts
-          Nothing -> do
-            optind <- GetOpt.optind
-            argv   <- GetOpt.argv
-            pure $
-              opts
-                { input = Just $ A.drop optind argv
-                }
-    in liftEffect do
-      argv <- Process.argv
-      runGetOptT "m:(main)h(help)" argv 2 $
-        go emptyOpts
-
-  -- validate options
-  mainModuleName <- pure $ rawOpts.main <|> Just "Main"
-  modulePaths    <- pure $ fromMaybe [] $ rawOpts.input
+  args <- liftEffect $
+    OA.customExecParser
+      (OA.prefs
+        (OA.multiSuffix "..."))
+      (OA.info
+        ((ado
+          mainModule <-
+            OA.strOption
+              (OA.long "main" <>
+              OA.short 'm' <>
+              (OA.help
+                ("Specify the name of main module.\n" <>
+                "The main module contains the entry point to the final binary.")) <>
+              OA.value "Main")
+          strictMain <-
+            OA.flag true false
+              (OA.long "non-strict-main" <>
+              (OA.help
+                ("If enabled, Main module may return values other than Unit or Int.")))
+          inputs <-
+            OA.many
+              (OA.argument OA.str
+                (OA.metavar "<input>" <>
+                OA.help "Filepaths of modules to compile"))
+        in { mainModule, inputs, strictMain }) <**> OA.helper)
+        (OA.fullDesc <>
+        OA.header "Pure-C compiler."))
 
   -- compile modules to C
-  for_ modulePaths \modulePath -> do
+  for_ args.inputs \modulePath -> do
     Console.log $ "Compiling " <> modulePath <> "..."
-    compileModule
+    compileModule args.strictMain
       (\(C.Module { moduleName }) ->
-        maybe false ((dottedModuleName moduleName) == _) mainModuleName)
+        dottedModuleName moduleName == args.mainModule)
       modulePath
 
   where
@@ -129,10 +115,11 @@ renderPipelineError (PrintError (PrintError.NotImplementedError msg)) =
 
 -- | Compie the given corefn json file to C.
 compileModule
-  :: (C.Module _ -> Boolean) -- ^ is main module?
+  :: Boolean -- ^ strict main checking?
+  -> (C.Module _ -> Boolean) -- ^ is main module?
   -> FilePath -- ^ corefn json file
   -> Aff Unit
-compileModule isMain corefn = do
+compileModule strictMain isMain corefn = do
   let
     outputDir =
       FilePath.dirname corefn <> "/.."
@@ -188,7 +175,7 @@ compileModule isMain corefn = do
 
       -- derive the C AST
       { header, implementation } <- withExceptT CompileError ado
-        ast <- C.moduleToAST (isMain $ core."module") core."module"
+        ast <- C.moduleToAST strictMain (isMain $ core."module") core."module"
         in
           let
             { init: header

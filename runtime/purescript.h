@@ -757,7 +757,9 @@ purs_any_t * purs_record_find_by_key(const purs_record_t *,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-static inline int purs_any_get_main_rc_compat(purs_any_t v) {
+static inline int purs_main(purs_any_t v, int strict) {
+	if (!strict) return 0;
+
 	v = purs_any_unthunk(v, NULL);
 	switch(v.tag) {
 	case PURS_ANY_TAG_NULL:
@@ -767,9 +769,7 @@ static inline int purs_any_get_main_rc_compat(purs_any_t v) {
 	default: {
 		char* s;
 		purs_debug(v, &s);
-		purs_assert(0,
-			    "program did not return unit or int, value=(%s)\n",
-			    s);
+		purs_assert(0, "program did not return unit or int, value=(%s)", s);
 		free(s); /* for good measure */
 		return -1; /* silence warning */
 	}
