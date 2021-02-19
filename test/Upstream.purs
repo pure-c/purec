@@ -73,6 +73,7 @@ default: premain
 .PHONY: default
 
 PUREC_DIR := ../..
+PUREC_FLAGS := --non-strict-main
 include $(PUREC_DIR)/mk/target.mk
 SPAGO := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin spago
 PURS := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin purs

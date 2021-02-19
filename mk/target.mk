@@ -10,6 +10,7 @@ ifndef PUREC_DIR
 $(error PUREC_DIR must be set)
 endif
 
+PUREC_FLAGS ?=
 PUREC := node $(PUREC_DIR)/purec.js
 PUREC_LIB = $(PUREC_DIR)/libpurec.a
 PUREC_LIB_DIR = $(dir $(PUREC_LIB))
@@ -136,7 +137,7 @@ $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
 
 $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WORKDIR)/$(1),corefn.json))
 	@echo Compiling from Corefn to C
-	$$(PUREC) -m "$$($(1)_main_module)" $$?
+	$$(PUREC) $$(PUREC_FLAGS) -m "$$($(1)_main_module)" $$?
 	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.build: \
