@@ -58,15 +58,14 @@ buildUpstreamTestSuite only =
             it name do
               runProc "rm" [ "-rf", outputDir ]
               runProc "rsync" [ "-a", cacheDir <> "/", outputDir <> "/" ]
-              make outputDir files >>= runProc <@> []
+              make outputDir files
 
 -- | Run make, return the produced output
-make :: FilePath -> Array FilePath -> Aff FilePath
-make dir pursSources =
-  dir <> "/main.out" <$ do
-    FS.writeTextFile UTF8 (dir <> "/sources") $
-      A.intercalate "\n" pursSources
-    runProc "make" [ "-s", "-j", "16", "-C", dir ]
+make :: FilePath -> Array FilePath -> Aff Unit
+make dir pursSources = do
+  FS.writeTextFile UTF8 (dir <> "/sources") $
+    A.intercalate "\n" pursSources
+  runProc "make" [ "-s", "-j", "16", "-C", dir ]
 
 -- | prepare the output directory and build the project at least once
 prepareCacheDir :: FilePath -> Aff Unit

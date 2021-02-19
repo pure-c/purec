@@ -59,7 +59,7 @@ const purs_foreign_t * purs_foreign_new(void * tag,
 // -----------------------------------------------------------------------------
 
 static void purs_cons_free(const struct purs_rc *ref) {
-	purs_cons_t * x = container_of(ref, purs_cons_t, rc);
+	purs_cons_t *x = container_of(ref, purs_cons_t, rc);
 	for (int i = 0; i < x->size; i++) {
 		PURS_ANY_RELEASE(x->values[i]);
 	}

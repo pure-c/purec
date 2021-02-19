@@ -758,7 +758,10 @@ purs_any_t * purs_record_find_by_key(const purs_record_t *,
 // -----------------------------------------------------------------------------
 
 static inline int purs_main(purs_any_t v, int strict) {
-	if (!strict) return 0;
+	if (!strict) {
+		PURS_ANY_RELEASE(v);
+		return 0;
+	}
 
 	v = purs_any_unthunk(v, NULL);
 	switch(v.tag) {

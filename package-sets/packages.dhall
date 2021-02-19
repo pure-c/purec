@@ -96,7 +96,7 @@ let packages =
       , refs =
               upstream.refs
           //  { repo = "https://github.com/pure-c/purescript-refs.git"
-              , version = "b81d7cab5345b7a5f7f279ad68c4eb7c19c07b0d"
+              , version = "102dd7fc405d70c05b43f1b0bb7ee0009e93f157"
               }
       , st =
               upstream.st

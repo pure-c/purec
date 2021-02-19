@@ -206,6 +206,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         AST.Var "purs_tco_is_done"        -> noop
         AST.Var "purs_any_force_cons"     -> noop
         AST.Var "purs_any_force_array"    -> noop
+        AST.Var "purs_any_force_cons_tag" -> noop
         _ -> lf /\ pure unit /\ indent
   case A.unsnoc argsAsts of
     Nothing ->
