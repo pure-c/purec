@@ -758,6 +758,7 @@ purs_any_t * purs_record_find_by_key(const purs_record_t *,
 // -----------------------------------------------------------------------------
 
 static inline int purs_any_get_main_rc_compat(purs_any_t v) {
+	v = purs_any_unthunk(v, NULL);
 	switch(v.tag) {
 	case PURS_ANY_TAG_NULL:
 		return 0;

@@ -29,11 +29,6 @@ blackList =
   , "NegativeIntInRange"
   , "StringEdgeCases"    -- https://github.com/paulyoung/purescript-corefn/issues/57
   , "StringEscapes"      -- https://github.com/paulyoung/purescript-corefn/issues/57
-
-    -- missing dependencies:
-  , "GenericsRep"
-      -- depends on:
-      --   + purescript-enums (https://github.com/pure-c/pure-c/issues/35)
   ]
 
 buildUpstreamTestSuite :: Aff (Spec Unit)

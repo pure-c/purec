@@ -188,6 +188,6 @@ check:
 	@echo '=== test: tests ====================================================='
 	@$(MAKE) -s test/tests
 	@echo '=== test: upstream =================================================='
-	@#$(MAKE) -s test/upstream
-	@#echo 'success!'
+	@$(MAKE) -s test/upstream
+	@echo 'success!'
 .PHONY: check
