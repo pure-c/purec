@@ -8,7 +8,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (catchError)
 import Control.Parallel (parallel, sequential)
 import Data.Array as A
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.String (Pattern(..))
 import Data.String as Str
 import Data.Traversable (for, for_)
@@ -31,8 +31,10 @@ blackList =
   , "StringEscapes"      -- https://github.com/paulyoung/purescript-corefn/issues/57
   ]
 
-buildUpstreamTestSuite :: Aff (Spec Unit)
-buildUpstreamTestSuite =
+buildUpstreamTestSuite
+  :: Maybe String -- ^ if specified, only run this test.
+  -> Aff (Spec Unit)
+buildUpstreamTestSuite only =
   let
     testsDirectory =
       "upstream/tests/purs/passing"
@@ -48,6 +50,8 @@ buildUpstreamTestSuite =
     in
       describe "PureScript's 'passing' tests" $
         for_ tests case _ of
+          { name } | maybe false (name /= _) only ->
+            pure unit
           { name } | name `A.elem` blackList  ->
             pending name
           { name, files } ->
@@ -74,7 +78,7 @@ default: premain
 
 CFLAGS := -O0 -g3
 PUREC_DIR := ../..
-PURS_FLAGS := 2> /dev/null
+PURS_FLAGS :=
 PUREC_FLAGS := --non-strict-main
 include $(PUREC_DIR)/mk/target.mk
 SPAGO := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin spago
