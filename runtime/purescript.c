@@ -234,7 +234,8 @@ int purs_any_eq(purs_any_t x, purs_any_t y) {
 			ret = purs_any_unsafe_get_num(x) == purs_any_unsafe_get_num(y);
 			goto end;
 		case PURS_ANY_TAG_STRING:
-			ret = (utf8cmp(purs_any_unsafe_get_string(x), purs_any_unsafe_get_string(y)) == 0);
+			ret = (utf8cmp(purs_any_unsafe_get_string(x)->data,
+				       purs_any_unsafe_get_string(y)->data) == 0);
 			goto end;
 		case PURS_ANY_TAG_CHAR:
 			ret = purs_any_unsafe_get_char(x) == purs_any_unsafe_get_char(y);
