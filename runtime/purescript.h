@@ -94,6 +94,7 @@ typedef purs_any_t (purs_thunk_fun_t)(void * ctx);
 typedef purs_any_t (purs_cont_fun_t)(const struct purs_scope *, purs_any_t, va_list);
 typedef struct purs_foreign purs_foreign_t;
 typedef struct purs_str purs_str_t;
+typedef struct tco_state purs_tco_state_t;
 
 /* tag numbers are strictly sequential (for lookups, etc.)! */
 typedef enum {
@@ -171,6 +172,9 @@ union purs_any_value {
 	const purs_record_t *record;
 	const purs_str_t *str;
 	const purs_vec_t *array;
+
+	/* special, hidden, internal-only values */
+	purs_tco_state_t *tco;
 };
 
 /// A dynamic value.
@@ -655,11 +659,44 @@ const purs_vec_t * purs_vec_copy (const purs_vec_t *);
 const purs_vec_t * purs_vec_splice (const purs_vec_t *, int start, int count);
 const purs_vec_t * purs_vec_concat(const purs_vec_t * lhs, const purs_vec_t * rhs);
 
-#define purs_vec_length(v) ((v == NULL) ? 0 : v->length)
-#define purs_vec_foreach(v, var, iter) if (v != NULL) vec_foreach(v, var, iter)
-#define purs_vec_reserve(v, n) vec_reserve(v, n)
-#define purs_vec_push_mut(v, x) vec_push(v, x)
-#define purs_vec_pusharr_mut(v, arr, count) vec_pusharr(v, arr, count)
+#define purs_vec_length(VEC) ((VEC == NULL) ? 0 : VEC->length)
+#define purs_vec_foreach(VEC, VAR, ITER) if (VEC != NULL) vec_foreach(VEC, VAR, ITER)
+#define purs_vec_reserve(VEC, N) vec_reserve(VEC, N)
+static inline void purs_vec_splice_mut(purs_vec_t* vec, int start, int count) {
+	if (vec == NULL) return;
+	if (count < 1) return;
+	/* release dropped elements */
+	int end = start + count;
+	if (end > vec->length) end = vec->length;
+	for (int i = start; i < end; i++) {
+		printf("releasing idx=%d\n", i);
+		PURS_ANY_RELEASE(vec->data[i]);
+	}
+	vec_splice(vec, start, count);
+}
+
+static inline void purs_vec_insert_mut(purs_vec_t** vec, int idx, purs_any_t val) {
+	purs_vec_t *v = *vec;
+
+	purs_assert(idx > -1, "Index out of bounds");
+	purs_assert(idx < purs_vec_length(v) + 1, "Index out of bounds");
+
+	if (v == NULL && idx == 0) {
+		v = (purs_vec_t*) purs_vec_new1(1);
+		v->length = 1;
+		v->data[0] = val;
+		PURS_ANY_RETAIN(val);
+		*vec = v;
+	}
+
+	vec_insert(v, idx, val);
+	PURS_ANY_RETAIN(val);
+}
+
+/* TODO: Update these APIs to automatically retain values! Requires update to
+   to contrib packages */
+#define purs_vec_push_mut(VEC, VAL) vec_push(VEC, VAL)
+#define purs_vec_pusharr_mut(VEC, ARR, COUNT) vec_pusharr(VEC, ARR, COUNT)
 
 /**
  * @brief Insert the value val at index idx shifting the elements after the index to
@@ -686,12 +723,17 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
 					    size_t count,
 					    ...);
 
+const purs_record_t* purs_record_remove(const purs_record_t*, const void *key);
+void purs_record_remove_mut(purs_record_t*, const void *key);
+
+
 /**
  * Add a given set of key/value pairs to the given record (by mutation)
  */
-purs_record_t * purs_record_add_multi_mut(purs_record_t *,
-					  size_t count,
-					  ...);
+void purs_record_add_multi_mut(purs_record_t *, size_t count, ...);
+void purs_record_add_multi_mut_va(purs_record_t *, size_t count, va_list ap);
+#define purs_record_add_mut(X, K, V) purs_record_add_multi_mut(X, 1, K, V);
+const purs_record_t* purs_record_merge(const purs_record_t* r1, const purs_record_t* r2);
 
 /**
  * Merge two records. The right record overwrites any labels in the left record.
@@ -715,7 +757,13 @@ purs_any_t * purs_record_find_by_key(const purs_record_t *,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-static inline int purs_any_get_main_rc_compat(purs_any_t v) {
+static inline int purs_main(purs_any_t v, int strict) {
+	if (!strict) {
+		PURS_ANY_RELEASE(v);
+		return 0;
+	}
+
+	v = purs_any_unthunk(v, NULL);
 	switch(v.tag) {
 	case PURS_ANY_TAG_NULL:
 		return 0;
@@ -724,9 +772,7 @@ static inline int purs_any_get_main_rc_compat(purs_any_t v) {
 	default: {
 		char* s;
 		purs_debug(v, &s);
-		purs_assert(0,
-			    "program did not return unit or int, value=(%s)\n",
-			    s);
+		purs_assert(0, "program did not return unit or int, value=(%s)", s);
 		free(s); /* for good measure */
 		return -1; /* silence warning */
 	}
@@ -735,43 +781,6 @@ static inline int purs_any_get_main_rc_compat(purs_any_t v) {
 
 #define purs_address_of(V) &V
 #define purs_derefence(V) *V
-
-/* Tail-call optimization generation */
-struct tco_state {
-	int done;
-	int size;
-	purs_any_t * args;
-};
-
-#define purs_tco_state_new(N)\
-	({\
-		struct tco_state x;\
-		x.done = 0;\
-		x.size = N;\
-		x.args = purs_malloc(sizeof (purs_any_t) * N);\
-		x;\
-	})
-#define purs_tco_state_free(S) do {\
-	for (int i = 0; i < S.size; i++) {\
-		PURS_ANY_RELEASE(S.args[i]);\
-	}\
-	purs_free(S.args);\
-} while (0)
-#define purs_tco_is_done(X) (X.done == 1)
-#define purs_tco_set_done(X) (((struct tco_state *) X)->done = 1)
-#define purs_tco_get_arg(X, I) (((struct tco_state *) X)->args[I])
-#define purs_tco_set_arg(X, I, V) do {\
-		purs_any_t __v__ = (V);\
-		PURS_ANY_RETAIN(__v__);\
-		X.args[I] = __v__;\
-	} while (0)
-#define purs_tco_mut_arg(X, I, V) do {\
-		purs_any_t __v__ = (V);\
-		PURS_ANY_RELEASE(((struct tco_state *) X)->args[I]);\
-		PURS_ANY_RETAIN(__v__);\
-		((struct tco_state *) X)->args[I] = __v__;\
-	} while (0)
-#define purs_foreign_get_data(X) (X->data)
 
 /* Captured scope generation */
 struct purs_scope {
@@ -782,8 +791,45 @@ struct purs_scope {
 
 #define purs_scope_binding_at(SCOPE, OFFSET) (SCOPE)->bindings[OFFSET]
 
-struct purs_scope * purs_scope_new(int size, ...);
-struct purs_scope * purs_scope_new1(int size);
+purs_scope_t* purs_scope_new(int size, ...);
+purs_scope_t* purs_scope_new_va(int size, va_list);
+purs_scope_t* purs_scope_new1(int size);
+const purs_scope_t* purs_scope_extend(const purs_scope_t* scope, int count, ...);
+
+/* Tail-call optimization generation */
+struct tco_state {
+	int done;
+	purs_any_t result;
+	purs_scope_t *scope;
+};
+
+void purs_tco_state_init(purs_tco_state_t*, int size, ...);
+
+#define purs_tco_state_result(X) (X).result
+#define purs_tco_state_free(X) PURS_RC_RELEASE((X).scope)
+
+/* hide TCO state in a 'NULL'; code-gen use only. */
+#define purs_any_tco(X)\
+	((purs_any_t){ .tag = PURS_ANY_TAG_NULL, .value = { .tco = &(X) } })
+
+#define purs_tco_is_done(X) (X.done == 1)
+
+#define purs_any_tco_set_done(X, V) do {\
+		purs_any_t ___purec_tco__v = V;\
+		(X).value.tco->done = 1;\
+		(X).value.tco->result = ___purec_tco__v;\
+		PURS_ANY_RETAIN(___purec_tco__v);\
+	} while(0)
+
+#define purs_any_tco_get_arg(X, I) (X).value.tco->scope->bindings[I]
+
+#define purs_any_tco_mut_arg(X, I, V) do {\
+		purs_any_t ___purec_tco__v = V;\
+		PURS_ANY_RELEASE((X).value.tco->scope->bindings[I]);\
+		PURS_ANY_RETAIN(___purec_tco__v);\
+		(X).value.tco->scope->bindings[I] = ___purec_tco__v;\
+	} while (0)
+
 
 /* allocate a buffer to fit 'N' 'purs_any_t's */
 #define purs_malloc_any_buf(N) purs_malloc(sizeof (purs_any_t) * N)
@@ -926,8 +972,11 @@ static inline purs_any_t purs_any_lazy_new(purs_any_t *ref) {
 // FFI: fixed-arity curried functions
 // -----------------------------------------------------------------------------
 
+/// access to the underlying cont of an FFI function.
+#define purs_ffi_get_cont(NAME) NAME ## __cont__
+
 #define _PURS_FFI_FUNC_ENTRY(NAME)\
-	purs_cont_t NAME ## __cont__ = {\
+	static purs_cont_t NAME ## __cont__ = {\
 		.fn = NAME ## __1,\
 		.scope = NULL,\
 		.rc = { .count = -1 }\
@@ -942,265 +991,301 @@ static inline purs_any_t purs_any_lazy_new(purs_any_t *ref) {
 		.value = { .cont = & NAME ## __cont__ }\
 	}
 
-#define _PURS_FFI_FUNC_CONT(NAME, CUR, NEXT)\
-	purs_any_t NAME##__##CUR (const purs_scope_t * $__super__, purs_any_t a, va_list $__unused__) {\
-		purs_scope_t * scope = purs_scope_new1(CUR);\
-		if ($__super__ != NULL) {\
+#define _PURS_FFI_FUNC_CONT(NAME, OFFSET, CUR, NEXT)\
+	static purs_any_t NAME##__##CUR (const purs_scope_t * __purec__scope, purs_any_t a, va_list __purec__unused) {\
+		purs_scope_t *scope = purs_scope_new1(OFFSET + CUR);\
+		if (__purec__scope != NULL) {\
 			memcpy(scope->bindings,\
-			       $__super__->bindings,\
-			       $__super__->size * sizeof (purs_any_t));\
-			for (int i = 0; i < $__super__->size; i++) {\
+			       __purec__scope->bindings,\
+			       __purec__scope->size * sizeof (purs_any_t));\
+			for (int i = 0; i < __purec__scope->size; i++) {\
 				PURS_ANY_RETAIN(scope->bindings[i]);\
 			}\
 		}\
-		scope->bindings[CUR - 1] = a;\
-		PURS_ANY_RETAIN(scope->bindings[CUR - 1]);\
-		const purs_cont_t * cont = purs_cont_new(scope, NAME##__##NEXT);\
+		scope->bindings[OFFSET + CUR - 1] = a;\
+		PURS_ANY_RETAIN(scope->bindings[OFFSET + CUR - 1]);\
+		const purs_cont_t *cont = purs_cont_new(scope, NAME##__##NEXT);\
 		PURS_RC_RELEASE(scope);\
 		return purs_any_cont(cont);\
 	}
 
-#define _PURS_FFI_FUNC_CONT_1_TO_2(NAME)   _PURS_FFI_FUNC_CONT(NAME,  1,  2)
-#define _PURS_FFI_FUNC_CONT_2_TO_3(NAME)   _PURS_FFI_FUNC_CONT(NAME,  2,  3)
-#define _PURS_FFI_FUNC_CONT_3_TO_4(NAME)   _PURS_FFI_FUNC_CONT(NAME,  3,  4)
-#define _PURS_FFI_FUNC_CONT_4_TO_5(NAME)   _PURS_FFI_FUNC_CONT(NAME,  4,  5)
-#define _PURS_FFI_FUNC_CONT_5_TO_6(NAME)   _PURS_FFI_FUNC_CONT(NAME,  5,  6)
-#define _PURS_FFI_FUNC_CONT_6_TO_7(NAME)   _PURS_FFI_FUNC_CONT(NAME,  6,  7)
-#define _PURS_FFI_FUNC_CONT_7_TO_8(NAME)   _PURS_FFI_FUNC_CONT(NAME,  7,  8)
-#define _PURS_FFI_FUNC_CONT_8_TO_9(NAME)   _PURS_FFI_FUNC_CONT(NAME,  8,  9)
-#define _PURS_FFI_FUNC_CONT_9_TO_10(NAME)  _PURS_FFI_FUNC_CONT(NAME,  9, 10)
-#define _PURS_FFI_FUNC_CONT_10_TO_11(NAME) _PURS_FFI_FUNC_CONT(NAME, 10, 11)
-#define _PURS_FFI_FUNC_CONT_11_TO_12(NAME) _PURS_FFI_FUNC_CONT(NAME, 11, 12)
+#define _PURS_FFI_FUNC_CONT_1_TO_2(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  1,  2)
+#define _PURS_FFI_FUNC_CONT_2_TO_3(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  2,  3)
+#define _PURS_FFI_FUNC_CONT_3_TO_4(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  3,  4)
+#define _PURS_FFI_FUNC_CONT_4_TO_5(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  4,  5)
+#define _PURS_FFI_FUNC_CONT_5_TO_6(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  5,  6)
+#define _PURS_FFI_FUNC_CONT_6_TO_7(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  6,  7)
+#define _PURS_FFI_FUNC_CONT_7_TO_8(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  7,  8)
+#define _PURS_FFI_FUNC_CONT_8_TO_9(NAME, OFFSET)   _PURS_FFI_FUNC_CONT(NAME, OFFSET,  8,  9)
+#define _PURS_FFI_FUNC_CONT_9_TO_10(NAME, OFFSET)  _PURS_FFI_FUNC_CONT(NAME, OFFSET,  9, 10)
+#define _PURS_FFI_FUNC_CONT_10_TO_11(NAME, OFFSET) _PURS_FFI_FUNC_CONT(NAME, OFFSET, 10, 11)
+#define _PURS_FFI_FUNC_CONT_11_TO_12(NAME, OFFSET) _PURS_FFI_FUNC_CONT(NAME, OFFSET, 11, 12)
 
-#define PURS_FFI_FUNC_CONTEXT $__super__
+#define _PURS_FFI_GEN(NAME, ...) _PURS_FFI_FUNC_ENTRY(NAME);
+#define _PURS_FUNC_GEN(NAME, ...)\
+	static inline purs_any_t NAME (const purs_scope_t *scope, purs_any_t a, va_list __purec__unused) {\
+		return NAME ## __1(scope, a, __purec__unused);\
+	}
 
-#define PURS_FFI_FUNC_1(NAME, A1)\
-	purs_any_t NAME##__1_impl (purs_any_t);\
-	purs_any_t NAME##__1 (const purs_scope_t * $__super__, purs_any_t A1, va_list $__unused__) {\
-		return NAME##__1_impl(A1);\
-	}\
+// -----------------------------------------------------------------------------
+// Fn1 :: a -> b
+// -----------------------------------------------------------------------------
+
+#define PURS_FUNC_1(NAME, SCOPE, A1, ARGS)\
+	static purs_any_t NAME (const purs_scope_t *SCOPE, purs_any_t A1, va_list ARGS)
+#define PURS_FFI_FUNC_1_X(NAME, SCOPE, A1)\
+	static purs_any_t NAME ## __1 (const purs_scope_t*, purs_any_t, va_list);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__1_impl (purs_any_t A1)
+	static purs_any_t NAME ## __1 (const purs_scope_t *SCOPE, purs_any_t A1, va_list __purec__unused)
+#define PURS_FFI_FUNC_1(NAME, A1) PURS_FFI_FUNC_1_X(NAME, __purec__scope, A1)
 
-#define PURS_FFI_FUNC_2(NAME, A1, A2)\
-	purs_any_t NAME##__2_impl (purs_any_t, purs_any_t);\
-	purs_any_t NAME##__2 (const purs_scope_t * $__super__, purs_any_t A2, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		return NAME##__2_impl(A1, A2);\
-	}\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
-	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__2_impl (purs_any_t A1, purs_any_t A2)
+// -----------------------------------------------------------------------------
+// Fn2 :: a -> b -> c
+// -----------------------------------------------------------------------------
 
-#define PURS_FFI_FUNC_3(NAME, A1, A2, A3)\
-	purs_any_t NAME##__3_impl (purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__3 (const purs_scope_t * $__super__, purs_any_t A3, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		return NAME##__3_impl(A1, A2, A3);\
+#define _MK_PURS_FUNC_2_X(NAME, SCOPE, OFFSET, A1, A2, FN)\
+	static purs_any_t NAME##__impl (const purs_scope_t*, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__2 (const purs_scope_t *SCOPE, purs_any_t A2, va_list __purec__unused) {\
+		purs_any_t A1 = SCOPE->bindings[OFFSET];\
+		return NAME##__impl(SCOPE, A1, A2);\
 	}\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
-	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__3_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3)
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, OFFSET);\
+	FN(NAME, SCOPE, OFFSET, A1, A2)\
+	static purs_any_t NAME##__impl (const purs_scope_t *SCOPE, purs_any_t A1, purs_any_t A2)
+
+/// module-local, unbound function template
+#define PURS_FUNC_2(NAME, SCOPE, OFFSET, A1, A2) _MK_PURS_FUNC_2_X(NAME, SCOPE, OFFSET, A1, A2, _PURS_FUNC_GEN)
+
+/// full-featured FFI template
+#define PURS_FFI_FUNC_2_X(NAME, SCOPE, OFFSET, A1, A2) _MK_PURS_FUNC_2_X(NAME, SCOPE, OFFSET, A1, A2, _PURS_FFI_GEN)
+
+/// simple FFI template
+#define PURS_FFI_FUNC_2(NAME, A1, A2) PURS_FFI_FUNC_2_X(NAME, __purec__scope, 0, A1, A2)
+
+// -----------------------------------------------------------------------------
+// Fn3 :: a -> b -> c -> d
+// -----------------------------------------------------------------------------
+
+#define _MK_PURS_FUNC_3_X(NAME, SCOPE, OFFSET, A1, A2, A3, FN)\
+	static purs_any_t NAME##__impl (const purs_scope_t*, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__3 (const purs_scope_t *SCOPE, purs_any_t A3, va_list __purec__unused) {\
+		purs_any_t A1 = SCOPE->bindings[OFFSET];\
+		purs_any_t A2 = SCOPE->bindings[OFFSET + 1];\
+		return NAME##__impl(SCOPE, A1, A2, A3);\
+	}\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, OFFSET);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, OFFSET);\
+	FN(NAME, SCOPE, OFFSET, A1, A2, A3)\
+	static purs_any_t NAME##__impl (const purs_scope_t *SCOPE, purs_any_t A1, purs_any_t A2, purs_any_t A3)
+
+/// module-local, unbound function template
+#define PURS_FUNC_3(NAME, SCOPE, OFFSET, A1, A2, A3) _MK_PURS_FUNC_3_X(NAME, SCOPE, OFFSET, A1, A2, A3, _PURS_FUNC_GEN)
+
+/// full-featured FFI template
+#define PURS_FFI_FUNC_3_X(NAME, SCOPE, OFFSET, A1, A2, A3) _MK_PURS_FUNC_3_X(NAME, SCOPE, OFFSET, A1, A2, A3, _PURS_FFI_GEN)
+
+/// simple FFI template
+#define PURS_FFI_FUNC_3(NAME, A1, A2, A3) PURS_FFI_FUNC_3_X(NAME, __purec__scope, 0, A1, A2, A3)
+
+// -----------------------------------------------------------------------------
 
 #define PURS_FFI_FUNC_4(NAME, A1, A2, A3, A4)\
-	purs_any_t NAME##__4_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__4 (const purs_scope_t * $__super__, purs_any_t A4, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
+	static purs_any_t NAME##__4_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__4 (const purs_scope_t * __purec__scope, purs_any_t A4, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
 		return NAME##__4_impl(A1, A2, A3, A4);\
 	}\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__4_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4)
+	static purs_any_t NAME##__4_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4)
 
 #define PURS_FFI_FUNC_5(NAME, A1, A2, A3, A4, A5)\
-	purs_any_t NAME##__5_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__5 (const purs_scope_t * $__super__, purs_any_t A5, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
+	static purs_any_t NAME##__5_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__5 (const purs_scope_t * __purec__scope, purs_any_t A5, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
 		return NAME##__5_impl(A1, A2, A3, A4, A5);\
 	}\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__5_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5)
+	static purs_any_t NAME##__5_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5)
 
 #define PURS_FFI_FUNC_6(NAME, A1, A2, A3, A4, A5, A6)\
-	purs_any_t NAME##__6_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__6 (const purs_scope_t * $__super__, purs_any_t A6, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
-		purs_any_t A5 = $__super__->bindings[4];\
+	static purs_any_t NAME##__6_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__6 (const purs_scope_t * __purec__scope, purs_any_t A6, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
+		purs_any_t A5 = __purec__scope->bindings[4];\
 		return NAME##__6_impl(A1, A2, A3, A4, A5, A6);\
 	}\
-	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_5_TO_6(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__6_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6)
+	static purs_any_t NAME##__6_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6)
 
 #define PURS_FFI_FUNC_7(NAME, A1, A2, A3, A4, A5, A6, A7)\
-	purs_any_t NAME##__7_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__7 (const purs_scope_t * $__super__, purs_any_t A7, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
-		purs_any_t A5 = $__super__->bindings[4];\
-		purs_any_t A6 = $__super__->bindings[5];\
+	static purs_any_t NAME##__7_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__7 (const purs_scope_t * __purec__scope, purs_any_t A7, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
+		purs_any_t A5 = __purec__scope->bindings[4];\
+		purs_any_t A6 = __purec__scope->bindings[5];\
 		return NAME##__7_impl(A1, A2, A3, A4, A5, A6, A7);\
 	}\
-	_PURS_FFI_FUNC_CONT_6_TO_7(NAME);\
-	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_6_TO_7(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_5_TO_6(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__7_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7)
+	static purs_any_t NAME##__7_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7)
 
 #define PURS_FFI_FUNC_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8)\
-	purs_any_t NAME##__8_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__8 (const purs_scope_t * $__super__, purs_any_t A8, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
-		purs_any_t A5 = $__super__->bindings[4];\
-		purs_any_t A6 = $__super__->bindings[5];\
-		purs_any_t A7 = $__super__->bindings[6];\
+	static purs_any_t NAME##__8_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__8 (const purs_scope_t * __purec__scope, purs_any_t A8, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
+		purs_any_t A5 = __purec__scope->bindings[4];\
+		purs_any_t A6 = __purec__scope->bindings[5];\
+		purs_any_t A7 = __purec__scope->bindings[6];\
 		return NAME##__8_impl(A1, A2, A3, A4, A5, A6, A7, A8);\
 	}\
-	_PURS_FFI_FUNC_CONT_7_TO_8(NAME);\
-	_PURS_FFI_FUNC_CONT_6_TO_7(NAME);\
-	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_7_TO_8(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_6_TO_7(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_5_TO_6(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__8_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8)
+	static purs_any_t NAME##__8_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8)
 
 #define PURS_FFI_FUNC_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9)\
-	purs_any_t NAME##__9_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__9 (const purs_scope_t * $__super__, purs_any_t A9, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
-		purs_any_t A5 = $__super__->bindings[4];\
-		purs_any_t A6 = $__super__->bindings[5];\
-		purs_any_t A7 = $__super__->bindings[6];\
-		purs_any_t A8 = $__super__->bindings[7];\
+	static purs_any_t NAME##__9_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__9 (const purs_scope_t * __purec__scope, purs_any_t A9, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
+		purs_any_t A5 = __purec__scope->bindings[4];\
+		purs_any_t A6 = __purec__scope->bindings[5];\
+		purs_any_t A7 = __purec__scope->bindings[6];\
+		purs_any_t A8 = __purec__scope->bindings[7];\
 		return NAME##__9_impl(A1, A2, A3, A4, A5, A6, A7, A8, A9);\
 	}\
-	_PURS_FFI_FUNC_CONT_8_TO_9(NAME);\
-	_PURS_FFI_FUNC_CONT_7_TO_8(NAME);\
-	_PURS_FFI_FUNC_CONT_6_TO_7(NAME);\
-	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_8_TO_9(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_7_TO_8(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_6_TO_7(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_5_TO_6(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__9_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9)
+	static purs_any_t NAME##__9_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9)
 
 #define PURS_FFI_FUNC_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10)\
-	purs_any_t NAME##__10_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t); \
-	purs_any_t NAME##__10 (const purs_scope_t * $__super__, purs_any_t A10, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
-		purs_any_t A5 = $__super__->bindings[4];\
-		purs_any_t A6 = $__super__->bindings[5];\
-		purs_any_t A7 = $__super__->bindings[6];\
-		purs_any_t A8 = $__super__->bindings[7];\
-		purs_any_t A9 = $__super__->bindings[8];\
+	static purs_any_t NAME##__10_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t); \
+	static inline purs_any_t NAME##__10 (const purs_scope_t * __purec__scope, purs_any_t A10, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
+		purs_any_t A5 = __purec__scope->bindings[4];\
+		purs_any_t A6 = __purec__scope->bindings[5];\
+		purs_any_t A7 = __purec__scope->bindings[6];\
+		purs_any_t A8 = __purec__scope->bindings[7];\
+		purs_any_t A9 = __purec__scope->bindings[8];\
 		return NAME##__10_impl(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);\
 	}\
-	_PURS_FFI_FUNC_CONT_9_TO_10(NAME);\
-	_PURS_FFI_FUNC_CONT_8_TO_9(NAME);\
-	_PURS_FFI_FUNC_CONT_7_TO_8(NAME);\
-	_PURS_FFI_FUNC_CONT_6_TO_7(NAME);\
-	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_9_TO_10(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_8_TO_9(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_7_TO_8(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_6_TO_7(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_5_TO_6(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__10_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10)
+	static purs_any_t NAME##__10_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10)
 
 #define PURS_FFI_FUNC_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11)\
-	purs_any_t NAME##__11_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t); \
-	purs_any_t NAME##__11 (const purs_scope_t * $__super__, purs_any_t A11, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
-		purs_any_t A5 = $__super__->bindings[4];\
-		purs_any_t A6 = $__super__->bindings[5];\
-		purs_any_t A7 = $__super__->bindings[6];\
-		purs_any_t A8 = $__super__->bindings[7];\
-		purs_any_t A9 = $__super__->bindings[8];\
-		purs_any_t A10 = $__super__->bindings[9];\
+	static purs_any_t NAME##__11_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t); \
+	static inline purs_any_t NAME##__11 (const purs_scope_t * __purec__scope, purs_any_t A11, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
+		purs_any_t A5 = __purec__scope->bindings[4];\
+		purs_any_t A6 = __purec__scope->bindings[5];\
+		purs_any_t A7 = __purec__scope->bindings[6];\
+		purs_any_t A8 = __purec__scope->bindings[7];\
+		purs_any_t A9 = __purec__scope->bindings[8];\
+		purs_any_t A10 = __purec__scope->bindings[9];\
 		return NAME##__11_impl(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11); \
 	}\
-	_PURS_FFI_FUNC_CONT_10_TO_11(NAME);\
-	_PURS_FFI_FUNC_CONT_9_TO_10(NAME);\
-	_PURS_FFI_FUNC_CONT_8_TO_9(NAME);\
-	_PURS_FFI_FUNC_CONT_7_TO_8(NAME);\
-	_PURS_FFI_FUNC_CONT_6_TO_7(NAME);\
-	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_10_TO_11(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_9_TO_10(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_8_TO_9(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_7_TO_8(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_6_TO_7(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_5_TO_6(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__11_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11)
+	static purs_any_t NAME##__11_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11)
 
 #define PURS_FFI_FUNC_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12)\
-	purs_any_t NAME##__12_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##__12 (const purs_scope_t * $__super__, purs_any_t A12, va_list $__unused__) {\
-		purs_any_t A1 = $__super__->bindings[0];\
-		purs_any_t A2 = $__super__->bindings[1];\
-		purs_any_t A3 = $__super__->bindings[2];\
-		purs_any_t A4 = $__super__->bindings[3];\
-		purs_any_t A5 = $__super__->bindings[4];\
-		purs_any_t A6 = $__super__->bindings[5];\
-		purs_any_t A7 = $__super__->bindings[6];\
-		purs_any_t A8 = $__super__->bindings[7];\
-		purs_any_t A9 = $__super__->bindings[8];\
-		purs_any_t A10 = $__super__->bindings[9];\
-		purs_any_t A11 = $__super__->bindings[10];\
+	static purs_any_t NAME##__12_impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static inline purs_any_t NAME##__12 (const purs_scope_t * __purec__scope, purs_any_t A12, va_list __purec__unused) {\
+		purs_any_t A1 = __purec__scope->bindings[0];\
+		purs_any_t A2 = __purec__scope->bindings[1];\
+		purs_any_t A3 = __purec__scope->bindings[2];\
+		purs_any_t A4 = __purec__scope->bindings[3];\
+		purs_any_t A5 = __purec__scope->bindings[4];\
+		purs_any_t A6 = __purec__scope->bindings[5];\
+		purs_any_t A7 = __purec__scope->bindings[6];\
+		purs_any_t A8 = __purec__scope->bindings[7];\
+		purs_any_t A9 = __purec__scope->bindings[8];\
+		purs_any_t A10 = __purec__scope->bindings[9];\
+		purs_any_t A11 = __purec__scope->bindings[10];\
 		return NAME##__12_impl(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12);\
 	}\
-	_PURS_FFI_FUNC_CONT_11_TO_12(NAME);\
-	_PURS_FFI_FUNC_CONT_10_TO_11(NAME);\
-	_PURS_FFI_FUNC_CONT_9_TO_10(NAME);\
-	_PURS_FFI_FUNC_CONT_8_TO_9(NAME);\
-	_PURS_FFI_FUNC_CONT_7_TO_8(NAME);\
-	_PURS_FFI_FUNC_CONT_6_TO_7(NAME);\
-	_PURS_FFI_FUNC_CONT_5_TO_6(NAME);\
-	_PURS_FFI_FUNC_CONT_4_TO_5(NAME);\
-	_PURS_FFI_FUNC_CONT_3_TO_4(NAME);\
-	_PURS_FFI_FUNC_CONT_2_TO_3(NAME);\
-	_PURS_FFI_FUNC_CONT_1_TO_2(NAME);\
+	_PURS_FFI_FUNC_CONT_11_TO_12(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_10_TO_11(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_9_TO_10(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_8_TO_9(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_7_TO_8(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_6_TO_7(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_5_TO_6(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_4_TO_5(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_3_TO_4(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_2_TO_3(NAME, 0);\
+	_PURS_FFI_FUNC_CONT_1_TO_2(NAME, 0);\
 	_PURS_FFI_FUNC_ENTRY(NAME);\
-	purs_any_t NAME##__12_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11, purs_any_t A12)
+	static purs_any_t NAME##__12_impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11, purs_any_t A12)
 
 // -----------------------------------------------------------------------------
 // FFI: fixed-arity uncurried functions
@@ -1223,166 +1308,166 @@ static inline purs_any_t purs_any_lazy_new(purs_any_t *ref) {
 	}
 
 #define PURS_FFI_FUNC_UNCURRIED_1(NAME, A1)\
-	purs_any_t NAME##__impl (purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list $__unused__) {\
+	static purs_any_t NAME##__impl (purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__unused) {\
 		return NAME##__impl (A1);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1)
+	static purs_any_t NAME##__impl (purs_any_t A1)
 
 #define PURS_FFI_FUNC_UNCURRIED_2(NAME, A1, A2)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2)
 
 #define PURS_FFI_FUNC_UNCURRIED_3(NAME, A1, A2, A3)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3)
 
 #define PURS_FFI_FUNC_UNCURRIED_4(NAME, A1, A2, A3, A4)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4)
 
 #define PURS_FFI_FUNC_UNCURRIED_5(NAME, A1, A2, A3, A4, A5)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5)
 
 #define PURS_FFI_FUNC_UNCURRIED_6(NAME, A1, A2, A3, A4, A5, A6)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
-		purs_any_t A6 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A6 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5, A6);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6)
 
 #define PURS_FFI_FUNC_UNCURRIED_7(NAME, A1, A2, A3, A4, A5, A6, A7)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
-		purs_any_t A6 = va_arg(vl, purs_any_t);\
-		purs_any_t A7 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A6 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A7 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7)
 
 #define PURS_FFI_FUNC_UNCURRIED_8(NAME, A1, A2, A3, A4, A5, A6, A7, A8)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
-		purs_any_t A6 = va_arg(vl, purs_any_t);\
-		purs_any_t A7 = va_arg(vl, purs_any_t);\
-		purs_any_t A8 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A6 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A7 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A8 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8)
 
 #define PURS_FFI_FUNC_UNCURRIED_9(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9) \
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
-		purs_any_t A6 = va_arg(vl, purs_any_t);\
-		purs_any_t A7 = va_arg(vl, purs_any_t);\
-		purs_any_t A8 = va_arg(vl, purs_any_t);\
-		purs_any_t A9 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A6 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A7 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A8 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A9 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9)
 
 #define PURS_FFI_FUNC_UNCURRIED_10(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10) \
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
-		purs_any_t A6 = va_arg(vl, purs_any_t);\
-		purs_any_t A7 = va_arg(vl, purs_any_t);\
-		purs_any_t A8 = va_arg(vl, purs_any_t);\
-		purs_any_t A9 = va_arg(vl, purs_any_t);\
-		purs_any_t A10 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A6 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A7 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A8 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A9 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A10 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10)
 
 #define PURS_FFI_FUNC_UNCURRIED_11(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
-		purs_any_t A6 = va_arg(vl, purs_any_t);\
-		purs_any_t A7 = va_arg(vl, purs_any_t);\
-		purs_any_t A8 = va_arg(vl, purs_any_t);\
-		purs_any_t A9 = va_arg(vl, purs_any_t);\
-		purs_any_t A10 = va_arg(vl, purs_any_t);\
-		purs_any_t A11 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t);\
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A6 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A7 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A8 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A9 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A10 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A11 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11)
 
 #define PURS_FFI_FUNC_UNCURRIED_12(NAME, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12)\
-	purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t); \
-	purs_any_t NAME##_fn (const purs_scope_t * $__super__, purs_any_t A1, va_list vl) {\
-		purs_any_t A2 = va_arg(vl, purs_any_t);\
-		purs_any_t A3 = va_arg(vl, purs_any_t);\
-		purs_any_t A4 = va_arg(vl, purs_any_t);\
-		purs_any_t A5 = va_arg(vl, purs_any_t);\
-		purs_any_t A6 = va_arg(vl, purs_any_t);\
-		purs_any_t A7 = va_arg(vl, purs_any_t);\
-		purs_any_t A8 = va_arg(vl, purs_any_t);\
-		purs_any_t A9 = va_arg(vl, purs_any_t);\
-		purs_any_t A10 = va_arg(vl, purs_any_t);\
-		purs_any_t A11 = va_arg(vl, purs_any_t);\
-		purs_any_t A12 = va_arg(vl, purs_any_t);\
+	static purs_any_t NAME##__impl (purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t, purs_any_t); \
+	static purs_any_t NAME##_fn (const purs_scope_t * __purec__scope, purs_any_t A1, va_list __purec__args) {\
+		purs_any_t A2 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A3 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A4 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A5 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A6 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A7 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A8 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A9 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A10 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A11 = va_arg(__purec__args, purs_any_t);\
+		purs_any_t A12 = va_arg(__purec__args, purs_any_t);\
 		return NAME##__impl (A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12);\
 	}\
 	_PURS_FFI_FUNC_UNCURRIED_ENTRY(NAME);\
-	purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11, purs_any_t A12)
+	static purs_any_t NAME##__impl (purs_any_t A1, purs_any_t A2, purs_any_t A3, purs_any_t A4, purs_any_t A5, purs_any_t A6, purs_any_t A7, purs_any_t A8, purs_any_t A9, purs_any_t A10, purs_any_t A11, purs_any_t A12)
 
 // -----------------------------------------------------------------------------
 // Prim shims

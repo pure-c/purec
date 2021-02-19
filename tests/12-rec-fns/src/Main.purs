@@ -63,6 +63,11 @@ testApplyN f = go
     | n <= 0 = acc
     | otherwise = go (n - 1) (f acc)
 
+testApplyN2 :: forall a. Int -> (a -> a) -> a -> a
+testApplyN2 n f x
+  | n <= 0    = x
+  | otherwise = testApplyN2 (n - 1) f (f x)
+
 main :: Effect Int
 main =
   (testRecFn 1) >>
@@ -71,4 +76,5 @@ main =
   (testNonTCORecFn 1) >>
   testLetBoundRecFn2 >>
   testLetBoundRecFn3 >>
-  (\_ -> testApplyN (\_ -> 0) 1 0)
+  (\_ -> testApplyN (\_ -> 0) 10000 0) >>
+  (\_ -> testApplyN2 10000 (\_ -> 0) 0)

@@ -5,11 +5,13 @@ CFLAGS ?=
 
 PUREC_WORKDIR ?= .purec-work
 PURS ?= purs
+PURS_FLAGS ?=
 
 ifndef PUREC_DIR
 $(error PUREC_DIR must be set)
 endif
 
+PUREC_FLAGS ?=
 PUREC := node $(PUREC_DIR)/purec.js
 PUREC_LIB = $(PUREC_DIR)/libpurec.a
 PUREC_LIB_DIR = $(dir $(PUREC_LIB))
@@ -52,18 +54,22 @@ $(PUREC_LIB):
 .PHONY: $(PUREC_LIB)
 
 %/corefn.json.1: %/corefn.json
-	@rsync $< $@
+	rsync $< $@
+
+clean/c:
+	@echo 2>&1 'clean: removing libpurec.a'
+	rm -f "$(PUREC_LIB)"
+	rm -f $$(find "$(PUREC_DIR)" -type f -name '*.o')
+	@echo 2>&1 'clean: removing *.o'
+	rm -f $$(find "$(PUREC_WORKDIR)" -type f -name '*.o')
+	@echo 2>&1 'clean: removing *.out'
+	rm -f $$(find "$(PUREC_WORKDIR)" -type f -name '*.out')
 
 clean:
 	@echo 2>&1 'clean: removing libpurec.a'
-	@rm -f "$(PUREC_LIB)"
-	@rm -f $$(find "$(PUREC_DIR)" -type f -name '*.o')
-	@echo 2>&1 'clean: removing *.o'
-	@rm -f $$(find . -type f -name '*.o')
-	@echo 2>&1 'clean: removing *.out'
-	@rm -f $$(find . -type f -name '*.out')
+	rm -f "$(PUREC_LIB)"
 	@echo 2>&1 'clean: removing dir $(PUREC_WORKDIR)'
-	@rm -rf "$(PUREC_WORKDIR)"
+	rm -rf "$(PUREC_WORKDIR)"
 
 %.o: %.c
 	@echo "Compile" $^
@@ -122,7 +128,7 @@ $(1)_srcs := $$($(1)_local) $$($(1)_deps)
 $$(PUREC_WORKDIR)/$(1)/.corefns: \
 	$$(patsubst %.h,%.purs,$$($(1)_srcs))
 	mkdir -p $$(@D)
-	$$(PURS) compile -g corefn -o $$(@D) $$(filter %.purs,$$^)
+	$$(PURS) compile -g corefn -o $$(PURS_FLAGS) $$(@D) $$(filter %.purs,$$^)
 	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
@@ -132,7 +138,7 @@ $$(PUREC_WORKDIR)/$(1)/.genc: $$(PUREC_WORKDIR)/$(1)/.corefns
 
 $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WORKDIR)/$(1),corefn.json))
 	@echo Compiling from Corefn to C
-	$$(PUREC) -m "$$($(1)_main_module)" $$?
+	$$(PUREC) $$(PUREC_FLAGS) -m "$$($(1)_main_module)" $$?
 	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.build: \

@@ -7,13 +7,13 @@ module Language.PureScript.CodeGen.C.Pretty
 
 import Prelude
 
+import Control.Monad (unlessM, whenM)
 import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except (ExceptT, runExceptT)
 import Control.Monad.Reader (ReaderT, ask, local, runReaderT)
 import Control.Monad.Writer (WriterT, execWriterT, tell)
 import Data.Array as A
 import Data.Bifunctor (rmap)
-import Data.Tuple.Nested ((/\))
 import Data.Either (Either(..))
 import Data.FoldableWithIndex (traverseWithIndex_)
 import Data.Identity (Identity)
@@ -21,6 +21,7 @@ import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
 import Data.String.CodeUnits as CodeUnits
 import Data.Traversable (for_, traverse)
+import Data.Tuple.Nested ((/\))
 import Language.PureScript.CodeGen.C.AST (AST, PrimitiveType, Type, ValueQualifier)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
@@ -34,18 +35,18 @@ data PrintError
 empty :: AST
 empty = AST.Raw ""
 
-lf :: ∀ m. Monad m => PrinterT m
+lf :: ∀ m. Monad m => PrinterT m Unit
 lf = tell [ "\n" ]
 
 type PrinterState =
   { indent :: Int
   }
 
-type PrinterT m =
+type PrinterT m a =
   WriterT
     (Array String)
     (ReaderT PrinterState (ExceptT PrintError m))
-    Unit
+    a
 
 prettyPrint
   :: Array AST
@@ -62,7 +63,7 @@ prettyPrint asts =
 runPrinterT
   :: ∀ m
    . Monad m
-  => PrinterT m
+  => PrinterT m Unit
   -> m (Either PrintError String)
 runPrinterT action =
   rmap (A.intercalate "") <$> do
@@ -70,11 +71,14 @@ runPrinterT action =
       runReaderT <@> { indent: 0 } $
         execWriterT action
 
+isToplevel :: ∀ m. Monad m => PrinterT m Boolean
+isToplevel = (eq 0 <<< _.indent) <$> ask
+
 prettyPrintAst
   :: ∀ m
    . Monad m
   => AST
-  -> PrinterT m
+  -> PrinterT m Unit
 prettyPrintAst (AST.Raw x) =
   emit x
 prettyPrintAst (AST.Include { path }) =
@@ -97,7 +101,7 @@ prettyPrintAst (AST.VariableIntroduction { name, type: typ, qualifiers, initiali
   for_ initialization \ast -> do
     emit " = "
     prettyPrintAst ast
-  emit ";"
+  whenM isToplevel (emit ";")
 prettyPrintAst (AST.NumericLiteral (Left n)) =
   emit $ show n
 prettyPrintAst (AST.NumericLiteral (Right n)) =
@@ -136,6 +140,8 @@ prettyPrintAst x@(AST.Function
         throwError $
           InvalidStateError "Anonymous functions should have been erased by now"
 
+  emit $ A.intercalate " " $ map renderFunctionQualifier qualifiers
+  emit " "
   emit $ renderType returnType
   emit " "
   emit name
@@ -156,6 +162,7 @@ prettyPrintAst x@(AST.Function
       emit ";"
   lf
   where
+  renderFunctionQualifier AST.ModuleInternal = "static"
   renderArg { name, type: typ } =
     renderType typ <> " " <> name
 prettyPrintAst (AST.Cast typ ast) = do
@@ -170,8 +177,8 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
     -- note: this is a crude way to improve readability of some of the generated
     --       code by avoiding line feeds for functions that will likely only
     --       take few, short arguments.
-    lf' /\ indent' =
-      let noop = pure unit /\ pure unit
+    lf' /\ spacing /\ indent' =
+      let noop = pure unit /\ emit " " /\ pure unit
       in case fnAst of
         AST.Var "purs_cont_new"           -> noop
         AST.Var "purs_scope_new"          -> noop
@@ -179,6 +186,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         AST.Var "PURS_ANY_RELEASE"        -> noop
         AST.Var "PURS_RC_RETAIN"          -> noop
         AST.Var "PURS_RC_RELEASE"         -> noop
+        AST.Var "PURS_ANY_THUNK_DEF"      -> noop
         AST.Var "purs_any_num"            -> noop
         AST.Var "purs_any_string"         -> noop
         AST.Var "purs_any_int"            -> noop
@@ -187,7 +195,19 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         AST.Var "purs_any_get_int"        -> noop
         AST.Var "purs_any_get_num"        -> noop
         AST.Var "purs_any_get_array"      -> noop
-        _ -> lf /\ indent
+        AST.Var "purs_scope_binding_at"   -> noop
+        AST.Var "purs_cons_new"           -> noop
+        AST.Var "purs_assert"             -> noop
+        AST.Var "purs_address_of"         -> noop
+        AST.Var "purs_tco_state_init"     -> noop
+        AST.Var "purs_any_tco"            -> noop
+        AST.Var "purs_tco_state_result"   -> noop
+        AST.Var "purs_tco_state_free"     -> noop
+        AST.Var "purs_tco_is_done"        -> noop
+        AST.Var "purs_any_force_cons"     -> noop
+        AST.Var "purs_any_force_array"    -> noop
+        AST.Var "purs_any_force_cons_tag" -> noop
+        _ -> lf /\ pure unit /\ indent
   case A.unsnoc argsAsts of
     Nothing ->
       emit "()"
@@ -197,7 +217,7 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
       withNextIndent do
         for_ init \ast -> do
           indent' *> prettyPrintAst ast
-          emit ", "
+          emit "," *> spacing
           lf'
         indent' *> prettyPrintAst last
       lf'
@@ -250,6 +270,7 @@ prettyPrintAst (AST.Block asts) = do
     for_ asts \ast ->
       indent *> prettyPrintAst ast *> emit ";" *> lf
   indent *> emit "}"
+  whenM isToplevel lf
 prettyPrintAst (AST.Return ast) = do
   emit "return "
   prettyPrintAst ast
@@ -309,13 +330,13 @@ emit
   :: ∀ m
    . Monad m
   => String
-  -> PrinterT m
+  -> PrinterT m Unit
 emit x = tell [ x ]
 
 indent
   :: ∀ m
    . Monad m
-  => PrinterT m
+  => PrinterT m Unit
 indent = do
   { indent } <- ask
   emit $ CodeUnits.fromCharArray $ A.replicate indent ' '
@@ -323,8 +344,8 @@ indent = do
 withNextIndent
   :: ∀ m
    . Monad m
-  => PrinterT m
-  -> PrinterT m
+  => PrinterT m Unit
+  -> PrinterT m Unit
 withNextIndent =
   local (\st -> st { indent = st.indent + 2 })
 

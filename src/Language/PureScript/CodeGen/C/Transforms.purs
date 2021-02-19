@@ -23,7 +23,7 @@ import Data.String as Str
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown) as AST
+import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown, FunctionQualifier(..)) as AST
 import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
@@ -100,7 +100,9 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_cons_new"           -> Just consType
     AST.Var "purs_any_lazy_new"       -> Just R.any
     AST.Var "purs_record_add_multi"   -> Just recordType
+    AST.Var "purs_any_force_array"    -> Just arrayType
     AST.Var "purs_any_force_record"   -> Just recordType
+    AST.Var "purs_any_force_cons"     -> Just consType
     _                                 -> Nothing
 
   go parentVars = case _ of
@@ -157,24 +159,27 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                 -- collected, *including* any variables collected in our parent
                 -- scopes, since we won't be coming back.
                 AST.Return x -> do
-                  x' <- go' x
+                  let
+                    escapeRet = case x of
+                      AST.App (AST.Var "purs_tco_state_result") [_] -> true
+                      _ -> false
+                  x' <- if escapeRet then pure  x else go' x
                   { allocVars } <- State.get
                   State.modify_ (_ { hasReturned = true })
                   tmp  <- lift $ freshInternalName' "ret"
                   pure $
                     AST.Block $
-                      [ AST.VariableIntroduction
-                          { name: tmp
-                          , type: R.any
-                          , qualifiers: []
-                          , initialization: Just x'
-                          }
-                      ]
-                      <>
-                      [ AST.App (AST.Var "PURS_ANY_RETAIN")
-                        [ AST.Var tmp
-                        ]
-                      ]
+                      (if escapeRet then [] else
+                        [ AST.VariableIntroduction
+                            { name: tmp
+                            , type: R.any
+                            , qualifiers: []
+                            , initialization: Just x'
+                            }
+                        , AST.App (AST.Var "PURS_ANY_RETAIN")
+                          [ AST.Var tmp
+                          ]
+                        ])
                       <>
                       ((parentVars <> allocVars) <#> \v ->
                         if v.type == R.any
@@ -188,7 +193,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                               ]
                       )
                       <>
-                      [ AST.Return $ AST.Var tmp
+                      [ AST.Return if escapeRet then x else AST.Var tmp
                       ]
 
                 AST.VariableIntroduction x ->
@@ -581,7 +586,7 @@ eraseLambdas moduleName asts = map collapseNestedBlocks <$>
               }
             ]
         , returnType: R.any
-        , qualifiers: []
+        , qualifiers: [ AST.ModuleInternal ]
         , variadic: false
         , body:
             Just $

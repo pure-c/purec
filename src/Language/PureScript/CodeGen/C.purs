@@ -1,5 +1,6 @@
 module Language.PureScript.CodeGen.C
-  where
+  ( moduleToAST
+  ) where
 
 import Prelude
 
@@ -39,8 +40,8 @@ import Language.PureScript.CodeGen.CompileError (CompileError(..))
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 
-type IsMain =
-  Boolean
+type IsMain = Boolean
+type IsStrictMain = Boolean
 
 type Env =
   { module :: C.Module C.Ann
@@ -50,10 +51,15 @@ moduleToAST
   :: ∀ m
    . MonadError CompileError m
   => MonadSupply m
-  => IsMain
+  => IsStrictMain
+  -> IsMain
   -> C.Module C.Ann
   -> m (Array AST)
-moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, moduleDecls, moduleForeign }) =
+moduleToAST strictMain isMain mod@(C.Module { moduleName,
+                                              moduleImports,
+                                              moduleExports,
+                                              moduleDecls,
+                                              moduleForeign }) =
   let
     cModuleName =
       runModuleName moduleName
@@ -115,7 +121,7 @@ moduleToAST isMain mod@(C.Module { moduleName, moduleImports, moduleExports, mod
           , [ P.empty ]
           , if isMain
               then
-                [ F.nativeMain $
+                [ F.nativeMain strictMain $
                     AST.Var $
                       safeName $
                         qualifiedVarName moduleName "main"
@@ -297,7 +303,7 @@ exprToAst (C.Let _ binders val) = ado
         AST.Function
           { name: Nothing
           , variadic: false
-          , qualifiers: []
+          , qualifiers: [ AST.ModuleInternal ]
           , arguments: []
           , returnType: R.any
           , body:
@@ -366,7 +372,7 @@ exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
       [
         AST.Function
           { name: Nothing
-          , qualifiers: []
+          , qualifiers: [ AST.ModuleInternal ]
           , variadic: false
           , arguments: []
           , returnType: R.any
@@ -445,7 +451,7 @@ exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
                             (AST.NumericLiteral (Left ix))
                             (AST.Accessor
                               (AST.Raw "data")
-                              (AST.App R.purs_any_unsafe_get_array [ AST.Var varName ]))
+                              (AST.App R.purs_any_force_array [ AST.Var varName ]))
                     } A.: ast
         in ado
           ast <- go next 0 binders
@@ -531,7 +537,7 @@ exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
                         (AST.NumericLiteral (Left index))
                         (AST.Accessor
                           (AST.Raw "values")
-                          (AST.App R.purs_any_unsafe_get_cons [ AST.Var varName ]))
+                          (AST.App R.purs_any_force_cons [ AST.Var varName ]))
                 } A.: ast
 
     in
@@ -592,7 +598,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
     pure $
      AST.Function
       { name: Nothing
-      , qualifiers: []
+      , qualifiers: [ AST.ModuleInternal ]
       , variadic: false
       , arguments: [ { name: argName, type: R.any } ]
       , returnType: R.any
@@ -616,7 +622,7 @@ exprToAst (C.Constructor _ typeName (C.ProperName constructorName) fields)
         in
           AST.Function
             { name: Nothing
-            , qualifiers: []
+            , qualifiers: [ AST.ModuleInternal ]
             , variadic: false
             , arguments: [ { name: argName', type: R.any } ]
             , returnType: R.any
@@ -648,7 +654,7 @@ exprToAst (C.Abs (C.Ann _) ident expr) = do
   pure $
     AST.Function
       { name: Nothing
-      , qualifiers: []
+      , qualifiers: [ AST.ModuleInternal ]
       , variadic: false
       , arguments:
           [ { name: argName, type: R.any }

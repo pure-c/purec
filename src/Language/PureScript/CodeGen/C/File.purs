@@ -107,8 +107,8 @@ isMain :: C.ModuleName -> Boolean
 isMain (C.ModuleName [C.ProperName "Main"]) = true
 isMain _ = false
 
-nativeMain :: AST -> AST
-nativeMain mainVar =
+nativeMain :: Boolean -> AST -> AST
+nativeMain strict mainVar =
   AST.Function
     { name: Just "main"
     , arguments: []
@@ -119,11 +119,12 @@ nativeMain mainVar =
         AST.Block
           [ AST.App (AST.Var "GC_INIT") []
           , AST.Return $
-              AST.App (AST.Var "purs_any_get_main_rc_compat")
+              AST.App (AST.Var "purs_main")
                 [ AST.App R.purs_any_app
                     [ mainVar
                     , R.purs_any_null
                     ]
+                , AST.NumericLiteral (Left if strict then 1 else 0)
                 ]
           ]
     }

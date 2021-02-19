@@ -1,6 +1,19 @@
 #include "runtime/purescript.h"
 
 // -----------------------------------------------------------------------------
+// Tail-call optimization support
+// -----------------------------------------------------------------------------
+
+void purs_tco_state_init(purs_tco_state_t *tco, int size, ...) {
+	tco->result = purs_any_null;
+	tco->done = 0;
+	va_list ap;
+	va_start(ap, size);
+	tco->scope = purs_scope_new_va(size, ap);
+	va_end(ap);
+}
+
+// -----------------------------------------------------------------------------
 // Continuations
 // -----------------------------------------------------------------------------
 
@@ -10,8 +23,8 @@ static void purs_cont_free(const struct purs_rc *ref) {
 	purs_free(x);
 }
 
-const purs_cont_t * purs_cont_new(const struct purs_scope * scope,
-				  purs_cont_fun_t * fn) {
+const purs_cont_t * purs_cont_new(const purs_scope_t *scope,
+				  purs_cont_fun_t *fn) {
 	purs_cont_t * cont = purs_new(purs_cont_t);
 	cont->fn = fn;
 	cont->scope = scope;
@@ -46,7 +59,7 @@ const purs_foreign_t * purs_foreign_new(void * tag,
 // -----------------------------------------------------------------------------
 
 static void purs_cons_free(const struct purs_rc *ref) {
-	purs_cons_t * x = container_of(ref, purs_cons_t, rc);
+	purs_cons_t *x = container_of(ref, purs_cons_t, rc);
 	for (int i = 0; i < x->size; i++) {
 		PURS_ANY_RELEASE(x->values[i]);
 	}
@@ -61,12 +74,12 @@ const purs_cons_t * purs_cons_new(int tag, int size, ...) {
 	if (size <= 0) {
 		cons->values = NULL;
 	} else {
-	    cons->values = purs_malloc(sizeof (ANY) * size);
+	    cons->values = purs_malloc(sizeof (purs_any_t) * size);
 	}
 	va_list ap;
 	va_start(ap, size);
 	for (int i = 0; i < size; i++) {
-		cons->values[i] = va_arg(ap, ANY);
+		cons->values[i] = va_arg(ap, purs_any_t);
 		PURS_ANY_RETAIN(cons->values[i]);
 	}
 	va_end(ap);
@@ -100,7 +113,7 @@ inline const char * purs_any_tag_str (const purs_any_tag_t tag) {
 // -----------------------------------------------------------------------------
 
 static void purs_scope_free(const struct purs_rc *ref) {
-	struct purs_scope *x = container_of(ref, struct purs_scope, rc);
+	purs_scope_t *x = container_of(ref, purs_scope_t, rc);
 	for (int i = 0; i < x->size; i++) {
 		PURS_ANY_RELEASE(x->bindings[i]);
 	}
@@ -108,59 +121,81 @@ static void purs_scope_free(const struct purs_rc *ref) {
 	purs_free(x);
 }
 
-struct purs_scope * purs_scope_new1(int size) {
+purs_scope_t * purs_scope_new1(int size) {
 	if (size == 0) return NULL;
-	struct purs_scope * scope = purs_new(struct purs_scope);
-	ANY* bindings = purs_malloc(sizeof (ANY) * size);
+	purs_scope_t *scope = purs_new(purs_scope_t);
+	purs_any_t *bindings = purs_malloc(sizeof (purs_any_t) * size);
 	scope->size = size;
 	scope->bindings = bindings;
-	memset(bindings, 0, sizeof (ANY) * size); /* todo: calloc? */
+	memset(bindings, 0, sizeof (purs_any_t) * size); /* todo: calloc? */
 	scope->rc = ((struct purs_rc) { purs_scope_free, 1 });
 	return scope;
 }
 
-struct purs_scope * purs_scope_new(int size, ...) {
+purs_scope_t* purs_scope_new_va(int size, va_list ap) {
 	if (size == 0) return NULL;
-	struct purs_scope * scope = purs_new(struct purs_scope);
-	ANY* bindings = purs_malloc(sizeof (ANY) * size);
+	purs_scope_t *scope = purs_new(purs_scope_t);
+	purs_any_t *bindings = purs_malloc(sizeof (purs_any_t) * size);
 	scope->size = size;
 	scope->bindings = bindings;
-	int i;
-	va_list ap;
-	va_start(ap, size);
-	for (i = 0; i < size; i++) {
-		bindings[i] = va_arg(ap, ANY);
+	for (int i = 0; i < size; i++) {
+		bindings[i] = va_arg(ap, purs_any_t);
 		PURS_ANY_RETAIN(bindings[i]);
 	}
-	va_end(ap);
 	scope->rc = ((struct purs_rc) { purs_scope_free, 1 });
 	return scope;
+}
+
+purs_scope_t* purs_scope_new(int size, ...) {
+	va_list ap;
+	va_start(ap, size);
+	purs_scope_t *scope = purs_scope_new_va(size, ap);
+	va_end(ap);
+	return scope;
+}
+
+const purs_scope_t* purs_scope_extend(const purs_scope_t* scope, int count, ...) {
+	purs_scope_t *copy = purs_scope_new1(scope->size + count);\
+	memcpy(copy->bindings,
+	       scope->bindings,
+	       scope->size * sizeof (purs_any_t));
+	for (int i = 0; i < copy->size; i++) {
+		PURS_ANY_RETAIN(copy->bindings[i]);
+	}
+	va_list ap;
+	va_start(ap, count);
+	for (int i = 0; i < count; i++) {
+		copy->bindings[scope->size + i] = va_arg(ap, purs_any_t);
+		PURS_ANY_RETAIN(copy->bindings[scope->size + i]);
+	}
+	va_end(ap);
+	return copy;
 }
 
 // -----------------------------------------------------------------------------
 // Any: built-ins
 // -----------------------------------------------------------------------------
 
-ANY purs_any_null = { .tag = PURS_ANY_TAG_NULL };
-ANY purs_any_array_empty = {
+purs_any_t purs_any_null = { .tag = PURS_ANY_TAG_NULL };
+purs_any_t purs_any_array_empty = {
 	.tag = PURS_ANY_TAG_ARRAY,
 	.value = { .array = NULL }
 };
 
-ANY purs_any_true = PURS_ANY_INT(1);
-ANY purs_any_false = PURS_ANY_INT(0);
+purs_any_t purs_any_true = PURS_ANY_INT(1);
+purs_any_t purs_any_false = PURS_ANY_INT(0);
 
-ANY purs_any_int_zero = PURS_ANY_INT(0);
-ANY purs_any_num_zero = PURS_ANY_NUM(0.0);
+purs_any_t purs_any_int_zero = PURS_ANY_INT(0);
+purs_any_t purs_any_num_zero = PURS_ANY_NUM(0.0);
 
-ANY purs_any_int_one = PURS_ANY_INT(1);
-ANY purs_any_num_one = PURS_ANY_NUM(1.0);
+purs_any_t purs_any_int_one = PURS_ANY_INT(1);
+purs_any_t purs_any_num_one = PURS_ANY_NUM(1.0);
 
-ANY purs_any_NaN = PURS_ANY_NUM(PURS_NAN);
-ANY purs_any_infinity = PURS_ANY_NUM(PURS_INFINITY);
-ANY purs_any_neg_infinity = PURS_ANY_NUM(-PURS_INFINITY);
+purs_any_t purs_any_NaN = PURS_ANY_NUM(PURS_NAN);
+purs_any_t purs_any_infinity = PURS_ANY_NUM(PURS_INFINITY);
+purs_any_t purs_any_neg_infinity = PURS_ANY_NUM(-PURS_INFINITY);
 
-int purs_any_eq(ANY x, ANY y) {
+int purs_any_eq(purs_any_t x, purs_any_t y) {
 	int ret = 0;
 	int x_has_changed;
 	int y_has_changed;
@@ -199,7 +234,8 @@ int purs_any_eq(ANY x, ANY y) {
 			ret = purs_any_unsafe_get_num(x) == purs_any_unsafe_get_num(y);
 			goto end;
 		case PURS_ANY_TAG_STRING:
-			ret = (utf8cmp(purs_any_unsafe_get_string(x), purs_any_unsafe_get_string(y)) == 0);
+			ret = (utf8cmp(purs_any_unsafe_get_string(x)->data,
+				       purs_any_unsafe_get_string(y)->data) == 0);
 			goto end;
 		case PURS_ANY_TAG_CHAR:
 			ret = purs_any_unsafe_get_char(x) == purs_any_unsafe_get_char(y);
@@ -218,8 +254,8 @@ int purs_any_eq(ANY x, ANY y) {
 /**
  Concatenate two dynamic values into a new dynamic value
 */
-ANY purs_any_concat(ANY x, ANY y) {
-	ANY ret;
+purs_any_t purs_any_concat(purs_any_t x, purs_any_t y) {
+	purs_any_t ret;
 	int x_has_changed = 0;
 	int y_has_changed = 0;
 	x = purs_any_unthunk(x, &x_has_changed);
@@ -281,7 +317,7 @@ const purs_str_t * purs_str_new(const char *fmt, ...) {
 static void purs_vec_free(const struct purs_rc *ref) {
 	purs_vec_t * x = container_of(ref, purs_vec_t, rc);
 	int i;
-	ANY v;
+	purs_any_t v;
 	purs_vec_foreach(x, v, i) {
 		PURS_ANY_RELEASE(v);
 	}
@@ -291,7 +327,7 @@ static void purs_vec_free(const struct purs_rc *ref) {
 
 const purs_vec_t * purs_vec_new1(int capacity) {
 	purs_vec_t * o = purs_new(purs_vec_t);
-	o->data = purs_malloc_any_buf(capacity);
+	o->data = vec_malloc(sizeof (purs_any_t) * capacity);
 	o->length = 0;
 	o->capacity = capacity;
 	o->rc = (struct purs_rc) { purs_vec_free, 1 };
@@ -324,11 +360,11 @@ const purs_vec_t * purs_vec_concat(const purs_vec_t *lhs,
 	} else {
 		int length = lhs->length + rhs->length;
 		purs_vec_t *o = (purs_vec_t *) purs_vec_new();
-		o->data = vec_malloc(sizeof (ANY) * length);
+		o->data = vec_malloc(sizeof (purs_any_t) * length);
 		o->length = length;
 		o->capacity = length;
-		memcpy(o->data, lhs->data, sizeof (ANY) * lhs->length);
-		memcpy(o->data + lhs->length, rhs->data, sizeof (ANY) * rhs->length);
+		memcpy(o->data, lhs->data, sizeof (purs_any_t) * lhs->length);
+		memcpy(o->data + lhs->length, rhs->data, sizeof (purs_any_t) * rhs->length);
 		for (int i = 0; i < o->length; i++) {
 			PURS_ANY_RETAIN(o->data[i]);
 		}
@@ -343,14 +379,14 @@ const purs_vec_t * purs_vec_new_va (int count, ...) {
 
 	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
 
-	o->data = vec_malloc(sizeof (ANY) * count);
+	o->data = vec_malloc(sizeof (purs_any_t) * count);
 	o->length = count;
 	o->capacity = count;
 
 	va_list ap;
 	va_start(ap, count);
 	for (int i = 0; i < count; i++) {
-		o->data[i] = va_arg(ap, ANY);
+		o->data[i] = va_arg(ap, purs_any_t);
 		PURS_ANY_RETAIN(o->data[i]);
 	}
 	va_end(ap);
@@ -366,8 +402,8 @@ static const purs_vec_t * _purs_vec_copy (const purs_vec_t * vec) {
 	purs_vec_t * o = (purs_vec_t *) purs_vec_new();
 	o->length = vec->length;
 	o->capacity = vec->capacity;
-	o->data = vec_malloc(sizeof (ANY) * vec->capacity);
-	memcpy(o->data, vec->data, sizeof (ANY) * vec->capacity);
+	o->data = vec_malloc(sizeof (purs_any_t) * vec->capacity);
+	memcpy(o->data, vec->data, sizeof (purs_any_t) * vec->capacity);
 	return (const purs_vec_t *) o;
 }
 
@@ -384,7 +420,7 @@ const purs_vec_t * purs_vec_splice (const purs_vec_t * vec,
 				    int start,
 				    int count) {
 	/* todo: avoid copying input array */
-	purs_vec_t * copy = (purs_vec_t *) _purs_vec_copy(vec);
+	purs_vec_t *copy = (purs_vec_t *) _purs_vec_copy(vec);
 	vec_splice(copy, start, count);
 	for (int i = 0; i < copy->length; i++) {
 		PURS_ANY_RETAIN(copy->data[i]);
@@ -394,7 +430,7 @@ const purs_vec_t * purs_vec_splice (const purs_vec_t * vec,
 
 const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 				   int idx,
-				   ANY val) {
+				   purs_any_t val) {
 	if (vec == NULL) {
 		return purs_vec_new_va(1, val);
 	} else {
@@ -409,13 +445,24 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records
 // -----------------------------------------------------------------------------
 
-static inline void _purs_record_add_multi_mut(purs_record_t * x, int count, va_list ap);
+purs_any_t purs_any_record_empty = PURS_ANY_RECORD(NULL);
 
-ANY purs_any_record_empty = PURS_ANY_RECORD(NULL);
+const purs_record_t* purs_record_merge(const purs_record_t* r1,
+				       const purs_record_t* r2) {
+	if (r1 == NULL && r2 == NULL) return NULL;
+	if (r1 == NULL) return purs_record_copy_shallow(r2);
+	if (r2 == NULL) return purs_record_copy_shallow(r1);
+	purs_record_t *copy = (purs_record_t*) purs_record_copy_shallow(r2);
+	const purs_record_node_t *e, *tmp;
+	HASH_ITER(hh, r1->root, e, tmp) {
+		purs_record_add_mut(copy, e->key, e->value);
+	}
+	return copy;
+}
 
 static void purs_record_free(const struct purs_rc *ref) {
-	purs_record_t * x = container_of(ref, purs_record_t, rc);
-	const purs_record_node_t * e, * tmp;
+	purs_record_t *x = container_of(ref, purs_record_t, rc);
+	const purs_record_node_t *e, *tmp;
 	HASH_ITER(hh, x->root, e, tmp) {
 		HASH_DEL(x->root, (purs_record_node_t *) e);
 		PURS_ANY_RELEASE(e->value);
@@ -433,17 +480,16 @@ const purs_record_t * purs_record_new_va(int count, ...) {
 	x->root = NULL;
 	va_list ap;
 	va_start(ap, count);
-	_purs_record_add_multi_mut(x, count, ap);
+	purs_record_add_multi_mut_va(x, count, ap);
 	va_end(ap);
 	x->rc = ((struct purs_rc) { purs_record_free, 1 });
 	return (const purs_record_t *) x;
 }
 
-/* create a shallow copy of the record
- */
+/* create a shallow copy of the record */
 const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	if (source == NULL) return NULL;
-	const purs_record_node_t * src, * tmp;
+	const purs_record_node_t *src, *tmp;
 	purs_record_t *x = purs_new(purs_record_t);
 	x->root = NULL;
 	HASH_ITER(hh, source->root, src, tmp) {
@@ -481,22 +527,52 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source,
 	}
 	va_list args;
 	va_start(args, count);
-	_purs_record_add_multi_mut(copy, count, args);
+	purs_record_add_multi_mut_va(copy, count, args);
 	va_end(args);
 	return (const purs_record_t *) copy;
 }
 
-static inline
-void _purs_record_add_multi_mut(purs_record_t * x,
-				int count,
-				va_list ap) {
+const purs_record_t* purs_record_remove(const purs_record_t *record, const void *key) {
+	if (record == NULL) return NULL;
+	purs_record_t *copy = (purs_record_t *) purs_record_copy_shallow(record);
+	purs_record_remove_mut(copy, key);
+	return copy;
+}
+
+void purs_record_remove_mut(purs_record_t *record, const void *key) {
+	if (record == NULL) return;
+	purs_record_node_t *result;
+	size_t len = utf8size(key);
+	HASH_FIND(hh, record->root, key, len, result);
+	if (result != NULL) {
+		PURS_ANY_RELEASE(result->value);
+		HASH_DEL(record->root, result);
+		free((void*) result->key);
+		purs_free((purs_record_node_t *) result);
+	}
+	return;
+}
+
+void purs_record_add_multi_mut(purs_record_t *x,
+			       size_t count,
+			       ...) {
+	va_list ap;
+	va_start(ap, count);
+	purs_record_add_multi_mut_va(x, count, ap);
+	va_end(ap);
+}
+
+void purs_record_add_multi_mut_va(purs_record_t *x,
+				  size_t count,
+				  va_list ap) {
 	for (int i = 0; i < count; i++) {
-		const char * key = va_arg(ap, const char *);
-		ANY value = va_arg(ap, ANY);
+		const char *key = va_arg(ap, const char *);
+		purs_any_t value = va_arg(ap, purs_any_t);
 		purs_record_node_t * entry = purs_new(purs_record_node_t);
 		entry->key = afmt("%s", key); /* todo: perf */
 		entry->value = value;
 		PURS_ANY_RETAIN(value);
+		purs_record_remove_mut(x, entry->key);
 		HASH_ADD_KEYPTR(
 			hh,
 			x->root,
@@ -509,6 +585,7 @@ void _purs_record_add_multi_mut(purs_record_t * x,
 
 purs_any_t* purs_record_find_by_key(const purs_record_t * record,
 				    const void * key) {
+	if (record == NULL) return NULL;
 	purs_record_node_t *result;
 	size_t len = utf8size(key);
 	HASH_FIND(hh, record->root, key, len, result);

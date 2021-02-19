@@ -6,6 +6,7 @@ module Language.PureScript.CodeGen.C.AST
   , PrimitiveType(..)
   , TypeQualifier(..)
   , ValueQualifier
+  , FunctionQualifier(..)
   , everywhere
   , everywhereM
   , everything
@@ -89,6 +90,17 @@ instance eqBinaryOperator :: Eq BinaryOperator where
   eq = genericEq
 
 instance showBinaryOperator :: Show BinaryOperator where
+  show = genericShow
+
+data FunctionQualifier
+  = ModuleInternal
+
+derive instance genericFunctionQual :: Rep.Generic FunctionQualifier _
+
+instance eqFunctionQual :: Eq FunctionQualifier where
+  eq = genericEq
+
+instance showFunctionQual :: Show FunctionQualifier where
   show = genericShow
 
 data ValueQualifier
@@ -182,7 +194,7 @@ data AST
       { name :: Maybe String
       , arguments :: Array { name :: String, type :: Type }
       , returnType :: Type
-      , qualifiers :: Array ValueQualifier
+      , qualifiers :: Array FunctionQualifier
       , variadic :: Boolean
       , body :: Maybe AST
       }

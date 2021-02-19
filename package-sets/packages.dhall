@@ -15,11 +15,13 @@ let packages =
       , prelude =
               upstream.prelude
           //  { repo = "https://github.com/pure-c/purescript-prelude.git"
-              , version = "d99b0a566045fa3663f6306f2d1250d43ba9a448"
+              , version = "ed2421cfdf09ea26c50e8177a7a5cdf9ebb078fb"
               }
       , arrays =
               upstream.arrays
-          //  { repo = "https://github.com/pure-c/purescript-arrays.git" }
+          //  { repo = "https://github.com/pure-c/purescript-arrays.git"
+              , version = "b9c7374a796a02aaccf2eda4919c2d96896a6a37"
+              }
       , assert =
               upstream.assert
           //  { repo = "https://github.com/pure-c/purescript-assert.git"
@@ -53,7 +55,9 @@ let packages =
               }
       , functions =
               upstream.functions
-          //  { repo = "https://github.com/pure-c/purescript-functions.git" }
+          //  { repo = "https://github.com/pure-c/purescript-functions.git"
+              , version = "5919afc58d227d58d10d65db995289d3f57554d7"
+              }
       , gen = upstream.gen
       , generics-rep = upstream.generics-rep
       , identity = upstream.identity
@@ -86,11 +90,13 @@ let packages =
       , proxy = upstream.proxy
       , record =
               upstream.record
-          //  { repo = "https://github.com/pure-c/purescript-record.git" }
+          //  { repo = "https://github.com/pure-c/purescript-record.git"
+              , version = "e325d0d11ac9fa178e4984c348a9229deaaa5e96"
+              }
       , refs =
               upstream.refs
           //  { repo = "https://github.com/pure-c/purescript-refs.git"
-              , version = "b81d7cab5345b7a5f7f279ad68c4eb7c19c07b0d"
+              , version = "102dd7fc405d70c05b43f1b0bb7ee0009e93f157"
               }
       , st =
               upstream.st

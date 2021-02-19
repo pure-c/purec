@@ -24,6 +24,18 @@ import Language.PureScript.CodeGen.Runtime as R
 tco :: AST -> AST
 tco = AST.everywhere convert
   where
+  convert x@(AST.VariableIntroduction (i@{ name, initialization: Just (fn@(AST.Function _)) })) =
+    let
+      args /\ body /\ replace =
+        let
+          args /\ body /\ replace =
+            collectFnArgs fn
+        in
+          A.concat (A.reverse args) /\ body /\ replace
+    in
+     if isTailRecursive name body
+      then AST.VariableIntroduction (i { initialization = Just (replace $ toLoop name args body) })
+      else x
   convert
     x@(AST.App
        (AST.Var "purs_any_ref_write")
@@ -49,6 +61,7 @@ tco = AST.everywhere convert
   convert x = x
 
   tcoState = prefixInternalVar "tco_state"
+  tcoStateWrapper = prefixInternalVar "tco_state_wrapper"
   tcoLoop = prefixInternalVar "tco_loop"
   tcoResult = prefixInternalVar "tco_result"
 
@@ -117,6 +130,10 @@ tco = AST.everywhere convert
         A.all go body
       go (AST.VariableIntroduction { initialization }) =
         all ((_ == 0) <<< countSelfReferences) initialization
+      -- ignore hard-coded abort (such as failed pattern matches)
+      go (AST.App (AST.Var "purs_assert") args)
+        | Just (AST.NumericLiteral (Left 0)) <- A.head args
+        = true
       go (AST.Assignment _ ast) =
         countSelfReferences ast == 0
       go _ = false
@@ -126,27 +143,24 @@ tco = AST.everywhere convert
     AST.Block $
       [ AST.VariableIntroduction
           { name: tcoState
-          , type: Type.RawType "struct tco_state" []
+          , type: Type.RawType "purs_tco_state_t" []
           , qualifiers: []
-          , initialization:
-              Just $
-                AST.App (AST.Var "purs_tco_state_new")
-                  [ AST.NumericLiteral $ Left $ A.length args
-                  ]
+          , initialization: Just $ AST.Raw "{}"
           }
+      , AST.App (AST.Var "purs_tco_state_init") $
+          [ AST.App (AST.Var "purs_address_of") [ AST.Var tcoState ]
+          , AST.NumericLiteral (Left (A.length args))
+          ] <> map AST.Var args
       ] <>
-      (args # A.mapWithIndex \i arg ->
-        AST.App (AST.Var "purs_tco_set_arg")
-          [ AST.Var tcoState
-          , AST.NumericLiteral $ Left i
-          , AST.Var arg
-          ])
-      <>
       [ AST.VariableIntroduction
-          { name: tcoResult
+          { name: tcoStateWrapper
           , type: R.any
           , qualifiers: []
-          , initialization: Nothing
+          , initialization:
+              Just
+                (AST.App (AST.Var "purs_any_tco")
+                  [ AST.Var tcoState
+                  ])
           }
       , AST.VariableIntroduction
           { name: tcoLoop
@@ -161,7 +175,7 @@ tco = AST.everywhere convert
                         , type: R.any
                         }
                       ]
-                  , qualifiers: []
+                  , qualifiers: [ AST.ModuleInternal ]
                   , returnType: R.any
                   , variadic:  false
                   , body:
@@ -174,12 +188,8 @@ tco = AST.everywhere convert
                                 , qualifiers: []
                                 , initialization:
                                     Just $
-                                      AST.App (AST.Var "purs_tco_get_arg")
-                                        [ AST.App (AST.Var "purs_foreign_get_data")
-                                            [ AST.App R.purs_any_unsafe_get_foreign
-                                                [ AST.Var tcoState
-                                                ]
-                                            ]
+                                      AST.App (AST.Var "purs_any_tco_get_arg")
+                                        [ AST.Var tcoState
                                         , AST.NumericLiteral $ Left i
                                         ]
                                 })
@@ -194,20 +204,14 @@ tco = AST.everywhere convert
               [ AST.Var tcoState
               ])) $
           AST.Block
-            [ AST.Assignment (AST.Var tcoResult) $
-                AST.App R.purs_any_app
-                  [ AST.Var tcoLoop
-                  , AST.App R.purs_any_foreign
-                      [ AST.App R.purs_foreign_new
-                          [ AST.Null
-                          , AST.App R.purs_address_of [ AST.Var tcoState ]
-                          , AST.Null
-                          ]
-                      ]
-                  ]
+            [ AST.App R.purs_any_app
+                [ AST.Var tcoLoop
+                , AST.Var tcoStateWrapper
+                ]
             ]
       , AST.App (AST.Var "purs_tco_state_free") [ AST.Var tcoState ]
-      , AST.Return $ AST.Var tcoResult
+      , AST.Return $
+          AST.App (AST.Var "purs_tco_state_result") [ AST.Var tcoState ]
       ]
 
     where
@@ -222,29 +226,22 @@ tco = AST.everywhere convert
             A.zipWith
               (\val (i /\ _) ->
                 AST.App
-                  (AST.Var "purs_tco_mut_arg")
-                  [ AST.App (AST.Var "purs_foreign_get_data")
-                      [ AST.App R.purs_any_unsafe_get_foreign
-                          [ AST.Var tcoState
-                          ]
-                      ]
-                  , AST.NumericLiteral $ Left i
-                  , val
-                  ])
+                  (AST.Var "purs_any_tco_mut_arg")
+                    [ AST.Var tcoState
+                    , AST.NumericLiteral $ Left i
+                    , val
+                    ])
               allArgumentValues
               (args # A.mapWithIndex (/\))
             <>
             [ AST.Return R.purs_any_null ]
       | otherwise =
           AST.Block
-            [ AST.App (AST.Var "purs_tco_set_done")
-                [ AST.App (AST.Var "purs_foreign_get_data")
-                    [ AST.App R.purs_any_unsafe_get_foreign
-                        [ AST.Var tcoState
-                        ]
-                    ]
+            [ AST.App (AST.Var "purs_any_tco_set_done")
+                [ AST.Var tcoState
+                , ret
                 ]
-            , AST.Return ret
+            , AST.Return R.purs_any_null
             ]
     loopify (AST.While cond body) = AST.While cond (loopify body)
     loopify (AST.IfElse cond body el) = AST.IfElse cond (loopify body) (loopify <$> el)

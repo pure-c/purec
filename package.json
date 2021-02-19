@@ -20,7 +20,7 @@
     "spago": "^0.17.0"
   },
   "scripts": {
-    "test": "make test",
+    "test": "make check",
     "build": "spago bundle-app -t purec.js",
     "watch": "spago bundle-app -w -t purec.js",
     "docs": "doxygen Doxyfile"

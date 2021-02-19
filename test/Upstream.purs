@@ -8,7 +8,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Except.Trans (catchError)
 import Control.Parallel (parallel, sequential)
 import Data.Array as A
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe(..), maybe)
 import Data.String (Pattern(..))
 import Data.String as Str
 import Data.Traversable (for, for_)
@@ -29,15 +29,12 @@ blackList =
   , "NegativeIntInRange"
   , "StringEdgeCases"    -- https://github.com/paulyoung/purescript-corefn/issues/57
   , "StringEscapes"      -- https://github.com/paulyoung/purescript-corefn/issues/57
-
-    -- missing dependencies:
-  , "GenericsRep"
-      -- depends on:
-      --   + purescript-enums (https://github.com/pure-c/pure-c/issues/35)
   ]
 
-buildUpstreamTestSuite :: Aff (Spec Unit)
-buildUpstreamTestSuite =
+buildUpstreamTestSuite
+  :: Maybe String -- ^ if specified, only run this test.
+  -> Aff (Spec Unit)
+buildUpstreamTestSuite only =
   let
     testsDirectory =
       "upstream/tests/purs/passing"
@@ -53,21 +50,22 @@ buildUpstreamTestSuite =
     in
       describe "PureScript's 'passing' tests" $
         for_ tests case _ of
+          { name } | maybe false (name /= _) only ->
+            pure unit
           { name } | name `A.elem` blackList  ->
             pending name
           { name, files } ->
             it name do
               runProc "rm" [ "-rf", outputDir ]
               runProc "rsync" [ "-a", cacheDir <> "/", outputDir <> "/" ]
-              make outputDir files >>= runProc <@> []
+              make outputDir files
 
 -- | Run make, return the produced output
-make :: FilePath -> Array FilePath -> Aff FilePath
-make dir pursSources =
-  dir <> "/main.out" <$ do
-    FS.writeTextFile UTF8 (dir <> "/sources") $
-      A.intercalate "\n" pursSources
-    runProc "make" [ "-s", "-j", "16", "-C", dir ]
+make :: FilePath -> Array FilePath -> Aff Unit
+make dir pursSources = do
+  FS.writeTextFile UTF8 (dir <> "/sources") $
+    A.intercalate "\n" pursSources
+  runProc "make" [ "-s", "-j", "16", "-C", dir ]
 
 -- | prepare the output directory and build the project at least once
 prepareCacheDir :: FilePath -> Aff Unit
@@ -77,7 +75,10 @@ prepareCacheDir dir = do
 default: premain
 .PHONY: default
 
+CFLAGS := -O0 -g3
 PUREC_DIR := ../..
+PURS_FLAGS :=
+PUREC_FLAGS := --non-strict-main
 include $(PUREC_DIR)/mk/target.mk
 SPAGO := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin spago
 PURS := PATH=$$PATH:$(PUREC_DIR)/node_modules/.bin purs
@@ -88,8 +89,8 @@ premain: $(srcs)
 	@touch $^ || { :; }
 	@cp "$(PUREC_DIR)"/package-sets/* .
 	@cp "$(PUREC_DIR)"/upstream/tests/support/spago.dhall .
-	@$(SPAGO) install -c skip
-	@$(MAKE) -s main
+	@$(SPAGO) install -q -c skip
+	@$(MAKE) -s main_leakcheck
 
 $(eval $(call purs_mk_target,main,Main,$(srcs)))
 """
