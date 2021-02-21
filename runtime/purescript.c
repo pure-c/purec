@@ -294,10 +294,23 @@ purs_any_t purs_any_concat(purs_any_t x, purs_any_t y) {
 // strings
 // -----------------------------------------------------------------------------
 
+static void purs_str_static_free(const struct purs_rc *ref) {
+	purs_str_t * x = container_of(ref, purs_str_t, rc);
+	purs_free(x);
+}
+
 static void purs_str_free(const struct purs_rc *ref) {
 	purs_str_t * x = container_of(ref, purs_str_t, rc);
-	free(x->data); /* do not use 'purs_free' ! */
+	free((void*)x->data); /* do not use 'purs_free' ! */
 	purs_free(x);
+}
+
+const purs_str_t * purs_str_static_new(const char *str) {
+	va_list ap;
+	purs_str_t *x = purs_new(purs_str_t);
+	x->rc = (struct purs_rc) { purs_str_static_free, 1 };
+	x->data = str;
+	return (const purs_str_t *) x;
 }
 
 const purs_str_t * purs_str_new(const char *fmt, ...) {
@@ -305,7 +318,7 @@ const purs_str_t * purs_str_new(const char *fmt, ...) {
 	purs_str_t *x = purs_new(purs_str_t);
 	x->rc = (struct purs_rc) { purs_str_free, 1 };
 	va_start(ap, fmt);
-	assert (vasprintf(&x->data, fmt, ap) >= 0);
+	assert (vasprintf((char**)&x->data, fmt, ap) >= 0);
 	va_end(ap);
 	return (const purs_str_t *) x;
 }
@@ -455,7 +468,7 @@ const purs_record_t* purs_record_merge(const purs_record_t* r1,
 	purs_record_t *copy = (purs_record_t*) purs_record_copy_shallow(r2);
 	const purs_record_node_t *e, *tmp;
 	HASH_ITER(hh, r1->root, e, tmp) {
-		purs_record_add_mut(copy, e->key, e->value);
+		purs_record_add_mut(copy, e->key_utf8, e->value);
 	}
 	return copy;
 }
@@ -466,7 +479,7 @@ static void purs_record_free(const struct purs_rc *ref) {
 	HASH_ITER(hh, x->root, e, tmp) {
 		HASH_DEL(x->root, (purs_record_node_t *) e);
 		PURS_ANY_RELEASE(e->value);
-		free((void*) e->key);
+		free((void*) e->key_utf8);
 		purs_free((purs_record_node_t *) e);
 	}
 	purs_free(x);
@@ -493,17 +506,28 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	purs_record_t *x = purs_new(purs_record_t);
 	x->root = NULL;
 	HASH_ITER(hh, source->root, src, tmp) {
+		// prepare copy
 		purs_record_node_t *dst = purs_new(purs_record_node_t);
-		dst->key = afmt("%s", src->key); /* todo: perf */
+		dst->key_utf8 = purs_malloc(src->key_utf8_len);
+		dst->key_utf8_len = src->key_utf8_len;
+		dst->key_hash = src->key_hash;
 		dst->value = src->value;
+
+		// copy string over
+		// TODO: Use purs_str_t and just bump RC
+		memcpy((void*) dst->key_utf8, src->key_utf8, src->key_utf8_len);
+
+		// retain value at key
 		PURS_ANY_RETAIN(dst->value);
-		HASH_ADD_KEYPTR(
+
+		// insert into hash map
+		HASH_ADD_KEYPTR_BYHASHVALUE(
 			hh,
 			x->root,
-			dst->key,
-			utf8size(dst->key),
-			dst
-		);
+			dst->key_utf8,
+			dst->key_utf8_len,
+			dst->key_hash,
+			dst);
 	}
 	x->rc = ((struct purs_rc) { purs_record_free, 1 });
 	return (const purs_record_t *) x;
@@ -539,18 +563,33 @@ const purs_record_t* purs_record_remove(const purs_record_t *record, const void 
 	return copy;
 }
 
-void purs_record_remove_mut(purs_record_t *record, const void *key) {
+void purs_record_remove_mut2(purs_record_t *record,
+			     const char* key_utf8,
+			     size_t key_utf8_len,
+			     unsigned key_hash) {
 	if (record == NULL) return;
 	purs_record_node_t *result;
-	size_t len = utf8size(key);
-	HASH_FIND(hh, record->root, key, len, result);
+	HASH_FIND_BYHASHVALUE(hh,
+			      record->root,
+			      key_utf8,
+			      key_utf8_len,
+			      key_hash,
+			      result);
 	if (result != NULL) {
 		PURS_ANY_RELEASE(result->value);
 		HASH_DEL(record->root, result);
-		free((void*) result->key);
+		free((void*) result->key_utf8);
 		purs_free((purs_record_node_t *) result);
 	}
 	return;
+}
+
+inline void purs_record_remove_mut(purs_record_t *record, const void *key_utf8) {
+	if (record == NULL) return;
+	unsigned hash;
+	size_t len = utf8size(key_utf8);
+	HASH_VALUE(key_utf8, len, hash);
+	purs_record_remove_mut2(record, key_utf8, len, hash);
 }
 
 void purs_record_add_multi_mut(purs_record_t *x,
@@ -566,29 +605,57 @@ void purs_record_add_multi_mut_va(purs_record_t *x,
 				  size_t count,
 				  va_list ap) {
 	for (int i = 0; i < count; i++) {
-		const char *key = va_arg(ap, const char *);
+		const char *ut8key = va_arg(ap, const char *);
 		purs_any_t value = va_arg(ap, purs_any_t);
-		purs_record_node_t * entry = purs_new(purs_record_node_t);
-		entry->key = afmt("%s", key); /* todo: perf */
+
+		// copy key bytes
+		// TODO: Use purs_str_t
+		size_t key_utf8_len = utf8size(ut8key);
+		const char *key_copy = purs_malloc(key_utf8_len);
+		memcpy((void*) key_copy, ut8key, key_utf8_len);
+
+		// prepare entry
+		purs_record_node_t *entry = purs_new(purs_record_node_t);
+		entry->key_utf8 = key_copy;
+		entry->key_utf8_len = key_utf8_len;
+		HASH_VALUE(key_copy, key_utf8_len, entry->key_hash);
 		entry->value = value;
+
+		// retain value at key
 		PURS_ANY_RETAIN(value);
-		purs_record_remove_mut(x, entry->key);
-		HASH_ADD_KEYPTR(
+
+		purs_record_node_t *replaced = NULL;
+		HASH_FIND_BYHASHVALUE(
 			hh,
 			x->root,
-			entry->key,
-			utf8size(entry->key),
+			entry->key_utf8,
+			key_utf8_len,
+			entry->key_hash,
+			replaced);
+
+		HASH_ADD_KEYPTR_BYHASHVALUE(
+			hh,
+			x->root,
+			entry->key_utf8,
+			key_utf8_len,
+			entry->key_hash,
 			entry
 		);
+
+		// release replaced entry, if any.
+		if (replaced != NULL) {
+		    free((void*) replaced->key_utf8);
+		    purs_free((purs_record_node_t *) replaced);
+		}
 	}
 }
 
-purs_any_t* purs_record_find_by_key(const purs_record_t * record,
-				    const void * key) {
+purs_any_t* purs_record_find_by_key(const purs_record_t *record,
+				    const void *key_utf8) {
 	if (record == NULL) return NULL;
 	purs_record_node_t *result;
-	size_t key_len = utf8size(key);
-	HASH_FIND(hh, record->root, key, key_len, result);
+	size_t key_len = utf8size(key_utf8);
+	HASH_FIND(hh, record->root, key_utf8, key_len, result);
 	if (result == NULL) return NULL;
 	return &result->value;
 }

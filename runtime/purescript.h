@@ -234,7 +234,9 @@ struct purs_vec {
 };
 
 typedef struct purs_node_record {
-	const void *key;
+	const void *key_utf8;
+	size_t key_utf8_len;
+	unsigned key_hash;
 	purs_any_t value;
 	UT_hash_handle hh;
 } purs_record_node_t;
