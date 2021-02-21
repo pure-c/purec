@@ -125,25 +125,24 @@ struct purs_rc {
     ((type *)((char *)(ptr) - offsetof(type, member)))
 
 /// @private
-static inline void purs_rc_retain_forever(const struct purs_rc *ref) {
-	((struct purs_rc *)ref)->count = -1;
-}
+#define purs_rc_retain_forever(ref)\
+	do { ((struct purs_rc *)(ref))->count = -1; } while (0)
 
 /// @private
-static inline void purs_rc_retain(const struct purs_rc *ref) {
-	if (((struct purs_rc *)ref)->count != -1 /* stack */) {
-		((struct purs_rc *)ref)->count++;
-	}
-}
+#define purs_rc_retain(ref) do {\
+	if (((struct purs_rc *)(ref))->count != -1 /* stack */) {\
+		((struct purs_rc *)(ref))->count++;\
+	}\
+} while (0)
 
 /// @private
-static inline void purs_rc_release(const struct purs_rc *ref) {
-	if (((struct purs_rc *)ref)->count != -1 /* stack */) {
-		if (--((struct purs_rc *)ref)->count == 0) {
-			ref->free_fn(ref);
-		}
-	}
-}
+#define purs_rc_release(ref) do {\
+	if (((struct purs_rc *)(ref))->count != -1 /* stack */) {\
+		if (--((struct purs_rc *)(ref))->count == 0) {\
+			(ref)->free_fn((ref));\
+		}\
+	}\
+} while (0)
 
 /* by convetion, the rc is embedded as 'rc', making these macros possible */
 #define PURS_RC_RELEASE(X) do { if ((X) != NULL) purs_rc_release(&((X)->rc)); } while (0)
@@ -209,7 +208,7 @@ struct purs_cons {
 /// A PureScript String
 struct purs_str {
 	PURS_RC_BASE_FIELDS
-	char *data;
+	const char *data;
 };
 
 typedef void (*purs_foreign_finalizer)(void *tag, void *data);
@@ -639,7 +638,11 @@ const purs_cons_t * purs_cons_new(int tag, int size, ...);
 // strings
 // -----------------------------------------------------------------------------
 
-const purs_str_t * purs_str_new(const char * fmt, ...);
+/// Create reference to copied, heap-allocated string
+const purs_str_t * purs_str_new(const char *fmt, ...);
+
+/// Create reference to string in static storage
+const purs_str_t * purs_str_static_new(const char *);
 
 const void * purs_string_copy (const void *);
 
@@ -757,8 +760,21 @@ purs_any_t * purs_record_find_by_key(const purs_record_t *,
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-static inline int purs_main(purs_any_t v, int strict) {
-	if (!strict) {
+static inline int purs_main(purs_any_t mainfn, int interp_retval) {
+	int has_changed;
+	mainfn = purs_any_unthunk(mainfn, &has_changed);
+
+	// edge case: due to optimization 'mainfn' might have been inlined to
+	//            simply be a value; hence check if we have a cont first.
+	purs_any_t v = mainfn;
+	if (mainfn.tag == PURS_ANY_TAG_CONT) {
+		v = purs_any_app(mainfn, purs_any_null);
+		PURS_ANY_RELEASE(mainfn);
+	}
+
+	if (has_changed) PURS_ANY_RELEASE(mainfn);
+
+	if (!interp_retval) {
 		PURS_ANY_RELEASE(v);
 		return 0;
 	}

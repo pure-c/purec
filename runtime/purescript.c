@@ -587,8 +587,8 @@ purs_any_t* purs_record_find_by_key(const purs_record_t * record,
 				    const void * key) {
 	if (record == NULL) return NULL;
 	purs_record_node_t *result;
-	size_t len = utf8size(key);
-	HASH_FIND(hh, record->root, key, len, result);
+	size_t key_len = utf8size(key);
+	HASH_FIND(hh, record->root, key, key_len, result);
 	if (result == NULL) return NULL;
 	return &result->value;
 }

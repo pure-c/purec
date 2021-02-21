@@ -10,7 +10,7 @@ let packages =
       { effect =
               upstream.effect
           //  { repo = "https://github.com/pure-c/purescript-effect.git"
-              , version = "a4ecc7ec7aa8c5403dcfcc0670e3cf8116c19a99"
+              , version = "57a651d69a0fbc16e2bfa364b7dede072239dcc9"
               }
       , prelude =
               upstream.prelude

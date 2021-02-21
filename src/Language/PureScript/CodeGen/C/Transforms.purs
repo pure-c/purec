@@ -93,6 +93,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_vec_copy"           -> Just arrayType
     AST.Var "purs_vec_splice"         -> Just arrayType
     AST.Var "purs_vec_concat"         -> Just arrayType
+    AST.Var "purs_str_static_new"     -> Just stringType
     AST.Var "purs_str_new"            -> Just stringType
     AST.Var "purs_foreign_new"        -> Just foreignType
     AST.Var "purs_record_new_va"      -> Just recordType

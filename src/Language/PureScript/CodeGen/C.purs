@@ -249,7 +249,7 @@ exprToAst (C.Literal _ (C.NumericLiteral n)) =
 exprToAst (C.Literal _ (C.StringLiteral s)) =
   pure $
     AST.App R.purs_any_string
-      [ AST.App R.purs_str_new
+      [ AST.App R.purs_str_static_new
           [ AST.StringLiteral s
           ]
       ]

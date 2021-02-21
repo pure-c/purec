@@ -13,12 +13,16 @@ endif
 
 PUREC_FLAGS ?=
 PUREC := node $(PUREC_DIR)/purec.js
-PUREC_LIB = $(PUREC_DIR)/libpurec.a
-PUREC_LIB_DIR = $(dir $(PUREC_LIB))
-PUREC_LIB_NAME = $(notdir %/%,%,$(PUREC_LIB))
 
 BWDGC_LIB_DIR := $(PUREC_DIR)/deps/bwdgc/.libs
 BWDGC_INCLUDE_DIR := $(PUREC_DIR)/deps/bwdgc/include
+
+RUNTIME_SOURCES = \
+	runtime/purescript.c \
+	$(shell cd "$(PUREC_DIR)" && find ccan -type f -name '*.c') \
+	$(shell cd "$(PUREC_DIR)" && find vendor -type f -name '*.c')
+RUNTIME_OBJECTS = \
+	$(patsubst %.c,support/%.o,$(RUNTIME_SOURCES))
 
 DEPS_DIR = .spago
 SPAGO ?= spago
@@ -71,14 +75,25 @@ clean:
 	@echo 2>&1 'clean: removing dir $(PUREC_WORKDIR)'
 	rm -rf "$(PUREC_WORKDIR)"
 
-%.o: %.c
+support/%.o: $(PUREC_DIR)/%.c
+	@echo "Compile" $^
+	mkdir -p $(shell dirname $@)
+	$(CLANG) $^ -c -o $@ \
+		-Wall \
+		-Wno-unused-variable \
+		-Wno-unused-value \
+		-I $(PUREC_DIR)/runtime \
+		-I $(PUREC_DIR) \
+		$(CFLAGS)
+
+%.o: %.c 
 	@echo "Compile" $^
 	$(CLANG) $^ -c -o $@ \
 		-Wall \
 		-Wno-unused-variable \
 		-Wno-unused-value \
-		-I $(PUREC_LIB_DIR)/runtime \
-		-I $(PUREC_LIB_DIR) \
+		-I $(PUREC_DIR)/runtime \
+		-I $(PUREC_DIR) \
 		$(CFLAGS)
 
 # Macro to derive a target
@@ -142,14 +157,11 @@ $$(PUREC_WORKDIR)/$(1)/.genc.1: $$(patsubst %,%.1,$$(call rwildcard,$$(PUREC_WOR
 	touch $$@
 
 $$(PUREC_WORKDIR)/$(1)/.build: \
-	$(PUREC_LIB) \
+	$(RUNTIME_OBJECTS) \
 	$$(patsubst %.c,%.o,$$(wildcard $$(PUREC_WORKDIR)/$(1)/*.c))
 	$(CLANG) $$^ \
-		-L $(PUREC_LIB_DIR) \
-		-L $(PUREC_LIB_DIR)/runtime \
 		$(CFLAGS) \
 		$($(1)_CFLAGS) \
-		-lpurec \
 		-lm \
 		-ffunction-sections \
 		$(LDFLAGS) \
@@ -168,7 +180,7 @@ $(1): $(DEPS_DIR)
 
 $(1)_leakcheck: $(1)
 	valgrind -q \
-		"--suppressions=$(PUREC_LIB_DIR)/purec.suppr" \
+		"--suppressions=$(PUREC_DIR)/purec.suppr" \
 		--error-exitcode=1 \
 		--num-callers=64 \
 		--leak-check=full \

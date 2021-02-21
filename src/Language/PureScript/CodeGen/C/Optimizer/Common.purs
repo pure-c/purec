@@ -98,7 +98,7 @@ isUpdated var1 = everythingM (||) go
 -- note: refer to `exprToAst` in 'Language.PureScript.CodeGen.C'
 isDict :: (String /\ String) -> AST -> Boolean
 isDict (moduleName /\ dictName) (AST.Var n) =
-  n == moduleName <> "_" <> dictName <> "$" -- XXX document '$' suffix
+  n == moduleName <> "_" <> dictName <> "_$" -- XXX document '$' suffix
 isDict _ _ = false
 
 isDict' :: Array (String /\ String) -> AST -> Boolean

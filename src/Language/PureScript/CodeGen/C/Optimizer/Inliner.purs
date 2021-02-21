@@ -2,7 +2,10 @@ module Language.PureScript.CodeGen.C.Optimizer.Inliner
   ( unThunk
   , inlineVariables
   , inlineCommonValues
+  , inlineCommonOperators
   , inlineFnComposition
+  , inlineUnsafePartial
+  , inlineUnsafeCoerce
   , etaConvert
   ) where
 
@@ -11,10 +14,10 @@ import Prelude
 import Control.Monad.Error.Class (class MonadError)
 import Data.Array as A
 import Data.Either (Either(..))
+import Data.Foldable (foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), maybe)
-import Data.Tuple.Nested ((/\))
-import Debug.Trace (traceM)
+import Data.Tuple.Nested ((/\), type (/\))
 import Language.PureScript.CodeGen.C.AST (AST)
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.Common (anyM, freshName)
@@ -23,6 +26,10 @@ import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply)
 import Language.PureScript.Constants as C
+
+isModFn :: (String /\ String) -> AST -> Boolean
+isModFn (m /\ op) (AST.Var name) = m <> "_" <> op <> "_$" == name
+isModFn _ _ = false
 
 etaConvert
   :: ∀ m
@@ -81,11 +88,13 @@ unThunk = AST.everywhere go
              AST.Return
               (AST.App (AST.Var "purs_any_app")
                 [ AST.Function
-                    { arguments: [], body: Just (AST.Block body) }
+                    { arguments: []
+                    , body: Just (AST.Block body)
+                    }
                 , AST.Var "purs_any_null"
                 ])
         } ->
-        AST.Block $ init <> body
+          AST.Block $ init <> body
       _ ->
         block
   go ast = ast
@@ -141,6 +150,56 @@ inlineVariables = AST.everywhereM
         go (head A.: acc) tail
 
 data StaticBinOps = Add | Sub | Mul
+
+inlineUnsafeCoerce :: AST -> AST
+inlineUnsafeCoerce = AST.everywhereTopDown convert
+  where
+  convert (AST.App (AST.Var "purs_any_app") [ name, comp ])
+    | isModFn (C.unsafeCoerce /\ C.unsafeCoerceFn) name
+    = comp
+  convert other = other
+
+inlineUnsafePartial :: AST -> AST
+inlineUnsafePartial = AST.everywhereTopDown convert
+  where
+  -- Apply to undefined here, the application should be optimized away
+  -- if it is safe to do so
+  convert (AST.App (AST.Var "purs_any_app") [ name, comp ])
+    | isModFn (C.partialUnsafe /\ C.unsafePartial) name
+    = AST.App R.purs_any_app [ comp, R.purs_any_null ]
+  convert other = other
+
+inlineCommonOperators :: AST -> AST
+inlineCommonOperators = AST.everywhereTopDown $ applyAll
+  [ inlineNonClassFunction (isModFn (C.dataFunction /\ C.apply)) $
+      \f x -> AST.App R.purs_any_app [f, x]
+  , inlineNonClassFunction (isModFn (C.dataFunction /\ C.applyFlipped)) $
+      \x f -> AST.App R.purs_any_app [f, x]
+  -- , inlineNonClassFunction (isModFnWithDict (C.dataArray /\ C.unsafeIndex)) $
+  --     flip AST.Indexer
+  ]
+
+  where
+  applyAll :: ∀ a. Array (a -> a) -> a -> a
+  applyAll = foldl (<<<) identity
+
+  isModFnWithDict :: (String /\ String) -> AST -> Boolean
+  isModFnWithDict (m /\ op)
+    (AST.App (AST.Var "purs_any_app")
+      [ name
+      , AST.Var _
+      ]) = isModFn (m /\ op) name
+  isModFnWithDict _ _ = false
+
+  inlineNonClassFunction :: (AST -> Boolean) -> (AST -> AST -> AST) -> AST -> AST
+  inlineNonClassFunction p f = convert where
+    convert :: AST -> AST
+    convert
+      (AST.App (AST.Var "purs_any_app")
+        [ AST.App (AST.Var "purs_any_app") [ op', x ]
+        , y
+        ]) | p op' = f x y
+    convert other = other
 
 inlineCommonValues :: AST -> AST
 inlineCommonValues = AST.everywhere go

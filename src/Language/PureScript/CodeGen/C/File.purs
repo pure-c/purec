@@ -120,10 +120,7 @@ nativeMain strict mainVar =
           [ AST.App (AST.Var "GC_INIT") []
           , AST.Return $
               AST.App (AST.Var "purs_main")
-                [ AST.App R.purs_any_app
-                    [ mainVar
-                    , R.purs_any_null
-                    ]
+                [ mainVar
                 , AST.NumericLiteral (Left if strict then 1 else 0)
                 ]
           ]

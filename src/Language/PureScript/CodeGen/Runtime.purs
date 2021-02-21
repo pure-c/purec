@@ -16,6 +16,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_any_unsafe_get_record
   , purs_any_unsafe_get_array
   , purs_any_force_cons
+  , purs_any_force_int
   , purs_any_force_array
   , purs_any_force_record
   , purs_any_true
@@ -74,6 +75,7 @@ module Language.PureScript.CodeGen.Runtime
 
     -- strings
   , purs_str_new
+  , purs_str_static_new
 
     -- records
   , purs_record_t
@@ -170,6 +172,9 @@ purs_any_unsafe_get_record = AST.Var "purs_any_unsafe_get_record"
 purs_any_force_cons :: AST
 purs_any_force_cons = AST.Var "purs_any_force_cons"
 
+purs_any_force_int :: AST
+purs_any_force_int = AST.Var "purs_any_force_int"
+
 purs_any_force_array :: AST
 purs_any_force_array = AST.Var "purs_any_force_array"
 
@@ -199,6 +204,9 @@ purs_cont_new = AST.Var "purs_cont_new"
 
 purs_str_new :: AST
 purs_str_new = AST.Var "purs_str_new"
+
+purs_str_static_new :: AST
+purs_str_static_new = AST.Var "purs_str_static_new"
 
 purs_scope_new1 :: AST
 purs_scope_new1 = AST.Var "purs_scope_new1"
