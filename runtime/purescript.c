@@ -295,12 +295,12 @@ purs_any_t purs_any_concat(purs_any_t x, purs_any_t y) {
 // -----------------------------------------------------------------------------
 
 static void purs_str_static_free(const struct purs_rc *ref) {
-	purs_str_t * x = container_of(ref, purs_str_t, rc);
+	purs_str_t *x = container_of(ref, purs_str_t, rc);
 	purs_free(x);
 }
 
 static void purs_str_free(const struct purs_rc *ref) {
-	purs_str_t * x = container_of(ref, purs_str_t, rc);
+	purs_str_t *x = container_of(ref, purs_str_t, rc);
 	free((void*)x->data); /* do not use 'purs_free' ! */
 	purs_free(x);
 }

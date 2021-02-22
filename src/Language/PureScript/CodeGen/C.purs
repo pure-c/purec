@@ -94,6 +94,7 @@ moduleToAST strictMain isMain mod@(C.Module { moduleName,
         >>= traverse optimize
         >>= (pure <<< T.hoistVarDecls)
         >>= T.eraseLambdas cModuleName
+        >>= T.staticStrings
         >>= T.releaseResources
 
     let

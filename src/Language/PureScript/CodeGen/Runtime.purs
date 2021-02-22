@@ -74,6 +74,7 @@ module Language.PureScript.CodeGen.Runtime
   , purs_cont_new
 
     -- strings
+  , purs_str_t
   , purs_str_new
   , purs_str_static_new
 
@@ -114,6 +115,9 @@ purs_record_t = "purs_record_t"
 
 purs_cont_t :: String
 purs_cont_t = "purs_cont_t"
+
+purs_str_t :: String
+purs_str_t = "purs_str_t"
 
 purs_scope_t :: String
 purs_scope_t = "purs_scope_t"

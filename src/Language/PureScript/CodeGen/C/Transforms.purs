@@ -2,6 +2,7 @@ module Language.PureScript.CodeGen.C.Transforms
   ( hoistVarDecls
   , eraseLambdas
   , releaseResources
+  , staticStrings
   ) where
 
 import Prelude
@@ -23,16 +24,45 @@ import Data.String as Str
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
+import Language.PureScript.CodeGen.C.AST (AST(..), Type(..), everywhere, everywhereM)
 import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown, FunctionQualifier(..)) as AST
-import Language.PureScript.CodeGen.C.AST (AST, everywhere)
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
-import Language.PureScript.CodeGen.C.Common (freshInternalName', prefixInternalVar, isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshInternalName', isInternalVariable, prefixInternalVar)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
+
+staticStrings
+  :: ∀ m
+   . Monad m
+  => MonadSupply m
+  => MonadError CompileError m
+  => Array AST
+  -> m (Array AST)
+staticStrings xs = do
+  asts /\ strs <- runWriterT (traverse (everywhereM convert) xs)
+  pure $
+    (strs <#> \(name /\ s) ->
+      VariableIntroduction
+          { name
+          , type: RawType R.purs_str_t []
+          , qualifiers: []
+          , initialization:
+              Just
+                (App (Var "purs_str_static") [StringLiteral s])
+          }
+    ) <> asts
+
+  where
+  convert (App (Var "purs_str_static_new") [ StringLiteral s ]) = do
+    n <- freshInternalName' "static_str"
+    tell [ n /\ s ]
+    pure (App R.purs_address_of [Var n])
+  convert x =
+    pure x
 
 -- | Generate code that releases intermediate results.
 -- |
@@ -291,13 +321,13 @@ releaseResources = map (map cleanup) <<< traverse (go [])
             ]
 
     -- top-level variable introductions.
-    AST.VariableIntroduction v@{ initialization: Just x@(AST.Block _) } -> do
+    AST.VariableIntroduction v@{ type: Any _, initialization: Just x@(AST.Block _) } -> do
       ast' <- go parentVars x
       pure $ AST.VariableIntroduction $ v { initialization = Just ast' }
 
     -- top-level block-less variable introductions.
     -- we turn those into statement expressions.
-    AST.VariableIntroduction v@{ initialization: Just x } -> do
+    AST.VariableIntroduction v@{ type: Any _, initialization: Just x } -> do
       tmp  <- freshInternalName' "alloc"
       ast' <-
         go parentVars $
@@ -322,7 +352,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
 -- | Split out variable declarations and definitions on a per-block (scope)
 -- | level and hoist the declarations to the top of the scope.
 hoistVarDecls :: Array AST -> Array AST
-hoistVarDecls = identity
+hoistVarDecls = map go
   where
   go =
     AST.everywhereTopDown case _ of

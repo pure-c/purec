@@ -640,6 +640,13 @@ const purs_cons_t * purs_cons_new(int tag, int size, ...);
 // strings
 // -----------------------------------------------------------------------------
 
+#define purs_str_static(DATA)\
+	{\
+		.rc = { NULL, -1 },\
+		.data = DATA\
+	}
+
+
 /// Create reference to copied, heap-allocated string
 const purs_str_t * purs_str_new(const char *fmt, ...);
 

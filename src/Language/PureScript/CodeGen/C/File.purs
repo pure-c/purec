@@ -16,7 +16,7 @@ import Data.Array as A
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 import Data.Newtype (unwrap)
-import Language.PureScript.CodeGen.C.AST (AST)
+import Language.PureScript.CodeGen.C.AST (AST, Type(..))
 import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.Runtime as R
@@ -67,7 +67,7 @@ toHeader
 toHeader = A.catMaybes <<< map go
 
   where
-  go (AST.VariableIntroduction { name }) =
+  go (AST.VariableIntroduction { name, type: Any _ }) =
     Just $
       AST.VariableIntroduction
         { name
@@ -84,7 +84,16 @@ toBody = A.concat <<< A.catMaybes <<< map go
   go :: AST -> Maybe (Array AST)
   go x@(AST.Function _) =
     Just [x]
-  go (AST.VariableIntroduction { name, type: typ, initialization: Just initialization }) =
+  go x@(AST.VariableIntroduction
+      { name
+      , type: RawType "purs_str_t" []
+      , initialization: Just init
+      }) = Just [x]
+  go (AST.VariableIntroduction
+      { name
+      , type: Any _
+      , initialization: Just initialization
+      }) =
     go' initialization
     where
     go' ast =
