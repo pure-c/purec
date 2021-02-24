@@ -310,6 +310,7 @@ const purs_str_t * purs_str_static_new(const char *str) {
 	purs_str_t *x = purs_new(purs_str_t);
 	x->rc = (struct purs_rc) { purs_str_static_free, 1 };
 	x->data = str;
+	x->flags = 0;
 	return (const purs_str_t *) x;
 }
 
@@ -458,11 +459,25 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records
 // -----------------------------------------------------------------------------
 
-#define purs_str_hash(STR) do {\
-	purs_str_t *__str = (STR);\
-	if ((__str->flags & PURS_STR_HASHED) != PURS_STR_HASHED) {\
-		HASH_VALUE(__str->data, __str->data_len, __str->hash);\
-		__str->flags |= PURS_STR_HASHED;\
+#define purs_str_force_len(STR) do {\
+	purs_str_t *__str0 = (STR);\
+	if ((__str0->flags & PURS_STR_HAS_LEN) != PURS_STR_HAS_LEN) {\
+		__str0->data_len = utf8size(__str0->data);\
+		__str0->flags |= PURS_STR_HAS_LEN;\
+	}\
+} while (0)
+
+inline unsigned purs_str_len(const purs_str_t *s) {
+	purs_str_force_len((purs_str_t*)s);
+	return s->data_len;
+}
+
+#define purs_str_force_hash(STR) do {\
+	purs_str_t *__str1 = (STR);\
+	if ((__str1->flags & PURS_STR_HASHED) != PURS_STR_HASHED) {\
+		purs_str_force_len(__str1);\
+		HASH_VALUE(__str1->data, __str1->data_len, __str1->hash);\
+		__str1->flags |= PURS_STR_HASHED;\
 	}\
 } while (0)
 
@@ -523,8 +538,8 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 		PURS_RC_RETAIN(dst->key);
 		PURS_ANY_RETAIN(dst->value);
 
-		// fill hash cache
-		purs_str_hash((purs_str_t*)dst->key);
+		// fill hash and length cache
+		purs_str_force_hash((purs_str_t*)dst->key);
 
 		// insert into hash map
 		HASH_ADD_KEYPTR_BYHASHVALUE(
@@ -575,8 +590,8 @@ void purs_record_remove_mut(purs_record_t *record,
 	if (record == NULL) return;
 	purs_record_node_t *result;
 
-	// fill hash cache
-	purs_str_hash((purs_str_t*)key);
+	// fill hash and length cache
+	purs_str_force_hash((purs_str_t*)key);
 
 	HASH_FIND_BYHASHVALUE(hh,
 			      record->root,
@@ -609,40 +624,39 @@ void purs_record_add_multi_mut_va(purs_record_t *x,
 		const purs_str_t *key = va_arg(ap, const purs_str_t *);
 		purs_any_t value = va_arg(ap, purs_any_t);
 
-		// prepare entry
-		PURS_RC_RETAIN(key);
-		purs_record_node_t *entry = purs_new(purs_record_node_t);
-		entry->key = key;
-		entry->value = value;
+		// fill hash and length cache
+		purs_str_force_hash((purs_str_t*)key);
 
-		// retain value at key
-		PURS_ANY_RETAIN(value);
-
-		// fill hash cache
-		purs_str_hash((purs_str_t*)key);
-
-		purs_record_node_t *replaced = NULL;
+		purs_record_node_t *existing = NULL;
 		HASH_FIND_BYHASHVALUE(
 			hh,
 			x->root,
 			key->data,
 			key->data_len,
 			key->hash,
-			replaced);
+			existing);
 
-		HASH_ADD_KEYPTR_BYHASHVALUE(
-			hh,
-			x->root,
-			key->data,
-			key->data_len,
-			key->hash,
-			entry
-		);
+		if (existing != NULL /* swap */) {
+			PURS_ANY_RELEASE(existing->value);
+			PURS_ANY_RETAIN(value);
+			existing->value = value;
+		} else {
+			// prepare entry
+			purs_record_node_t *entry = purs_new(purs_record_node_t);
+			entry->key = key;
+			entry->value = value;
 
-		// release replaced entry, if any.
-		if (replaced != NULL) {
-			PURS_RC_RELEASE(replaced->key);
-			purs_free((purs_record_node_t *) replaced);
+			// retain value and key
+			PURS_RC_RETAIN(key);
+			PURS_ANY_RETAIN(value);
+
+			HASH_ADD_KEYPTR_BYHASHVALUE(
+				hh,
+				x->root,
+				key->data,
+				key->data_len,
+				key->hash,
+				entry);
 		}
 	}
 }
@@ -652,8 +666,8 @@ purs_any_t* purs_record_find_by_key(const purs_record_t *record,
 	if (record == NULL) return NULL;
 	purs_record_node_t *result;
 
-	// fill hash cache
-	purs_str_hash((purs_str_t*)key);
+	// fill hash and length cache
+	purs_str_force_hash((purs_str_t*)key);
 
 	HASH_FIND_BYHASHVALUE(hh,
 			      record->root,

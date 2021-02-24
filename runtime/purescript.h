@@ -205,7 +205,8 @@ struct purs_cons {
 	purs_any_t *values;
 };
 
-#define PURS_STR_HASHED (1 << 0)
+#define PURS_STR_HASHED  (1 << 0)
+#define PURS_STR_HAS_LEN (2 << 0)
 
 /// A PureScript String
 struct purs_str {
@@ -643,13 +644,22 @@ const purs_cons_t * purs_cons_new(int tag, int size, ...);
 // strings
 // -----------------------------------------------------------------------------
 
+#define purs_str_static_lazy(UTF8)\
+	{\
+		.rc = { NULL, -1 },\
+		.data = UTF8,\
+		.data_len = 0,\
+		.hash = 0,\
+		.flags = 0\
+	}
+
 #define purs_str_static(UTF8, UTF8SZ, HASH)\
 	{\
 		.rc = { NULL, -1 },\
 		.data = UTF8,\
 		.data_len = UTF8SZ,\
 		.hash = HASH,\
-		.flags = PURS_STR_HASHED\
+		.flags = PURS_STR_HAS_LEN | PURS_STR_HASHED\
 	}
 
 
@@ -659,10 +669,7 @@ const purs_str_t * purs_str_new(const char *fmt, ...);
 /// Create reference to string in static storage
 const purs_str_t * purs_str_static_new(const char *);
 
-const void * purs_string_copy (const void *);
-
-#define purs_string_size(STR) utf8size(STR)
-#define purs_string_len(STR) utf8len(STR)
+inline unsigned purs_str_len(const purs_str_t *);
 
 // -----------------------------------------------------------------------------
 // arrays
