@@ -22,7 +22,7 @@ RUNTIME_SOURCES = \
 	$(shell cd "$(PUREC_DIR)" && find ccan -type f -name '*.c') \
 	$(shell cd "$(PUREC_DIR)" && find vendor -type f -name '*.c')
 RUNTIME_OBJECTS = \
-	$(patsubst %.c,support/%.o,$(RUNTIME_SOURCES))
+	$(patsubst %.c,$(PUREC_WORKDIR)/support/%.o,$(RUNTIME_SOURCES))
 
 DEPS_DIR = .spago
 SPAGO ?= spago
@@ -70,12 +70,10 @@ clean/c:
 	rm -f $$(find "$(PUREC_WORKDIR)" -type f -name '*.out')
 
 clean:
-	@echo 2>&1 'clean: removing libpurec.a'
-	rm -f "$(PUREC_LIB)"
 	@echo 2>&1 'clean: removing dir $(PUREC_WORKDIR)'
 	rm -rf "$(PUREC_WORKDIR)"
 
-support/%.o: $(PUREC_DIR)/%.c
+$(PUREC_WORKDIR)/support/%.o: $(PUREC_DIR)/%.c
 	@echo "Compile" $^
 	mkdir -p $(shell dirname $@)
 	$(CLANG) $^ -c -o $@ \
