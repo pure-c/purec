@@ -309,6 +309,8 @@ const purs_str_t * purs_str_static_new(const char *str) {
 	va_list ap;
 	purs_str_t *x = purs_new(purs_str_t);
 	x->rc = (struct purs_rc) { purs_str_static_free, 1 };
+	x->data_len = 0; /* lazy */
+	x->hash = 0; /* lazy */
 	x->data = str;
 	x->flags = 0;
 	return (const purs_str_t *) x;
@@ -318,6 +320,9 @@ const purs_str_t * purs_str_new(const char *fmt, ...) {
 	va_list ap;
 	purs_str_t *x = purs_new(purs_str_t);
 	x->rc = (struct purs_rc) { purs_str_free, 1 };
+	x->data_len = 0; /* lazy */
+	x->hash = 0; /* lazy */
+	x->flags = 0;
 	va_start(ap, fmt);
 	assert (vasprintf((char**)&x->data, fmt, ap) >= 0);
 	va_end(ap);
