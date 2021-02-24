@@ -92,6 +92,10 @@ prettyPrintAst (AST.Enum { name, members }) = do
   emit $ A.intercalate ", " members
   emit " }"
 prettyPrintAst (AST.VariableIntroduction { name, type: typ, qualifiers, initialization }) = do
+  -- TODO avoid this log here, annotate accordingly instead.
+  when (typ == AST.RawType R.purs_str_t []) do
+    emit "static "
+
   unless (A.null qualifiers) do
     emit $ A.intercalate " " $ map renderValueQualifier qualifiers
     emit " "

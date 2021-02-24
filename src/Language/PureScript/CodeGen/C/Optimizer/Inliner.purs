@@ -7,6 +7,7 @@ module Language.PureScript.CodeGen.C.Optimizer.Inliner
   , inlineUnsafePartial
   , inlineUnsafeCoerce
   , etaConvert
+  , evaluateIifes
   ) where
 
 import Prelude
@@ -14,7 +15,7 @@ import Prelude
 import Control.Monad.Error.Class (class MonadError)
 import Data.Array as A
 import Data.Either (Either(..))
-import Data.Foldable (foldl)
+import Data.Foldable (any, foldl)
 import Data.Map as Map
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple.Nested ((/\), type (/\))
@@ -386,3 +387,33 @@ inlineFnComposition = AST.everywhereTopDownM go
   isFnComposeFlipped dict fn =
     isDict (C.controlSemigroupoid /\ C.semigroupoidFn) dict &&
     isDict (C.controlSemigroupoid /\ C.composeFlipped) fn
+
+evaluateIifes :: AST -> AST
+evaluateIifes = AST.everywhere convert
+  where
+  convert :: AST -> AST
+  convert
+    (AST.App (AST.Var "purs_any_app")
+      [ AST.Function
+        { name: Nothing
+        , arguments: []
+        , body: Just (AST.Block [AST.Return ret])
+        }
+      , AST.Var "purs_any_null"
+      ]) = ret
+  convert
+    (AST.App (AST.Var "purs_any_app")
+      [ AST.Function
+        { name: Nothing
+        , arguments: idents
+        , body: Just (AST.Block [AST.Return ret])
+        }
+      , AST.Var "purs_any_null"
+      ])
+    | not (any ((_ `isReassigned` ret) <<< _.name) idents)
+    = replaceIdents
+        (Map.fromFoldable
+          (map ((_ /\ (AST.Var C.undefined)) <<< _.name)
+           idents))
+        ret
+  convert js = js

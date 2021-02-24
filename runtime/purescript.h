@@ -205,10 +205,15 @@ struct purs_cons {
 	purs_any_t *values;
 };
 
+#define PURS_STR_HASHED (1 << 0)
+
 /// A PureScript String
 struct purs_str {
 	PURS_RC_BASE_FIELDS
 	const char *data;
+	unsigned data_len;
+	unsigned flags;
+	unsigned hash;
 };
 
 typedef void (*purs_foreign_finalizer)(void *tag, void *data);
@@ -234,9 +239,7 @@ struct purs_vec {
 };
 
 typedef struct purs_node_record {
-	const void *key_utf8;
-	size_t key_utf8_len;
-	unsigned key_hash;
+	const purs_str_t *key;
 	purs_any_t value;
 	UT_hash_handle hh;
 } purs_record_node_t;
@@ -374,7 +377,7 @@ static inline void purs_debug(purs_any_t v, char** out) {
                                set to 0. If it is set to 1, this implies the
                                the returned value has been retained and the user
                                must release it. */
-static inline purs_any_t purs_any_unthunk(purs_any_t x, int *has_changed) {
+static purs_any_t purs_any_unthunk(purs_any_t x, int *has_changed) {
 	purs_any_t out = x;
 	if (has_changed != NULL) {
 		*has_changed = 0;
@@ -397,7 +400,7 @@ static inline purs_any_t purs_any_unthunk(purs_any_t x, int *has_changed) {
                  evaluating to a continuation.
    @param[in] v The argument(s) to supply the function with.
   */
-static inline purs_any_t purs_any_app(purs_any_t _f, purs_any_t v, ...) {
+static purs_any_t purs_any_app(purs_any_t _f, purs_any_t v, ...) {
 
 	/* unthunk, if necessary */
 	int has_changed;
@@ -640,10 +643,13 @@ const purs_cons_t * purs_cons_new(int tag, int size, ...);
 // strings
 // -----------------------------------------------------------------------------
 
-#define purs_str_static(DATA)\
+#define purs_str_static(UTF8, UTF8SZ, HASH)\
 	{\
 		.rc = { NULL, -1 },\
-		.data = DATA\
+		.data = UTF8,\
+		.data_len = UTF8SZ,\
+		.hash = HASH,\
+		.flags = PURS_STR_HASHED\
 	}
 
 
@@ -735,8 +741,8 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
 					    size_t count,
 					    ...);
 
-const purs_record_t* purs_record_remove(const purs_record_t*, const void *key);
-void purs_record_remove_mut(purs_record_t*, const void *key);
+const purs_record_t* purs_record_remove(const purs_record_t*, const purs_str_t *key);
+void purs_record_remove_mut(purs_record_t*, const purs_str_t *key);
 
 
 /**
@@ -763,7 +769,7 @@ const purs_record_t * purs_record_merge(const purs_record_t *,
  * Find an entry by it's key.
  */
 purs_any_t * purs_record_find_by_key(const purs_record_t *,
-				     const void *key);
+				     const purs_str_t *key);
 
 // -----------------------------------------------------------------------------
 // Code-gen helpers

@@ -23,6 +23,7 @@ import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 
 shouldInline :: AST -> Boolean
+shouldInline (AST.App (AST.Var "purs_any_int") [AST.NumericLiteral _]) = true
 shouldInline (AST.Var _) = true
 shouldInline (AST.NumericLiteral _) = true
 shouldInline (AST.CharLiteral _) = true

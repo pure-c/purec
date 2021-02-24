@@ -15,7 +15,7 @@ let packages =
       , prelude =
               upstream.prelude
           //  { repo = "https://github.com/pure-c/purescript-prelude.git"
-              , version = "ed2421cfdf09ea26c50e8177a7a5cdf9ebb078fb"
+              , version = "fd343c3aeb751b6f56fa086adf61f2c27dacf049"
               }
       , arrays =
               upstream.arrays

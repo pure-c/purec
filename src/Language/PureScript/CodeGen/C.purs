@@ -92,7 +92,6 @@ moduleToAST strictMain isMain mod@(C.Module { moduleName,
     decls <-
       (A.concat <$> traverse (bindToAst true) moduleDecls)
         >>= traverse optimize
-        >>= (pure <<< T.hoistVarDecls)
         >>= T.eraseLambdas cModuleName
         >>= T.staticStrings
         >>= T.releaseResources
@@ -282,7 +281,9 @@ exprToAst (C.Literal _ (C.ObjectLiteral kvps)) = ado
   kvpAsts <-
     for kvps \(k /\ v) -> ado
       vAst <- exprToAst v
-      in [ AST.StringLiteral k, vAst ]
+      in [ AST.App R.purs_str_static_new [ AST.StringLiteral k ]
+         , vAst
+         ]
   in
     if A.null kvps
       then
@@ -489,7 +490,8 @@ exprToAst (C.Case (C.Ann { sourceSpan }) exprs binders) = do
                                 [ AST.App
                                     R.purs_any_force_record
                                     [ AST.Var varName ]
-                                , AST.StringLiteral prop
+                                , AST.App R.purs_str_static_new
+                                    [ AST.StringLiteral prop ]
                                 ]
                             ]
                     } A.: ast
@@ -676,7 +678,8 @@ exprToAst (C.Accessor _ k exp) = ado
           [ AST.App
               R.purs_any_force_record
               [ valueAst ]
-          , AST.StringLiteral k
+          , AST.App R.purs_str_static_new
+              [ AST.StringLiteral k ]
           ]
       ]
 exprToAst (C.ObjectUpdate _ o ps) = ado

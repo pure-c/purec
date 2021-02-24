@@ -29,7 +29,7 @@ import Language.PureScript.Constants as C
 --    ...
 --  }
 magicDo :: AST -> AST
-magicDo ast = trace ast \_-> AST.everywhereTopDown convert ast
+magicDo = AST.everywhereTopDown convert
   where
   -- The name of the function block which is added to denote a do block
   fnName = "__do"
@@ -95,56 +95,60 @@ magicDo ast = trace ast \_-> AST.everywhereTopDown convert ast
          }
 
   -- Desugar untilE
-  convert
-    (App (Var "purs_any_app")
-      [ App (Var "purs_any_app") [f, arg]
-      , Var "purs_any_null"
-      ]) | isEffectModule C.untilE f =
-    App R.purs_any_app
-      [ Function
-         { name: Nothing
-         , variadic: false
-         , qualifiers: [ModuleInternal]
-         , returnType: R.any
-         , arguments: []
-         , body: Just (Block [
-            While
-              (Unary Not
-                (App R.purs_any_force_int
-                  [ App R.purs_any_app [arg, R.purs_any_null]
-                  ]))
-              (Block []),
-            Return R.purs_any_null
-          ])
-         }
-      , R.purs_any_null
-      ]
+  -- TODO: need to release resources at end of while loop; cannot enable this
+  --       pass until we do, or there's memory leak.
+  -- convert
+  --   (App (Var "purs_any_app")
+  --     [ App (Var "purs_any_app") [f, arg]
+  --     , Var "purs_any_null"
+  --     ]) | isEffectModule C.untilE f =
+  --   App R.purs_any_app
+  --     [ Function
+  --        { name: Nothing
+  --        , variadic: false
+  --        , qualifiers: [ModuleInternal]
+  --        , returnType: R.any
+  --        , arguments: []
+  --        , body: Just (Block [
+  --           While
+  --             (Unary Not
+  --               (App R.purs_any_force_int
+  --                 [ App R.purs_any_app [arg, R.purs_any_null]
+  --                 ]))
+  --             (Block []),
+  --           Return R.purs_any_null
+  --         ])
+  --        }
+  --     , R.purs_any_null
+  --     ]
 
   -- Desugar whileE
-  convert
-    (App (Var "purs_any_app")
-      [ App (Var "purs_any_app")
-          [ App (Var "purs_any_app") [ f, arg1 ]
-          , arg2
-          ]
-      , Var "purs_any_null"
-      ]) | isEffectModule C.whileE f =
-    App R.purs_any_app
-      [ Function
-        { name: Nothing
-        , variadic: false
-        , qualifiers: [ModuleInternal]
-        , returnType: R.any
-        , arguments: []
-        , body: Just
-            (Block
-              [ While (App R.purs_any_force_int [ App R.purs_any_app [arg1, R.purs_any_null] ])
-                (Block [ App R.purs_any_app [arg2, R.purs_any_null] ])
-              , Return R.purs_any_null
-              ])
-        }
-      , R.purs_any_null
-      ]
+  -- TODO: need to release resources at end of while loop; cannot enable this
+  --       pass until we do, or there's memory leak.
+  -- convert
+  --   (App (Var "purs_any_app")
+  --     [ App (Var "purs_any_app")
+  --         [ App (Var "purs_any_app") [ f, arg1 ]
+  --         , arg2
+  --         ]
+  --     , Var "purs_any_null"
+  --     ]) | isEffectModule C.whileE f =
+  --   App R.purs_any_app
+  --     [ Function
+  --       { name: Nothing
+  --       , variadic: false
+  --       , qualifiers: [ModuleInternal]
+  --       , returnType: R.any
+  --       , arguments: []
+  --       , body: Just
+  --           (Block
+  --             [ While (App R.purs_any_force_int [ App R.purs_any_app [arg1, R.purs_any_null] ])
+  --               (Block [ App R.purs_any_app [arg2, R.purs_any_null] ])
+  --             , Return R.purs_any_null
+  --             ])
+  --       }
+  --     , R.purs_any_null
+  --     ]
 
   -- Inline __do returns
   convert
