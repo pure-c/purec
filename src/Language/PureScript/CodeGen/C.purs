@@ -693,7 +693,9 @@ exprToAst (C.ObjectUpdate _ o ps) = ado
           , AST.NumericLiteral (Left $ A.length sts)
           ] <> do
             A.concat $ sts <#> \(n /\ v) ->
-              [ AST.StringLiteral n, v ]
+              [ AST.App R.purs_str_static_new [ AST.StringLiteral n ]
+              , v
+              ]
       ]
 
 qualifiedVarName :: C.ModuleName -> String -> String
