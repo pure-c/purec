@@ -897,7 +897,7 @@ void purs_tco_state_init(purs_tco_state_t*, int size, ...);
 	};\
 	purs_any_t NAME ## __thunk_fn__init()
 
-#define purs_any_int_neg(X) purs_any_int_new(-purs_any_unsafe_get_int(X))
+#define purs_any_int_neg(X) purs_any_int(-purs_any_force_int(X))
 
 // -----------------------------------------------------------------------------
 // Any: initializers
