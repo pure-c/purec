@@ -11,7 +11,6 @@
     "test": "test"
   },
   "dependencies": {
-    "jenkins-hash": "^1.0.1",
     "posix-getopt": "^1.2.0"
   },
   "devDependencies": {

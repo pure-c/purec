@@ -34,9 +34,6 @@ import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
 
-foreign import utf8len :: String -> Int
-foreign import jenkinsHash :: String -> Int
-
 staticStrings
   :: ∀ m
    . Monad m
@@ -54,11 +51,7 @@ staticStrings xs = do
           , qualifiers: []
           , initialization:
               Just
-                (App (Var "purs_str_static") [
-                    StringLiteral s,
-                    NumericLiteral (Left (utf8len s)),
-                    NumericLiteral (Left (jenkinsHash s))
-                ])
+                (App (Var "purs_str_static_lazy") [StringLiteral s])
           }
     ) <> asts
 

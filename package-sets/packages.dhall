@@ -20,7 +20,7 @@ let packages =
       , arrays =
               upstream.arrays
           //  { repo = "https://github.com/pure-c/purescript-arrays.git"
-              , version = "b9c7374a796a02aaccf2eda4919c2d96896a6a37"
+              , version = "f0fcee5898407a6779d5fa838b0e635581bb2cfc"
               }
       , assert =
               upstream.assert
@@ -91,7 +91,7 @@ let packages =
       , record =
               upstream.record
           //  { repo = "https://github.com/pure-c/purescript-record.git"
-              , version = "e325d0d11ac9fa178e4984c348a9229deaaa5e96"
+              , version = "b0b1176169a29102c987a07529e8607e634484bc"
               }
       , refs =
               upstream.refs
