@@ -23,8 +23,8 @@ import Data.String as Str
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST(..), Type(..), ValueQualifier(..), everywhere, everywhereM)
-import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown, FunctionQualifier(..)) as AST
+import Language.PureScript.CodeGen.C.AST (AST(..), Type(..), everywhere, everywhereM)
+import Language.PureScript.CodeGen.C.AST (AST(..), FunctionQualifier(..), Type) as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
 import Language.PureScript.CodeGen.C.Common (freshInternalName', isInternalVariable, prefixInternalVar)
@@ -42,9 +42,9 @@ staticStrings
   => Array AST
   -> m (Array AST)
 staticStrings xs = do
-  asts /\ strs <- runWriterT (traverse (everywhereM convert) xs)
+  asts /\ strs <- runStateT (traverse (everywhereM convert) xs) Map.empty
   pure $
-    (strs <#> \(name /\ s) ->
+    (Map.toUnfoldable strs <#> \(name /\ s) ->
       VariableIntroduction
           { name
           , type: RawType R.purs_str_t []
@@ -57,8 +57,12 @@ staticStrings xs = do
 
   where
   convert (App (Var "purs_str_static_new") [ StringLiteral s ]) = do
-    n <- freshInternalName' "static_str"
-    tell [ n /\ s ]
+    x <- State.get
+    n <- case Map.lookup s x of
+      Just n -> pure n
+      Nothing -> do
+        n <- lift (freshInternalName' "static_str")
+        n <$ State.modify (Map.insert s n)
     pure (App R.purs_address_of [Var n])
   convert x =
     pure x
