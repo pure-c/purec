@@ -125,25 +125,24 @@ struct purs_rc {
     ((type *)((char *)(ptr) - offsetof(type, member)))
 
 /// @private
-static inline void purs_rc_retain_forever(const struct purs_rc *ref) {
-	((struct purs_rc *)ref)->count = -1;
-}
+#define purs_rc_retain_forever(ref)\
+	do { ((struct purs_rc *)(ref))->count = -1; } while (0)
 
 /// @private
-static inline void purs_rc_retain(const struct purs_rc *ref) {
-	if (((struct purs_rc *)ref)->count != -1 /* stack */) {
-		((struct purs_rc *)ref)->count++;
-	}
-}
+#define purs_rc_retain(ref) do {\
+	if (((struct purs_rc *)(ref))->count != -1 /* stack */) {\
+		((struct purs_rc *)(ref))->count++;\
+	}\
+} while (0)
 
 /// @private
-static inline void purs_rc_release(const struct purs_rc *ref) {
-	if (((struct purs_rc *)ref)->count != -1 /* stack */) {
-		if (--((struct purs_rc *)ref)->count == 0) {
-			ref->free_fn(ref);
-		}
-	}
-}
+#define purs_rc_release(ref) do {\
+	if (((struct purs_rc *)(ref))->count != -1 /* stack */) {\
+		if (--((struct purs_rc *)(ref))->count == 0) {\
+			(ref)->free_fn((ref));\
+		}\
+	}\
+} while (0)
 
 /* by convetion, the rc is embedded as 'rc', making these macros possible */
 #define PURS_RC_RELEASE(X) do { if ((X) != NULL) purs_rc_release(&((X)->rc)); } while (0)
@@ -206,10 +205,16 @@ struct purs_cons {
 	purs_any_t *values;
 };
 
+#define PURS_STR_HASHED  (1 << 0)
+#define PURS_STR_HAS_LEN (2 << 0)
+
 /// A PureScript String
 struct purs_str {
 	PURS_RC_BASE_FIELDS
-	char *data;
+	const char *data;
+	unsigned data_len;
+	unsigned flags;
+	unsigned hash;
 };
 
 typedef void (*purs_foreign_finalizer)(void *tag, void *data);
@@ -235,7 +240,7 @@ struct purs_vec {
 };
 
 typedef struct purs_node_record {
-	const void *key;
+	const purs_str_t *key;
 	purs_any_t value;
 	UT_hash_handle hh;
 } purs_record_node_t;
@@ -373,7 +378,7 @@ static inline void purs_debug(purs_any_t v, char** out) {
                                set to 0. If it is set to 1, this implies the
                                the returned value has been retained and the user
                                must release it. */
-static inline purs_any_t purs_any_unthunk(purs_any_t x, int *has_changed) {
+static purs_any_t purs_any_unthunk(purs_any_t x, int *has_changed) {
 	purs_any_t out = x;
 	if (has_changed != NULL) {
 		*has_changed = 0;
@@ -396,7 +401,7 @@ static inline purs_any_t purs_any_unthunk(purs_any_t x, int *has_changed) {
                  evaluating to a continuation.
    @param[in] v The argument(s) to supply the function with.
   */
-static inline purs_any_t purs_any_app(purs_any_t _f, purs_any_t v, ...) {
+static purs_any_t purs_any_app(purs_any_t _f, purs_any_t v, ...) {
 
 	/* unthunk, if necessary */
 	int has_changed;
@@ -639,12 +644,32 @@ const purs_cons_t * purs_cons_new(int tag, int size, ...);
 // strings
 // -----------------------------------------------------------------------------
 
-const purs_str_t * purs_str_new(const char * fmt, ...);
+#define purs_str_static_lazy(UTF8)\
+	{\
+		.rc = { NULL, -1 },\
+		.data = UTF8,\
+		.data_len = 0,\
+		.hash = 0,\
+		.flags = 0\
+	}
 
-const void * purs_string_copy (const void *);
+#define purs_str_static(UTF8, UTF8SZ, HASH)\
+	{\
+		.rc = { NULL, -1 },\
+		.data = UTF8,\
+		.data_len = UTF8SZ,\
+		.hash = HASH,\
+		.flags = PURS_STR_HAS_LEN | PURS_STR_HASHED\
+	}
 
-#define purs_string_size(STR) utf8size(STR)
-#define purs_string_len(STR) utf8len(STR)
+
+/// Create reference to copied, heap-allocated string
+const purs_str_t * purs_str_new(const char *fmt, ...);
+
+/// Create reference to string in static storage
+const purs_str_t * purs_str_static_new(const char *);
+
+inline unsigned purs_str_len(const purs_str_t *);
 
 // -----------------------------------------------------------------------------
 // arrays
@@ -723,8 +748,8 @@ const purs_record_t * purs_record_add_multi(const purs_record_t *,
 					    size_t count,
 					    ...);
 
-const purs_record_t* purs_record_remove(const purs_record_t*, const void *key);
-void purs_record_remove_mut(purs_record_t*, const void *key);
+const purs_record_t* purs_record_remove(const purs_record_t*, const purs_str_t *key);
+void purs_record_remove_mut(purs_record_t*, const purs_str_t *key);
 
 
 /**
@@ -751,14 +776,27 @@ const purs_record_t * purs_record_merge(const purs_record_t *,
  * Find an entry by it's key.
  */
 purs_any_t * purs_record_find_by_key(const purs_record_t *,
-				     const void *key);
+				     const purs_str_t *key);
 
 // -----------------------------------------------------------------------------
 // Code-gen helpers
 // -----------------------------------------------------------------------------
 
-static inline int purs_main(purs_any_t v, int strict) {
-	if (!strict) {
+static inline int purs_main(purs_any_t mainfn, int interp_retval) {
+	int has_changed;
+	mainfn = purs_any_unthunk(mainfn, &has_changed);
+
+	// edge case: due to optimization 'mainfn' might have been inlined to
+	//            simply be a value; hence check if we have a cont first.
+	purs_any_t v = mainfn;
+	if (mainfn.tag == PURS_ANY_TAG_CONT) {
+		v = purs_any_app(mainfn, purs_any_null);
+		PURS_ANY_RELEASE(mainfn);
+	}
+
+	if (has_changed) PURS_ANY_RELEASE(mainfn);
+
+	if (!interp_retval) {
 		PURS_ANY_RELEASE(v);
 		return 0;
 	}
@@ -859,7 +897,7 @@ void purs_tco_state_init(purs_tco_state_t*, int size, ...);
 	};\
 	purs_any_t NAME ## __thunk_fn__init()
 
-#define purs_any_int_neg(X) purs_any_int_new(-purs_any_unsafe_get_int(X))
+#define purs_any_int_neg(X) purs_any_int(-purs_any_force_int(X))
 
 // -----------------------------------------------------------------------------
 // Any: initializers

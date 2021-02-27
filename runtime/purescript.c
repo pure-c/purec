@@ -294,18 +294,37 @@ purs_any_t purs_any_concat(purs_any_t x, purs_any_t y) {
 // strings
 // -----------------------------------------------------------------------------
 
-static void purs_str_free(const struct purs_rc *ref) {
-	purs_str_t * x = container_of(ref, purs_str_t, rc);
-	free(x->data); /* do not use 'purs_free' ! */
+static void purs_str_static_free(const struct purs_rc *ref) {
+	purs_str_t *x = container_of(ref, purs_str_t, rc);
 	purs_free(x);
+}
+
+static void purs_str_free(const struct purs_rc *ref) {
+	purs_str_t *x = container_of(ref, purs_str_t, rc);
+	free((void*)x->data); /* do not use 'purs_free' ! */
+	purs_free(x);
+}
+
+const purs_str_t * purs_str_static_new(const char *str) {
+	va_list ap;
+	purs_str_t *x = purs_new(purs_str_t);
+	x->rc = (struct purs_rc) { purs_str_static_free, 1 };
+	x->data_len = 0; /* lazy */
+	x->hash = 0; /* lazy */
+	x->data = str;
+	x->flags = 0;
+	return (const purs_str_t *) x;
 }
 
 const purs_str_t * purs_str_new(const char *fmt, ...) {
 	va_list ap;
 	purs_str_t *x = purs_new(purs_str_t);
 	x->rc = (struct purs_rc) { purs_str_free, 1 };
+	x->data_len = 0; /* lazy */
+	x->hash = 0; /* lazy */
+	x->flags = 0;
 	va_start(ap, fmt);
-	assert (vasprintf(&x->data, fmt, ap) >= 0);
+	assert (vasprintf((char**)&x->data, fmt, ap) >= 0);
 	va_end(ap);
 	return (const purs_str_t *) x;
 }
@@ -445,6 +464,28 @@ const purs_vec_t * purs_vec_insert(const purs_vec_t * vec,
 // records
 // -----------------------------------------------------------------------------
 
+#define purs_str_force_len(STR) do {\
+	purs_str_t *__str0 = (STR);\
+	if ((__str0->flags & PURS_STR_HAS_LEN) != PURS_STR_HAS_LEN) {\
+		__str0->data_len = utf8size(__str0->data);\
+		__str0->flags |= PURS_STR_HAS_LEN;\
+	}\
+} while (0)
+
+inline unsigned purs_str_len(const purs_str_t *s) {
+	purs_str_force_len((purs_str_t*)s);
+	return s->data_len;
+}
+
+#define purs_str_force_hash(STR) do {\
+	purs_str_t *__str1 = (STR);\
+	if ((__str1->flags & PURS_STR_HASHED) != PURS_STR_HASHED) {\
+		purs_str_force_len(__str1);\
+		HASH_VALUE(__str1->data, __str1->data_len, __str1->hash);\
+		__str1->flags |= PURS_STR_HASHED;\
+	}\
+} while (0)
+
 purs_any_t purs_any_record_empty = PURS_ANY_RECORD(NULL);
 
 const purs_record_t* purs_record_merge(const purs_record_t* r1,
@@ -466,7 +507,7 @@ static void purs_record_free(const struct purs_rc *ref) {
 	HASH_ITER(hh, x->root, e, tmp) {
 		HASH_DEL(x->root, (purs_record_node_t *) e);
 		PURS_ANY_RELEASE(e->value);
-		free((void*) e->key);
+		PURS_RC_RELEASE(e->key);
 		purs_free((purs_record_node_t *) e);
 	}
 	purs_free(x);
@@ -493,17 +534,26 @@ const purs_record_t * purs_record_copy_shallow(const purs_record_t * source) {
 	purs_record_t *x = purs_new(purs_record_t);
 	x->root = NULL;
 	HASH_ITER(hh, source->root, src, tmp) {
+		// prepare copy
 		purs_record_node_t *dst = purs_new(purs_record_node_t);
-		dst->key = afmt("%s", src->key); /* todo: perf */
+		dst->key = src->key;
 		dst->value = src->value;
+
+		// retain key and value
+		PURS_RC_RETAIN(dst->key);
 		PURS_ANY_RETAIN(dst->value);
-		HASH_ADD_KEYPTR(
+
+		// fill hash and length cache
+		purs_str_force_hash((purs_str_t*)dst->key);
+
+		// insert into hash map
+		HASH_ADD_KEYPTR_BYHASHVALUE(
 			hh,
 			x->root,
-			dst->key,
-			utf8size(dst->key),
-			dst
-		);
+			dst->key->data,
+			dst->key->data_len,
+			dst->key->hash,
+			dst);
 	}
 	x->rc = ((struct purs_rc) { purs_record_free, 1 });
 	return (const purs_record_t *) x;
@@ -532,22 +582,32 @@ const purs_record_t * purs_record_add_multi(const purs_record_t * source,
 	return (const purs_record_t *) copy;
 }
 
-const purs_record_t* purs_record_remove(const purs_record_t *record, const void *key) {
+const purs_record_t* purs_record_remove(const purs_record_t *record,
+					const purs_str_t *key) {
 	if (record == NULL) return NULL;
 	purs_record_t *copy = (purs_record_t *) purs_record_copy_shallow(record);
 	purs_record_remove_mut(copy, key);
 	return copy;
 }
 
-void purs_record_remove_mut(purs_record_t *record, const void *key) {
+void purs_record_remove_mut(purs_record_t *record,
+			    const purs_str_t* key) {
 	if (record == NULL) return;
 	purs_record_node_t *result;
-	size_t len = utf8size(key);
-	HASH_FIND(hh, record->root, key, len, result);
+
+	// fill hash and length cache
+	purs_str_force_hash((purs_str_t*)key);
+
+	HASH_FIND_BYHASHVALUE(hh,
+			      record->root,
+			      key->data,
+			      key->data_len,
+			      key->hash,
+			      result);
 	if (result != NULL) {
 		PURS_ANY_RELEASE(result->value);
 		HASH_DEL(record->root, result);
-		free((void*) result->key);
+		PURS_RC_RELEASE(result->key);
 		purs_free((purs_record_node_t *) result);
 	}
 	return;
@@ -566,29 +626,60 @@ void purs_record_add_multi_mut_va(purs_record_t *x,
 				  size_t count,
 				  va_list ap) {
 	for (int i = 0; i < count; i++) {
-		const char *key = va_arg(ap, const char *);
+		const purs_str_t *key = va_arg(ap, const purs_str_t *);
 		purs_any_t value = va_arg(ap, purs_any_t);
-		purs_record_node_t * entry = purs_new(purs_record_node_t);
-		entry->key = afmt("%s", key); /* todo: perf */
-		entry->value = value;
-		PURS_ANY_RETAIN(value);
-		purs_record_remove_mut(x, entry->key);
-		HASH_ADD_KEYPTR(
+
+		// fill hash and length cache
+		purs_str_force_hash((purs_str_t*)key);
+
+		purs_record_node_t *existing = NULL;
+		HASH_FIND_BYHASHVALUE(
 			hh,
 			x->root,
-			entry->key,
-			utf8size(entry->key),
-			entry
-		);
+			key->data,
+			key->data_len,
+			key->hash,
+			existing);
+
+		if (existing != NULL /* swap */) {
+			PURS_ANY_RELEASE(existing->value);
+			PURS_ANY_RETAIN(value);
+			existing->value = value;
+		} else {
+			// prepare entry
+			purs_record_node_t *entry = purs_new(purs_record_node_t);
+			entry->key = key;
+			entry->value = value;
+
+			// retain value and key
+			PURS_RC_RETAIN(key);
+			PURS_ANY_RETAIN(value);
+
+			HASH_ADD_KEYPTR_BYHASHVALUE(
+				hh,
+				x->root,
+				key->data,
+				key->data_len,
+				key->hash,
+				entry);
+		}
 	}
 }
 
-purs_any_t* purs_record_find_by_key(const purs_record_t * record,
-				    const void * key) {
+purs_any_t* purs_record_find_by_key(const purs_record_t *record,
+				    const purs_str_t *key) {
 	if (record == NULL) return NULL;
 	purs_record_node_t *result;
-	size_t len = utf8size(key);
-	HASH_FIND(hh, record->root, key, len, result);
+
+	// fill hash and length cache
+	purs_str_force_hash((purs_str_t*)key);
+
+	HASH_FIND_BYHASHVALUE(hh,
+			      record->root,
+			      key->data,
+			      key->data_len,
+			      key->hash,
+			      result);
 	if (result == NULL) return NULL;
 	return &result->value;
 }

@@ -23,6 +23,7 @@ import Language.PureScript.CodeGen.C.AST as AST
 import Language.PureScript.CodeGen.CompileError (CompileError(..))
 
 shouldInline :: AST -> Boolean
+shouldInline (AST.App (AST.Var "purs_any_int") [AST.NumericLiteral _]) = true
 shouldInline (AST.Var _) = true
 shouldInline (AST.NumericLiteral _) = true
 shouldInline (AST.CharLiteral _) = true
@@ -98,7 +99,7 @@ isUpdated var1 = everythingM (||) go
 -- note: refer to `exprToAst` in 'Language.PureScript.CodeGen.C'
 isDict :: (String /\ String) -> AST -> Boolean
 isDict (moduleName /\ dictName) (AST.Var n) =
-  n == moduleName <> "_" <> dictName <> "$" -- XXX document '$' suffix
+  n == moduleName <> "_" <> dictName <> "_$" -- XXX document '$' suffix
 isDict _ _ = false
 
 isDict' :: Array (String /\ String) -> AST -> Boolean

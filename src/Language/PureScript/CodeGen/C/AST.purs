@@ -5,7 +5,7 @@ module Language.PureScript.CodeGen.C.AST
   , Type(..)
   , PrimitiveType(..)
   , TypeQualifier(..)
-  , ValueQualifier
+  , ValueQualifier(..)
   , FunctionQualifier(..)
   , everywhere
   , everywhereM
@@ -104,7 +104,6 @@ instance showFunctionQual :: Show FunctionQualifier where
   show = genericShow
 
 data ValueQualifier
-  = Ref
 
 derive instance genericValueQual :: Rep.Generic ValueQualifier _
 

@@ -10,17 +10,17 @@ let packages =
       { effect =
               upstream.effect
           //  { repo = "https://github.com/pure-c/purescript-effect.git"
-              , version = "a4ecc7ec7aa8c5403dcfcc0670e3cf8116c19a99"
+              , version = "57a651d69a0fbc16e2bfa364b7dede072239dcc9"
               }
       , prelude =
               upstream.prelude
           //  { repo = "https://github.com/pure-c/purescript-prelude.git"
-              , version = "ed2421cfdf09ea26c50e8177a7a5cdf9ebb078fb"
+              , version = "fd343c3aeb751b6f56fa086adf61f2c27dacf049"
               }
       , arrays =
               upstream.arrays
           //  { repo = "https://github.com/pure-c/purescript-arrays.git"
-              , version = "b9c7374a796a02aaccf2eda4919c2d96896a6a37"
+              , version = "1d680ce3a5aa2309c64be2b722bd1e01ba6963cc"
               }
       , assert =
               upstream.assert
@@ -91,17 +91,17 @@ let packages =
       , record =
               upstream.record
           //  { repo = "https://github.com/pure-c/purescript-record.git"
-              , version = "e325d0d11ac9fa178e4984c348a9229deaaa5e96"
+              , version = "b0b1176169a29102c987a07529e8607e634484bc"
               }
       , refs =
               upstream.refs
           //  { repo = "https://github.com/pure-c/purescript-refs.git"
-              , version = "102dd7fc405d70c05b43f1b0bb7ee0009e93f157"
+              , version = "50749fdbcc227959561ab89bd4d3b511aa0b55db"
               }
       , st =
               upstream.st
           //  { repo = "https://github.com/pure-c/purescript-st.git"
-              , version = "689d7d533e436c843f8bbd360b87824fd035de4f"
+              , version = "5ab05c026762fc429469a0a8860c39a6b363e210"
               }
       , tailrec = upstream.tailrec
       , transformers = upstream.transformers

@@ -1,7 +1,7 @@
 module Language.PureScript.CodeGen.C.Transforms
-  ( hoistVarDecls
-  , eraseLambdas
+  ( eraseLambdas
   , releaseResources
+  , staticStrings
   ) where
 
 import Prelude
@@ -23,16 +23,49 @@ import Data.String as Str
 import Data.Traversable (for, traverse)
 import Data.Tuple (fst, snd)
 import Data.Tuple.Nested ((/\))
-import Language.PureScript.CodeGen.C.AST (AST(..), Type, everywhereTopDown, FunctionQualifier(..)) as AST
-import Language.PureScript.CodeGen.C.AST (AST, everywhere)
+import Language.PureScript.CodeGen.C.AST (AST(..), Type(..), everywhere, everywhereM)
+import Language.PureScript.CodeGen.C.AST (AST(..), FunctionQualifier(..), Type) as AST
 import Language.PureScript.CodeGen.C.AST as Type
 import Language.PureScript.CodeGen.C.AST.Common (isReferenced) as AST
-import Language.PureScript.CodeGen.C.Common (freshInternalName', prefixInternalVar, isInternalVariable)
+import Language.PureScript.CodeGen.C.Common (freshInternalName', isInternalVariable, prefixInternalVar)
 import Language.PureScript.CodeGen.C.Optimizer.Blocks (collapseNestedBlocks)
 import Language.PureScript.CodeGen.C.Pretty as PP
 import Language.PureScript.CodeGen.CompileError (CompileError)
 import Language.PureScript.CodeGen.Runtime as R
 import Language.PureScript.CodeGen.SupplyT (class MonadSupply, freshId)
+
+staticStrings
+  :: ∀ m
+   . Monad m
+  => MonadSupply m
+  => MonadError CompileError m
+  => Array AST
+  -> m (Array AST)
+staticStrings xs = do
+  asts /\ strs <- runStateT (traverse (everywhereM convert) xs) Map.empty
+  pure $
+    (Map.toUnfoldable strs <#> \(s /\ name) ->
+      VariableIntroduction
+          { name
+          , type: RawType R.purs_str_t []
+          , qualifiers: []
+          , initialization:
+              Just
+                (App (Var "purs_str_static_lazy") [StringLiteral s])
+          }
+    ) <> asts
+
+  where
+  convert (App (Var "purs_str_static_new") [ StringLiteral s ]) = do
+    x <- State.get
+    n <- case Map.lookup s x of
+      Just n -> pure n
+      Nothing -> do
+        n <- lift (freshInternalName' "static_str")
+        n <$ State.modify (Map.insert s n)
+    pure (App R.purs_address_of [Var n])
+  convert x =
+    pure x
 
 -- | Generate code that releases intermediate results.
 -- |
@@ -93,6 +126,7 @@ releaseResources = map (map cleanup) <<< traverse (go [])
     AST.Var "purs_vec_copy"           -> Just arrayType
     AST.Var "purs_vec_splice"         -> Just arrayType
     AST.Var "purs_vec_concat"         -> Just arrayType
+    AST.Var "purs_str_static_new"     -> Just stringType
     AST.Var "purs_str_new"            -> Just stringType
     AST.Var "purs_foreign_new"        -> Just foreignType
     AST.Var "purs_record_new_va"      -> Just recordType
@@ -242,11 +276,11 @@ releaseResources = map (map cleanup) <<< traverse (go [])
                   { name: var.name
                   , type: var.type
                   , qualifiers: []
-                  , initialization:
-                      Just
-                        if var.type == R.any
-                          then AST.Var "purs_any_null"
-                          else AST.Var "NULL"
+                  , initialization: Nothing
+                      -- Just
+                      --   if var.type == R.any
+                      --     then AST.Var "purs_any_null"
+                      --     else AST.Var "NULL"
                   }
             , out # A.filter case _ of
                 AST.Var _ -> false
@@ -290,13 +324,13 @@ releaseResources = map (map cleanup) <<< traverse (go [])
             ]
 
     -- top-level variable introductions.
-    AST.VariableIntroduction v@{ initialization: Just x@(AST.Block _) } -> do
+    AST.VariableIntroduction v@{ type: Any _, initialization: Just x@(AST.Block _) } -> do
       ast' <- go parentVars x
       pure $ AST.VariableIntroduction $ v { initialization = Just ast' }
 
     -- top-level block-less variable introductions.
     -- we turn those into statement expressions.
-    AST.VariableIntroduction v@{ initialization: Just x } -> do
+    AST.VariableIntroduction v@{ type: Any _, initialization: Just x } -> do
       tmp  <- freshInternalName' "alloc"
       ast' <-
         go parentVars $
@@ -317,51 +351,6 @@ releaseResources = map (map cleanup) <<< traverse (go [])
       in AST.Function $ f { body = Just ast' }
     x ->
       pure x
-
--- | Split out variable declarations and definitions on a per-block (scope)
--- | level and hoist the declarations to the top of the scope.
-hoistVarDecls :: Array AST -> Array AST
-hoistVarDecls = identity
-  where
-  go =
-    AST.everywhereTopDown case _ of
-      AST.Block xs ->
-        AST.Block $
-          let
-            (decls /\ xs') =
-              A.foldl
-                (\(decls /\ asts) x ->
-                  case x of
-                    AST.VariableIntroduction
-                      x@{ name
-                        , type: typ
-                        , initialization: Just initialization
-                        } ->
-                      let
-                        -- XXX we may want to initilize to NULL in a seperate
-                        --     pass (after inlining), in order to avoid
-                        --     dereferencing uninitialized memory.
-                        declareVar =
-                          AST.VariableIntroduction $
-                            x { initialization = Nothing
-                              }
-                        assignVar =
-                          AST.Assignment
-                            (AST.Var x.name)
-                            initialization
-                      in
-                        (decls <> [ (name /\ declareVar) ]) /\
-                          (asts <> [ assignVar ])
-                    x ->
-                      decls /\ (asts <> [ x ])
-                ) ([] /\ []) xs
-          in
-            if A.null decls
-              then xs
-              else
-                map snd (A.nubBy (compare `on` fst) decls) <>
-                  xs'
-      x -> x
 
 -- | Erase lambdas from the AST by capturing used bindings into a scope data.
 -- | structure.

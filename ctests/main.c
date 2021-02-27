@@ -116,23 +116,29 @@ static void purs_vec_concat_test(void **state) {
 /* todo: test empty record */
 static void leak_record_test(void **state) {
 	(void) state; /* unused */
-	const purs_str_t * s1 = purs_str_new("foo");
-	const purs_str_t * s2 = purs_str_new("bar");
-	const purs_record_t * x = purs_record_new_va(2,
-						     "s1", purs_any_string(s1),
-						     "s2", purs_any_string(s2));
+	const purs_str_t *k1 = purs_str_static_new("s1");
+	const purs_str_t *k2 = purs_str_static_new("s2");
+	const purs_str_t *k3 = purs_str_static_new("s3");
+	const purs_str_t *s1 = purs_str_static_new("foo");
+	const purs_str_t *s2 = purs_str_static_new("bar");
+	const purs_record_t *x = purs_record_new_va(
+		2,
+		k1, purs_any_string(s1),
+		k2, purs_any_string(s2));
+	assert_string_equal("foo", s1->data); /* should not seg-fault */
+	assert_string_equal("bar", s2->data); /* should not seg-fault */
+	PURS_RC_RELEASE(k1);
+	PURS_RC_RELEASE(k2);
 	PURS_RC_RELEASE(s1);
 	PURS_RC_RELEASE(s2);
+	const purs_record_t *x2 = purs_record_copy_shallow(x);
 	assert_string_equal("foo", s1->data); /* should not seg-fault */
 	assert_string_equal("bar", s2->data); /* should not seg-fault */
-	const purs_record_t * x2 = purs_record_copy_shallow(x);
-	assert_string_equal("foo", s1->data); /* should not seg-fault */
-	assert_string_equal("bar", s2->data); /* should not seg-fault */
-	const purs_record_t * x3 =
+	const purs_record_t *x3 =
 		purs_record_add_multi(x2,
 				      2,
-				      "s3", purs_any_string(s1),
-				      "s3", purs_any_string(s1));
+				      k3, purs_any_string(s1),
+				      k3, purs_any_string(s1));
 	PURS_RC_RELEASE(x);
 	assert_string_equal("foo", s1->data); /* should not seg-fault */
 	assert_string_equal("bar", s2->data); /* should not seg-fault */
@@ -141,10 +147,11 @@ static void leak_record_test(void **state) {
 	assert_string_equal("bar", s2->data); /* should not seg-fault */
 
 	/* test key lookup. note looking up on a released record seg-faults! */
-	ANY r = *purs_record_find_by_key(x3, "s3");
+	ANY r = *purs_record_find_by_key(x3, k3);
 	assert(strcmp("foo", purs_any_unsafe_get_string(r)->data) == 0); /* should not seg-fault */
 
 	PURS_RC_RELEASE(x3);
+	PURS_RC_RELEASE(k3);
 }
 
 

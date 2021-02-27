@@ -92,6 +92,10 @@ prettyPrintAst (AST.Enum { name, members }) = do
   emit $ A.intercalate ", " members
   emit " }"
 prettyPrintAst (AST.VariableIntroduction { name, type: typ, qualifiers, initialization }) = do
+  -- TODO avoid this log here, annotate accordingly instead.
+  when (typ == AST.RawType R.purs_str_t []) do
+    emit "static "
+
   unless (A.null qualifiers) do
     emit $ A.intercalate " " $ map renderValueQualifier qualifiers
     emit " "
@@ -101,7 +105,7 @@ prettyPrintAst (AST.VariableIntroduction { name, type: typ, qualifiers, initiali
   for_ initialization \ast -> do
     emit " = "
     prettyPrintAst ast
-  whenM isToplevel (emit ";")
+  whenM isToplevel (emit ";" *> lf)
 prettyPrintAst (AST.NumericLiteral (Left n)) =
   emit $ show n
 prettyPrintAst (AST.NumericLiteral (Right n)) =
@@ -205,8 +209,12 @@ prettyPrintAst (AST.App fnAst argsAsts) = do
         AST.Var "purs_tco_state_free"     -> noop
         AST.Var "purs_tco_is_done"        -> noop
         AST.Var "purs_any_force_cons"     -> noop
+        AST.Var "purs_any_force_int"      -> noop
         AST.Var "purs_any_force_array"    -> noop
         AST.Var "purs_any_force_cons_tag" -> noop
+        AST.Var "purs_str_new"            -> noop
+        AST.Var "purs_str_static"         -> noop
+        AST.Var "purs_str_static_new"     -> noop
         _ -> lf /\ pure unit /\ indent
   case A.unsnoc argsAsts of
     Nothing ->
