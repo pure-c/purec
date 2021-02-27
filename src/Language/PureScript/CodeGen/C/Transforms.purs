@@ -44,7 +44,7 @@ staticStrings
 staticStrings xs = do
   asts /\ strs <- runStateT (traverse (everywhereM convert) xs) Map.empty
   pure $
-    (Map.toUnfoldable strs <#> \(name /\ s) ->
+    (Map.toUnfoldable strs <#> \(s /\ name) ->
       VariableIntroduction
           { name
           , type: RawType R.purs_str_t []
